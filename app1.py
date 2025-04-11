@@ -50,7 +50,7 @@ if page == "性能预测":
 elif page == "逆向设计":
     st.subheader("🎯 逆向设计：根据目标性能反推配方")
 
-    target_loi = st.number_input("目标 LOI 值 (wt%)", value=50.0, step=0.1)
+    target_loi = st.number_input("目标 LOI 值 (%)", value=50.0, step=0.1)
 
     if st.button("开始逆向设计"):
         with st.spinner("正在反推出最优配方，请稍候..."):
