@@ -47,16 +47,16 @@ if page == "性能预测":
             user_input[name] = val
             total += val
 
-        # 提示：总和检查
+        # 校验
+        inputs_valid = True
         if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
             st.warning("⚠️ 当前输入为分数单位，总和必须为 100。请检查输入是否正确。")
+            inputs_valid = False
 
-    if st.button("📊 开始预测"):
-        # 如果输入总和不为100，显示错误提示
+    if st.button("📊 开始预测", disabled=not inputs_valid):
         if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
             st.error("❌ 输入的总和不为100，无法进行预测。")
         else:
-            # 如果是分数单位，归一化成 100
             if unit_type != "质量 (g)" and total > 0:
                 user_input = {k: v / total * 100 for k, v in user_input.items()}
 
@@ -105,7 +105,7 @@ elif page == "逆向设计":
                 df_result.columns = [f"{col} ({unit_suffix})" for col in df_result.columns]
 
                 st.markdown("### 📋 最优配方参数")
-                st.dataframe(df_result.round(2))  # 使用 round() 进行保留小数位数的显示
+                st.dataframe(df_result.round(2))
 
             else:
                 st.error("❌ 优化失败，请尝试更改目标 LOI 或检查模型")
