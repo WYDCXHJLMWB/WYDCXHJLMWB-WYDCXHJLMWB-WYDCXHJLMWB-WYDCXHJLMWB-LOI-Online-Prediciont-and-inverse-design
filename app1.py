@@ -105,6 +105,6 @@ elif page == "逆向设计":
                 df_result.columns = [f"{col} ({unit_suffix})" for col in df_result.columns]
 
                 st.markdown("### 📋 最优配方参数")
-                st.dataframe(df_result.style.background_gradient(cmap='Blues').format("{:.2f}"))
+                st.dataframe(df_result.format("{:.2f}"))
             else:
                 st.error("❌ 优化失败，请尝试更改目标 LOI 或检查模型")
