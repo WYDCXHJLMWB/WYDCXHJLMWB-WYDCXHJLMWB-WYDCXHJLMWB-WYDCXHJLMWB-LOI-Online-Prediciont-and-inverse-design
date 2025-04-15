@@ -1,22 +1,15 @@
-# -*- coding: utf-8 -*-
-"""
-聚丙烯极限氧指数预测与逆向设计系统
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
 from scipy.optimize import minimize
 
-# 页面设置
 st.set_page_config(page_title="聚丙烯LOI模型", layout="wide")
 st.title("🧪 聚丙烯极限氧指数模型：性能预测 与 逆向设计")
 
-# 选择功能
 page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "逆向设计"])
 
-# 加载模型和数据
+# 加载模型与缩放器
 data = joblib.load("model_and_scaler_loi.pkl")
 model = data["model"]
 scaler = data["scaler"]
@@ -26,14 +19,12 @@ feature_names = df.columns.tolist()
 if "LOI" in feature_names:
     feature_names.remove("LOI")
 
-# 添加单位选择
 unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True)
 
-# =========================== 性能预测 ===========================
 if page == "性能预测":
     st.subheader("🔬 正向预测：配方 → LOI")
 
-    with st.expander("📦 输入配方参数"):
+    with st.form("input_form"):
         user_input = {}
         total = 0
         cols = st.columns(3)
@@ -47,27 +38,26 @@ if page == "性能预测":
             user_input[name] = val
             total += val
 
-        # 校验
+        # 判断是否满足加和=100要求
         inputs_valid = True
         if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
             st.warning("⚠️ 当前输入为分数单位，总和必须为 100。请检查输入是否正确。")
             inputs_valid = False
 
-    if st.button("📊 开始预测", disabled=not inputs_valid):
-        if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
-            st.error("❌ 输入的总和不为100，无法进行预测。")
-        else:
-            if unit_type != "质量 (g)" and total > 0:
-                user_input = {k: v / total * 100 for k, v in user_input.items()}
+        submitted = st.form_submit_button("📊 开始预测", disabled=not inputs_valid)
 
-            input_array = np.array([list(user_input.values())])
-            input_scaled = scaler.transform(input_array)
-            prediction = model.predict(input_scaled)[0]
+    if submitted:
+        # 若是分数单位，则再归一化一遍
+        if unit_type != "质量 (g)" and total > 0:
+            user_input = {k: v / total * 100 for k, v in user_input.items()}
 
-            st.markdown("### 🎯 预测结果")
-            st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
+        input_array = np.array([list(user_input.values())])
+        input_scaled = scaler.transform(input_array)
+        prediction = model.predict(input_scaled)[0]
 
-# =========================== 逆向设计 ===========================
+        st.markdown("### 🎯 预测结果")
+        st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
+
 elif page == "逆向设计":
     st.subheader("🎯 逆向设计：LOI → 配方")
 
@@ -106,6 +96,5 @@ elif page == "逆向设计":
 
                 st.markdown("### 📋 最优配方参数")
                 st.dataframe(df_result.round(2))
-
             else:
                 st.error("❌ 优化失败，请尝试更改目标 LOI 或检查模型")
