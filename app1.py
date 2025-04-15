@@ -65,3 +65,37 @@ elif page == "逆向设计":
         with st.spinner("正在反推出最优配方，请稍候..."):
 
             # 初始猜测：随机生成各个特征的初始值，确保 PP 的初始值合理
+            x0 = np.random.rand(len(feature_names))
+            pp_index = feature_names.index("PP")
+            x0[pp_index] = 0.7  # 初始PP较高
+
+            bounds = [(0, 1)] * len(feature_names)
+            bounds[pp_index] = (0.5, 1.0)
+
+            # 目标函数：最小化预测 LOI 与目标 LOI 之间的差异
+            def objective(x):
+                x_norm = x / np.sum(x) * 100
+                x_scaled = scaler.transform([x_norm])
+                pred = model.predict(x_scaled)[0]
+                return abs(pred - target_loi)
+
+            # 约束：配方总和为 100
+            cons = {'type': 'eq', 'fun': lambda x: np.sum(x) - 1}
+
+            result = minimize(objective, x0, bounds=bounds, constraints=cons, method='SLSQP')
+
+            if result.success:
+                best_x = result.x / np.sum(result.x) * 100
+                pred_loi = model.predict(scaler.transform([best_x]))[0]
+
+                st.success("🎉 成功反推配方！")
+                st.metric("预测 LOI", f"{pred_loi:.2f} %")
+
+                unit_suffix = "wt%" if "质量" in unit_type else "vol%"
+                df_result = pd.DataFrame([best_x], columns=feature_names)
+                df_result.columns = [f"{col} ({unit_suffix})" for col in df_result.columns]
+
+                st.markdown("### 📋 最优配方参数")
+                st.dataframe(df_result.round(2))
+            else:
+                st.error("❌ 优化失败，请尝试更改目标 LOI 或检查模型")
