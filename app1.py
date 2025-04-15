@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Apr  9 18:36:18 2025
-
-@author: ma'wei'bin
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,8 +5,8 @@ import joblib
 from scipy.optimize import minimize
 
 # 页面设置
-st.set_page_config(page_title="性能预测与逆向设计", layout="wide")
-st.title("聚丙烯极限氧指数岭回归模型：性能预测 与 逆向设计")
+st.set_page_config(page_title="聚丙烯性能预测与逆向设计", layout="wide")
+st.title("聚丙烯极限氧指数岭回归模型：性能预测与逆向设计")
 
 # 选择功能
 page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "逆向设计"])
@@ -31,27 +24,46 @@ feature_names = df.columns.tolist()
 if "LOI" in feature_names:
     feature_names.remove("LOI")
 
+# 填料选项
+fillers = ["填料1", "填料2", "填料3"]  # 假设有三种填料
+unit_options = ["质量", "质量分数", "体积分数"]
+
 # 性能预测页面
 if page == "性能预测":
     st.subheader("🔬 根据配方预测性能（LOI）")
     
     user_input = {}
     for name in feature_names:
-        # 显示配方特征及其单位
-        user_input[name] = st.number_input(f"{name} (wt%)", value=0.0, step=0.1)
+        user_input[name] = st.number_input(f"{name}", value=0.0, step=0.1)
     
     if st.button("开始预测"):
         input_array = np.array([list(user_input.values())])
         input_scaled = scaler.transform(input_array)
         prediction = model.predict(input_scaled)[0]
-        st.success(f"预测结果：LOI = **{prediction:.3f}%**")
+        st.success(f"预测结果：LOI = **{prediction:.3f}**")
 
 # 逆向设计页面
 elif page == "逆向设计":
     st.subheader("🎯 逆向设计：根据目标性能反推配方")
+    
+    target_loi = st.number_input("目标 LOI 值", value=50.0, step=0.1)
 
-    target_loi = st.number_input("目标 LOI 值 (%)", value=50.0, step=0.1)
+    # 选择填料类型
+    selected_filler = st.selectbox("选择填料类型", fillers)
+    
+    # 选择填料的单位
+    unit = st.selectbox("选择填料单位", unit_options)
 
+    # 根据单位调整输入框
+    if unit == "质量分数" or unit == "体积分数":
+        filler_percentage = st.number_input(f"{selected_filler} ({unit})", value=0.0, step=0.1)
+    else:
+        filler_mass = st.number_input(f"{selected_filler} (质量)", value=0.0, step=0.1)
+    
+    # 确保总和为100
+    if unit == "质量分数" or unit == "体积分数":
+        total_percentage = st.number_input("其他填料总和", value=100 - filler_percentage, step=0.1)
+    
     if st.button("开始逆向设计"):
         with st.spinner("正在反推出最优配方，请稍候..."):
 
@@ -91,10 +103,8 @@ elif page == "逆向设计":
                 pred_loi = model.predict(scaler.transform([best_x]))[0]  # 使用最佳配方预测 LOI
 
                 # 显示结果
-                st.success(f"✅ 找到配方！预测 LOI = {pred_loi:.3f}%")
+                st.success(f"✅ 找到配方！预测 LOI = {pred_loi:.3f}")
                 df_result = pd.DataFrame([best_x], columns=feature_names)
-                # 为每个配方成分添加单位 wt%
-                df_result = df_result.applymap(lambda x: f"{x:.2f} wt%")
-                st.dataframe(df_result)
+                st.dataframe(df_result.style.format("{:.2f}"))
             else:
                 st.error("❌ 优化失败，请检查模型或目标值是否合理")
