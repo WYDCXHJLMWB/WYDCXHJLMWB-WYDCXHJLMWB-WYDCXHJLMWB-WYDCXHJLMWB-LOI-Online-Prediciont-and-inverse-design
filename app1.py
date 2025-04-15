@@ -29,56 +29,60 @@ if "LOI" in feature_names:
 # 添加单位选择
 unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True)
 
-# 正向预测模块
+# =========================== 性能预测 ===========================
 if page == "性能预测":
-    st.subheader("🔬 配方 → 预测 LOI")
+    st.subheader("🔬 正向预测：配方 → LOI")
 
-    st.markdown(f"📎 当前单位：**{unit_type}**")
+    with st.expander("📦 输入配方参数"):
+        user_input = {}
+        total = 0
+        cols = st.columns(3)
+        for i, name in enumerate(feature_names):
+            unit_label = {
+                "质量 (g)": "g",
+                "质量分数 (wt%)": "wt%",
+                "体积分数 (vol%)": "vol%"
+            }[unit_type]
+            val = cols[i % 3].number_input(f"{name} ({unit_label})", value=0.0, step=0.1 if "质量" in unit_type else 0.01)
+            user_input[name] = val
+            total += val
 
-    user_input = {}
-    total = 0
+        if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
+            st.warning("⚠️ 当前输入为分数单位，总和必须为 100。请检查输入是否正确。")
 
-    cols = st.columns(3)
-    for i, name in enumerate(feature_names):
-        unit_label = {
-            "质量 (g)": "g",
-            "质量分数 (wt%)": "wt%",
-            "体积分数 (vol%)": "vol%"
-        }[unit_type]
-        value = cols[i % 3].number_input(f"{name} ({unit_label})", value=0.0, step=0.1 if "质量" in unit_type else 0.01)
-        user_input[name] = value
-        total += value
+    if st.button("📊 开始预测"):
+        if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
+            st.error("❌ 输入的总和不为100，无法预测。")
+        else:
+            # 如果是分数单位，归一化成 100
+            if unit_type != "质量 (g)" and total > 0:
+                user_input = {k: v / total * 100 for k, v in user_input.items()}
 
-    # 如果是分数类单位，进行归一化为总和100
-    if "分数" in unit_type and total > 0:
-        user_input = {k: v / total * 100 for k, v in user_input.items()}
+            input_array = np.array([list(user_input.values())])
+            input_scaled = scaler.transform(input_array)
+            prediction = model.predict(input_scaled)[0]
 
-    if st.button("开始预测"):
-        input_array = np.array([list(user_input.values())])
-        input_scaled = scaler.transform(input_array)
-        prediction = model.predict(input_scaled)[0]
-        st.success(f"🎯 预测结果：LOI = **{prediction:.3f}%**")
+            st.markdown("### 🎯 预测结果")
+            st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
-# 逆向设计模块
+# =========================== 逆向设计 ===========================
 elif page == "逆向设计":
-    st.subheader("🎯 LOI → 反推出配方")
+    st.subheader("🎯 逆向设计：LOI → 配方")
 
-    st.markdown(f"📎 当前配方单位：**{unit_type}**（仅支持质量分数 wt% 或体积分数 vol%）")
+    target_loi = st.number_input("🎯 请输入目标 LOI 值 (%)", value=50.0, step=0.1)
 
-    target_loi = st.number_input("🎯 目标 LOI 值 (%)", value=50.0, step=0.1)
-
-    if st.button("开始逆向设计"):
-        with st.spinner("正在反推配方中，请稍候..."):
+    if st.button("🔄 开始逆向设计"):
+        with st.spinner("正在反推出最优配方，请稍候..."):
 
             x0 = np.random.rand(len(feature_names))
             pp_index = feature_names.index("PP")
-            x0[pp_index] = 0.7  # 初始PP占比较高
+            x0[pp_index] = 0.7  # 初始PP较高
 
             bounds = [(0, 1)] * len(feature_names)
             bounds[pp_index] = (0.5, 1.0)
 
             def objective(x):
-                x_norm = x / np.sum(x) * 100  # 转为百分比
+                x_norm = x / np.sum(x) * 100
                 x_scaled = scaler.transform([x_norm])
                 pred = model.predict(x_scaled)[0]
                 return abs(pred - target_loi)
@@ -88,15 +92,17 @@ elif page == "逆向设计":
             result = minimize(objective, x0, bounds=bounds, constraints=cons, method='SLSQP')
 
             if result.success:
-                best_x = result.x / np.sum(result.x) * 100  # 转为百分比
+                best_x = result.x / np.sum(result.x) * 100
                 pred_loi = model.predict(scaler.transform([best_x]))[0]
 
-                st.success(f"✅ 成功反推配方，预测 LOI = **{pred_loi:.3f}%**")
+                st.success("🎉 成功反推配方！")
+                st.metric("预测 LOI", f"{pred_loi:.2f} %")
 
-                # 显示结果表格
-                df_result = pd.DataFrame([best_x], columns=feature_names)
                 unit_suffix = "wt%" if "质量" in unit_type else "vol%"
+                df_result = pd.DataFrame([best_x], columns=feature_names)
                 df_result.columns = [f"{col} ({unit_suffix})" for col in df_result.columns]
-                st.dataframe(df_result.style.format("{:.2f}"))
+
+                st.markdown("### 📋 最优配方参数")
+                st.dataframe(df_result.style.background_gradient(cmap='Blues').format("{:.2f}"))
             else:
-                st.error("❌ 优化失败，请尝试调整目标值或模型参数")
+                st.error("❌ 优化失败，请尝试更改目标 LOI 或检查模型")
