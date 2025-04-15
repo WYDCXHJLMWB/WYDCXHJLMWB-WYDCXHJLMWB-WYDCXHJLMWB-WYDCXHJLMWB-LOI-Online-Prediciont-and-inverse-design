@@ -38,25 +38,23 @@ if page == "性能预测":
             user_input[name] = val
             total += val
 
-        # 判断是否满足加和=100要求
-        inputs_valid = True
-        if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
-            st.warning("⚠️ 当前输入为分数单位，总和必须为 100。请检查输入是否正确。")
-            inputs_valid = False
-
-        submitted = st.form_submit_button("📊 开始预测", disabled=not inputs_valid)
+        submitted = st.form_submit_button("📊 开始预测")
 
     if submitted:
-        # 若是分数单位，则再归一化一遍
-        if unit_type != "质量 (g)" and total > 0:
-            user_input = {k: v / total * 100 for k, v in user_input.items()}
+        # 判断总和是否满足为100
+        if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
+            st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
+        else:
+            # 若是分数单位，则再归一化一遍
+            if unit_type != "质量 (g)" and total > 0:
+                user_input = {k: v / total * 100 for k, v in user_input.items()}
 
-        input_array = np.array([list(user_input.values())])
-        input_scaled = scaler.transform(input_array)
-        prediction = model.predict(input_scaled)[0]
+            input_array = np.array([list(user_input.values())])
+            input_scaled = scaler.transform(input_array)
+            prediction = model.predict(input_scaled)[0]
 
-        st.markdown("### 🎯 预测结果")
-        st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
+            st.markdown("### 🎯 预测结果")
+            st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
 elif page == "逆向设计":
     st.subheader("🎯 逆向设计：LOI → 配方")
@@ -66,35 +64,4 @@ elif page == "逆向设计":
     if st.button("🔄 开始逆向设计"):
         with st.spinner("正在反推出最优配方，请稍候..."):
 
-            x0 = np.random.rand(len(feature_names))
-            pp_index = feature_names.index("PP")
-            x0[pp_index] = 0.7  # 初始PP较高
-
-            bounds = [(0, 1)] * len(feature_names)
-            bounds[pp_index] = (0.5, 1.0)
-
-            def objective(x):
-                x_norm = x / np.sum(x) * 100
-                x_scaled = scaler.transform([x_norm])
-                pred = model.predict(x_scaled)[0]
-                return abs(pred - target_loi)
-
-            cons = {'type': 'eq', 'fun': lambda x: np.sum(x) - 1}
-
-            result = minimize(objective, x0, bounds=bounds, constraints=cons, method='SLSQP')
-
-            if result.success:
-                best_x = result.x / np.sum(result.x) * 100
-                pred_loi = model.predict(scaler.transform([best_x]))[0]
-
-                st.success("🎉 成功反推配方！")
-                st.metric("预测 LOI", f"{pred_loi:.2f} %")
-
-                unit_suffix = "wt%" if "质量" in unit_type else "vol%"
-                df_result = pd.DataFrame([best_x], columns=feature_names)
-                df_result.columns = [f"{col} ({unit_suffix})" for col in df_result.columns]
-
-                st.markdown("### 📋 最优配方参数")
-                st.dataframe(df_result.round(2))
-            else:
-                st.error("❌ 优化失败，请尝试更改目标 LOI 或检查模型")
+            # 初始猜测：随机生成各个特征的初始值，确保 PP 的初始值合理
