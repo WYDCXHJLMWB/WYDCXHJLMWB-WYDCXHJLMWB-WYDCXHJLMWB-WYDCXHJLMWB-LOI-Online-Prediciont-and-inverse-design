@@ -4,7 +4,9 @@ import numpy as np
 import joblib
 from scipy.optimize import minimize
 
-st.set_page_config(page_title="聚丙烯LOI模型", layout="wide")
+# 设置页面标题和图标
+st.set_page_config(page_title="聚丙烯LOI模型", layout="wide", page_icon="图片1.png")
+
 st.title(" 聚丙烯极限氧指数模型：性能预测 与 逆向设计")
 
 page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "逆向设计"])
