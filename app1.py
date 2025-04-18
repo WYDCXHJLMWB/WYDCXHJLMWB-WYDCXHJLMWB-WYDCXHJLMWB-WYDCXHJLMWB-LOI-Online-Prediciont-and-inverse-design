@@ -3,22 +3,21 @@ import pandas as pd
 import numpy as np
 import joblib
 from scipy.optimize import minimize
-import base64
-import requests
 
-# Function to convert image to base64 from a URL
-def image_to_base64_from_url(url):
-    response = requests.get(url)
-    return base64.b64encode(response.content).decode()
+# 设置页面配置（保持原样，图标依然是显示在浏览器标签页中）
+image_url = "https://raw.githubusercontent.com/your-username/your-repo/main/assets/图片1.png"  # 更新为你的图片 URL
+st.set_page_config(page_title="聚丙烯LOI模型", layout="wide", page_icon=image_url)
 
-# GitHub 中图片的 URL（你上传到 GitHub 仓库后的 URL）
-image_url = "https://github.com/WYDCXHJLMWB/WYDCXHJLMWB-WYDCXHJLMWB-WYDCXHJLMWB-WYDCXHJLMWB-LOI-Online-Prediciont-and-inverse-design/blob/main/%E5%9B%BE%E7%89%871.png?raw=true"  # 更新为你的图片 URL
-icon_base64 = image_to_base64_from_url(image_url)
-
-# 设置页面标题和图标
-st.set_page_config(page_title="聚丙烯LOI模型", layout="wide", page_icon=f"data:image/png;base64,{icon_base64}")
-
-st.title("聚丙烯极限氧指数模型：性能预测 与 逆向设计")
+# 在页面上插入图标与标题
+st.markdown(
+    f"""
+    <h1 style="display: flex; align-items: center;">
+        <img src="{image_url}" style="width: 40px; height: 40px; margin-right: 10px;" />
+        聚丙烯极限氧指数模型：性能预测 与 逆向设计
+    </h1>
+    """, 
+    unsafe_allow_html=True
+)
 
 page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "逆向设计"])
 
