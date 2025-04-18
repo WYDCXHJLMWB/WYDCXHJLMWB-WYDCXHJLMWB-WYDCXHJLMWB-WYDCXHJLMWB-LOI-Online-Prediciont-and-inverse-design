@@ -19,7 +19,7 @@ icon_base64 = image_to_base64(image_path)  # 转换为 base64
 st.set_page_config(page_title="聚丙烯LOI模型", layout="wide", page_icon=f"data:image/png;base64,{icon_base64}")
 
 # 图标原始尺寸：507x158，计算出比例
-width = 100  # 设置图标的宽度为100px
+width = 200  # 设置图标的宽度为100px
 height = int(158 * (width / 507))  # 计算保持比例后的高度
 
 # 在页面上插入图标与标题
