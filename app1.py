@@ -12,7 +12,7 @@ def image_to_base64_from_url(url):
     return base64.b64encode(response.content).decode()
 
 # GitHub 中图片的 URL（你上传到 GitHub 仓库后的 URL）
-image_url = "https://raw.githubusercontent.com/your-username/your-repo/main/assets/图片1.png"  # 更新为你的图片 URL
+image_url = "https://github.com/WYDCXHJLMWB/WYDCXHJLMWB-WYDCXHJLMWB-WYDCXHJLMWB-WYDCXHJLMWB-LOI-Online-Prediciont-and-inverse-design/blob/main/%E5%9B%BE%E7%89%871.png?raw=true"  # 更新为你的图片 URL
 icon_base64 = image_to_base64_from_url(image_url)
 
 # 设置页面标题和图标
