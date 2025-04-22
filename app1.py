@@ -72,15 +72,25 @@ if page == "性能预测":
             st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
         else:
             # 若是分数单位，则再归一化一遍
-            if unit_type != "质量 (g)" and total > 0:
-                user_input = {k: v / total * 100 for k, v in user_input.items()}
+            if unit_type == "质量 (g)" and total > 0:  # 判断是否为质量单位
+                # 将每个成分的质量转换为质量分数
+                user_input = {k: (v / total) * 100 for k, v in user_input.items()}  # 归一化为质量分数
 
-            input_array = np.array([list(user_input.values())])
-            input_scaled = scaler.transform(input_array)
-            prediction = model.predict(input_scaled)[0]
+            elif unit_type != "质量 (g)" and total > 0:
+                user_input = {k: v / total * 100 for k, v in user_input.items()}  # 确保总和为100
 
-            st.markdown("### 🎯 预测结果")
-            st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
+            # 检查是否仅输入了PP
+            if np.all([user_input.get(name, 0) == 0 for name in feature_names if name != "PP"]):
+                # 如果只输入了PP，强制返回LOI=17.5
+                st.markdown("### 🎯 预测结果")
+                st.metric(label="极限氧指数 (LOI)", value="17.5 %")
+            else:
+                input_array = np.array([list(user_input.values())])
+                input_scaled = scaler.transform(input_array)
+                prediction = model.predict(input_scaled)[0]
+
+                st.markdown("### 🎯 预测结果")
+                st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
 elif page == "逆向设计":
     st.subheader("🎯 逆向设计：LOI → 配方")
