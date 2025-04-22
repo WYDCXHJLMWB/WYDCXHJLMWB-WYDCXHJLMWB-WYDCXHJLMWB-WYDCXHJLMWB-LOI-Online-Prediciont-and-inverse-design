@@ -79,9 +79,9 @@ if page == "性能预测":
             elif unit_type != "质量 (g)" and total > 0:
                 user_input = {k: v / total * 100 for k, v in user_input.items()}  # 确保总和为100
 
-            # 检查是否仅输入了PP
-            if np.all([user_input.get(name, 0) == 0 for name in feature_names if name != "PP"]):
-                # 如果只输入了PP，强制返回LOI=17.5
+            # 检查是否仅输入了PP，并且PP为100
+            if np.all([user_input.get(name, 0) == 0 for name in feature_names if name != "PP"]) and user_input.get("PP", 0) == 100:
+                # 如果只输入了PP且PP为100，强制返回LOI=17.5
                 st.markdown("### 🎯 预测结果")
                 st.metric(label="极限氧指数 (LOI)", value="17.5 %")
             else:
