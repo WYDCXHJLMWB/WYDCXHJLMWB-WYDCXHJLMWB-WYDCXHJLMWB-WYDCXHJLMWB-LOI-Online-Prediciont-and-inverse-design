@@ -27,7 +27,7 @@ st.markdown(
     f"""
     <h1 style="display: flex; align-items: center;">
         <img src="data:image/png;base64,{icon_base64}" style="width: {width}px; height: {height}px; margin-right: 15px;" />
-        聚丙烯极限氧指数模型：性能预测 与 逆向设计
+        阻燃聚合物复合材料智能设计平台
     </h1>
     """, 
     unsafe_allow_html=True
