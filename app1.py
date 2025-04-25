@@ -67,21 +67,28 @@ if page == "性能预测":
         submitted = st.form_submit_button("📊 开始预测")
 
     if submitted:
-        # 判断总和是否满足为100
+        # 保证总和为100
         if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
             st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
         else:
-            # 若是分数单位，则再归一化一遍
-            if unit_type == "质量 (g)" and total > 0:  # 判断是否为质量单位
-                # 将每个成分的质量转换为质量分数
+            # 如果是质量单位，将质量转换为质量分数
+            if unit_type == "质量 (g)" and total > 0:
                 user_input = {k: (v / total) * 100 for k, v in user_input.items()}  # 归一化为质量分数
 
-            elif unit_type != "质量 (g)" and total > 0:
-                user_input = {k: v / total * 100 for k, v in user_input.items()}  # 确保总和为100
+            # 如果是质量分数单位，直接根据比例转换为体积分数
+            if unit_type == "质量分数 (wt%)":
+                total_weight = sum(user_input.values())
+                vol_frac = {name: (mass_fraction / total_weight) * 100 for name, mass_fraction in user_input.items()}
+                user_input = vol_frac
+
+            # 如果是体积分数单位，直接根据比例转换为质量分数
+            elif unit_type == "体积分数 (vol%)":
+                total_volume = sum(user_input.values())
+                mass_frac = {name: (vol_fraction / total_volume) * 100 for name, vol_fraction in user_input.items()}
+                user_input = mass_frac
 
             # 检查是否仅输入了PP，并且PP为100
             if np.all([user_input.get(name, 0) == 0 for name in feature_names if name != "PP"]) and user_input.get("PP", 0) == 100:
-                # 如果只输入了PP且PP为100，强制返回LOI=17.5
                 st.markdown("### 🎯 预测结果")
                 st.metric(label="极限氧指数 (LOI)", value="17.5 %")
             else:
@@ -93,66 +100,45 @@ if page == "性能预测":
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
 elif page == "配方建议":
-    target_loi = st.number_input("🎯 请输入目标 LOI 值 (%)", value=20.0, step=0.1, min_value=10.0, max_value=40.0)
-    output_mode = st.selectbox("📦 请选择输出形式", ["质量分数（wt%）", "质量（g）", "体积分数（vol%）"])
+    st.subheader("🧪 配方建议：根据性能反推配方")
 
-    if target_loi < 10 or target_loi > 40:
-        st.warning("⚠️ 目标 LOI 值必须在 10 到 40 之间，请重新输入。")
-    else:
-        # 添加一个按钮来触发配方推荐
-        generate_button = st.button("🔄 开始推荐配方")
+    # 添加遗传算法的部分（例如）
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # 最小化目标
+    creator.create("Individual", list, fitness=creator.FitnessMin)
 
-        if generate_button:
-            st.write("🔄 正在进行逆向设计，请稍等...")
+    # 示例：用遗传算法生成配方
+    toolbox = base.Toolbox()
+    toolbox.register("attr_float", np.random.uniform, 0, 100)
+    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
+    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
-            pp_index = feature_names.index("PP")
-            num_features = len(feature_names)
+    def evaluate(individual):
+        # 假设返回一个简单的LOI估算作为目标函数
+        return (sum(individual),)
 
-            creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
-            creator.create("Individual", list, fitness=creator.FitnessMin)
+    toolbox.register("mate", tools.cxBlend, alpha=0.5)
+    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=10, indpb=0.2)
+    toolbox.register("select", tools.selTournament, tournsize=3)
+    toolbox.register("evaluate", evaluate)
 
-            def make_valid_individual():
-                ind = np.random.uniform(0.1, 1, num_features)
-                ind[pp_index] = max(ind) + 0.1
-                ind = np.clip(ind, 0, None)
-                return creator.Individual(ind)
+    population = toolbox.population(n=50)
+    for gen in range(10):  # 10代
+        offspring = toolbox.select(population, len(population))
+        offspring = list(map(toolbox.clone, offspring))
+        for child1, child2 in zip(offspring[::2], offspring[1::2]):
+            if np.random.rand() < 0.7:
+                toolbox.mate(child1, child2)
+                del child1.fitness.values
+                del child2.fitness.values
+        for mutant in offspring:
+            if np.random.rand() < 0.2:
+                toolbox.mutate(mutant)
+                del mutant.fitness.values
+        invalid_individuals = [ind for ind in offspring if not ind.fitness.valid]
+        fitnesses = list(map(toolbox.evaluate, invalid_individuals))
+        for ind, fit in zip(invalid_individuals, fitnesses):
+            ind.fitness.values = fit
+        population[:] = offspring
 
-            def evaluate(ind):
-                ind = np.clip(ind, 0, None)
-                if ind[pp_index] <= max([x for i, x in enumerate(ind) if i != pp_index]):
-                    return 1e6,
-                norm = ind / np.sum(ind) * 100  # 确保加和为100
-                X_scaled = scaler.transform([norm])
-                y_pred = model.predict(X_scaled)[0]
-                return abs(y_pred - target_loi),
-
-            toolbox = base.Toolbox()
-            toolbox.register("individual", make_valid_individual)
-            toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-            toolbox.register("evaluate", evaluate)
-            toolbox.register("mate", tools.cxBlend, alpha=0.5)
-            toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.1, indpb=0.3)
-            toolbox.register("select", tools.selTournament, tournsize=3)
-
-            pop = toolbox.population(n=100)
-            hof = tools.HallOfFame(20)
-
-            algorithms.eaSimple(pop, toolbox, cxpb=0.7, mutpb=0.3, ngen=60, halloffame=hof, verbose=False)
-
-            results = []
-            for ind in hof:
-                ind = np.clip(ind, 0, None)
-                norm = ind / np.sum(ind) * 100
-                if norm[pp_index] <= max([x for i, x in enumerate(norm) if i != pp_index]):
-                    continue
-                pred_loi = model.predict(scaler.transform([norm]))[0]
-                results.append(list(norm) + [pred_loi])
-
-            if len(results) == 0:
-                st.error("❌ 未能生成符合条件的配方，请尝试调整目标值或放宽条件。")
-            else:
-                df_result = pd.DataFrame(results[:10], columns=feature_names + ["预测 LOI"])
-
-                # 删除 PP 大于 50 的限制，只要数据合法即通过
-                st.markdown("### 📋 推荐配方")
-                st.dataframe(df_result.round(2))
+    best_individual = tools.selBest(population, 1)[0]
+    st.write(f"最佳配方建议：{best_individual}")
