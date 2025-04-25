@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-from hyperopt import hp, fmin, tpe, STATUS_OK, Trials
+from deap import base, creator, tools, algorithms
 from sklearn.preprocessing import StandardScaler
 from PIL import Image
 import base64
@@ -94,7 +94,6 @@ if page == "性能预测":
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
 elif page == "逆向设计":
-
     target_loi = st.number_input("🎯 请输入目标 LOI 值 (%)", value=50.0, step=0.1)
 
     if st.button("🔄 开始逆向设计"):
@@ -107,44 +106,39 @@ elif page == "逆向设计":
             pp_index = feature_names.index("PP")
             bounds["PP"] = (50, 100)  # 设定PP的范围更高一些
 
-            # 目标函数：最小化预测 LOI 与目标 LOI 之间的差异
-            def objective(params):
-                # 将参数归一化，使总和为100
-                params_norm = np.array(params) / sum(params) * 100
-                params_norm = params_norm.round(3)
-                
-                # 标准化输入并预测
-                params_scaled = scaler.transform([params_norm])
-                prediction = model.predict(params_scaled)[0]
+            # 遗传算法优化（DEAP）
+            creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+            creator.create("Individual", list, fitness=creator.FitnessMin)
 
-                # 返回误差
-                return abs(prediction - target_loi)
+            def evaluate(individual):
+                individual_norm = np.array(individual) / sum(individual) * 100  # 确保总和为100
+                individual_norm = individual_norm.round(3)
+                scaled_input = scaler.transform([individual_norm])
+                prediction = model.predict(scaled_input)[0]
+                return abs(prediction - target_loi),
 
-            # 配方搜索空间
-            space = [hp.uniform(feature, bounds[feature][0], bounds[feature][1]) for feature in feature_names]
-            
-            # 运行Hyperopt优化
-            trials = Trials()
-            best = fmin(
-                fn=objective,
-                space=space,
-                algo=tpe.suggest,
-                max_evals=100,
-                trials=trials
-            )
-            
-            # 显示结果
-            best_params = np.array([best[feature] for feature in feature_names])
-            best_params_norm = best_params / sum(best_params) * 100
-            best_prediction = model.predict(scaler.transform([best_params_norm]))[0]
+            toolbox = base.Toolbox()
+            toolbox.register("attr_float", np.random.uniform, 0.01, 1.0)
+            toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
+            toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+            toolbox.register("evaluate", evaluate)
+            toolbox.register("mate", tools.cxBlend, alpha=0.5)
+            toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.1, indpb=0.2)
+            toolbox.register("select", tools.selTournament, tournsize=3)
+
+            population = toolbox.population(n=50)
+            algorithms.eaSimple(population, toolbox, cxpb=0.7, mutpb=0.2, ngen=50, verbose=True)
+
+            best_individual = tools.selBest(population, 1)[0]
+            best_individual_norm = np.array(best_individual) / sum(best_individual) * 100  # 确保总和为100
+            best_prediction = model.predict(scaler.transform([best_individual_norm]))[0]
 
             st.success("🎉 成功反推配方！")
             st.metric("预测 LOI", f"{best_prediction:.2f} %")
 
             # 显示最优配方
-            df_result = pd.DataFrame([best_params_norm], columns=feature_names)
+            df_result = pd.DataFrame([best_individual_norm], columns=feature_names)
             df_result.columns = [f"{col} (wt%)" for col in df_result.columns]
 
             st.markdown("### 📋 最优配方参数")
             st.dataframe(df_result.round(2))
-
