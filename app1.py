@@ -161,6 +161,7 @@ elif page == "配方建议":
                 # 显式确保包含PP列
                 if "PP" not in df_result.columns:
                     st.warning("⚠️ 配方输出中缺少 PP 列，请检查模型输出是否正确。")
+                    st.write(f"模型输出列名：{df_result.columns}")
 
                 # 如果输出为质量分数或体积分数且PP小于50，给出警告
                 if output_mode in ["质量分数（wt%）", "体积分数（vol%）"]:
