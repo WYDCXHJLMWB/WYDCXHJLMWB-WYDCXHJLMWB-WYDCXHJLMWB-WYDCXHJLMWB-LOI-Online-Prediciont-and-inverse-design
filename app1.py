@@ -132,7 +132,8 @@ elif page == "配方建议":
         # 将个体（配方）转换为字典形式
         user_input = dict(zip(feature_names, individual))
         
-        # 保证配方总和为100，必要时进行调整
+        # 保证PP不少于50，且总和为100
+        user_input["PP"] = max(user_input["PP"], 50.0)  # 确保PP不少于50
         total = sum(user_input.values())
         if total != 100:
             user_input = {k: (v / total) * 100 for k, v in user_input.items()}  # 归一化为质量分数
@@ -189,4 +190,3 @@ elif page == "配方建议":
 
             st.write(f"最佳配方 {i+1}: {dict(zip(feature_names, user_input))}")
             st.write(f"预测的极限氧指数 (LOI): {predicted_loi:.2f} %")
-
