@@ -92,7 +92,7 @@ if page == "性能预测":
                 st.markdown("### 🎯 预测结果")
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
-elif page == "配方建议":
+elif page == "逆向设计":
     # 用户输入的目标 LOI 需要在10到40之间
     target_loi = st.number_input("🎯 请输入目标 LOI 值 (%)", value=20.0, step=0.1, min_value=10.0, max_value=40.0)
 
@@ -139,16 +139,21 @@ elif page == "配方建议":
         population = toolbox.population(n=50)
         algorithms.eaSimple(population, toolbox, cxpb=0.7, mutpb=0.2, ngen=50, verbose=True)
 
-        best_individual = tools.selBest(population, 1)[0]
-        best_individual_norm = np.array(best_individual) / sum(best_individual) * 100  # 确保总和为100
-        best_prediction = model.predict(scaler.transform([best_individual_norm]))[0]
+        # 选择10个最佳个体
+        best_individuals = tools.selBest(population, 10)
+        best_individuals_norm = [np.array(ind) / sum(ind) * 100 for ind in best_individuals]  # 确保总和为100
 
-        st.success("🎉 成功反推配方！")
-        st.metric("预测 LOI", f"{best_prediction:.2f} %")
+        # 显示10个最佳配方及其预测结果
+        st.success("🎉 成功反推多个配方！")
 
-        # 显示最优配方
-        df_result = pd.DataFrame([best_individual_norm], columns=feature_names)
-        df_result.columns = [f"{col} (wt%)" for col in df_result.columns]
+        # 显示每个配方的预测结果
+        df_results = []
+        for ind in best_individuals_norm:
+            prediction = model.predict(scaler.transform([ind]))[0]
+            df_results.append(list(ind) + [prediction])
+
+        df_result = pd.DataFrame(df_results, columns=feature_names + ["预测 LOI"])
+        df_result.columns = [f"{col} (wt%)" if col != "预测 LOI" else col for col in df_result.columns]
 
         st.markdown("### 📋 最优配方参数")
         st.dataframe(df_result.round(2))
