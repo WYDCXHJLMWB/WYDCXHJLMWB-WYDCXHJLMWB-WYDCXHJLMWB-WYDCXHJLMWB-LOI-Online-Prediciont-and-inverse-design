@@ -2,9 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-from deap import base, creator, tools, algorithms
 from sklearn.preprocessing import StandardScaler
-from PIL import Image
 import base64
 
 # Function to convert image to base64
@@ -98,9 +96,10 @@ elif page == "逆向设计":
     target_loi = st.number_input("🎯 请输入目标 LOI 值 (%)", value=50.0, step=0.1)
 
     # 检查目标 LOI 是否在有效范围内
-    if target_loi < 10 or target_loi > 40:
-        st.warning("⚠️ 目标 LOI 值必须在 10 到 40 之间，请重新输入。")
+    if target_loi < 10 or target_loi > 50:
+        st.warning("⚠️ 目标 LOI 值必须在 10 到 50 之间，请重新输入。")
     else:
+        # 提示用户进行逆向设计
         if st.button("🔄 开始逆向设计"):
             with st.spinner("正在反推出最优配方，请稍候..."):
                 # 配方范围
