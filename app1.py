@@ -113,7 +113,7 @@ elif page == "配方建议":
 
             def make_valid_individual():
                 ind = np.random.uniform(0.1, 1, num_features)
-                ind[pp_index] = max(ind) + 0.1
+                ind[pp_index] = max(ind) + 0.1  # 确保 PP 含量较高
                 ind = np.clip(ind, 0, None)
                 return creator.Individual(ind)
 
@@ -122,6 +122,11 @@ elif page == "配方建议":
                 if ind[pp_index] <= max([x for i, x in enumerate(ind) if i != pp_index]):
                     return 1e6,
                 norm = ind / np.sum(ind) * 100  # 确保加和为100
+
+                # 强制确保 PP 含量大于 50
+                if norm[pp_index] < 50:
+                    return 1e6,  # 给出惩罚值，确保 PP >= 50
+
                 X_scaled = scaler.transform([norm])
                 y_pred = model.predict(X_scaled)[0]
                 return abs(y_pred - target_loi),
@@ -169,9 +174,4 @@ elif page == "配方建议":
                 elif output_mode == "质量分数（wt%）":
                     df_result.columns = [f"{col} (wt%)" if col != "预测 LOI" else col for col in df_result.columns]
                 elif output_mode == "体积分数（vol%）":
-                    volume_fractions = df_result.iloc[:, :-1].div(df_result.iloc[:, :-1].sum(axis=1), axis=0) * 100
-                    df_result.iloc[:, :-1] = volume_fractions
-                    df_result.columns = [f"{col} (vol%)" if col != "预测 LOI" else col for col in df_result.columns]
-
-                st.markdown("### 📋 推荐配方")
-                st.dataframe(df_result.round(2))
+                    volume_fractions = df_result.iloc[:, :-1].div(df_result.iloc[:, :-1].sum(axis=1
