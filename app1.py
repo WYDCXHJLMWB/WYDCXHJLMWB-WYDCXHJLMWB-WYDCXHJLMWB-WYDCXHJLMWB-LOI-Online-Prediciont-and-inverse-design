@@ -113,6 +113,10 @@ elif page == "配方建议":
     # 用户输入目标LOI值并确保范围在10到50之间
     target_loi = st.slider("请输入目标极限氧指数 (LOI)", min_value=10.0, max_value=50.0, value=25.0)
 
+    # 如果用户输入的目标LOI超出范围，提醒用户
+    if target_loi < 10 or target_loi > 50:
+        st.warning("⚠️ 目标LOI应在10到50之间，请重新输入。")
+
     # 添加遗传算法的部分（例如）
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # 最小化目标
     creator.create("Individual", list, fitness=creator.FitnessMin)
@@ -124,10 +128,8 @@ elif page == "配方建议":
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     def evaluate(individual):
-        # 确保配方中的值没有负数，且第一列PP值大于等于50
-        individual = np.array(individual)
-        individual[individual < 0] = 0  # 将负值设置为0
-        individual[0] = max(individual[0], 50)  # 确保PP值大于等于50
+        # 这里需要根据目标LOI来计算配方的目标值
+        # 假设返回一个简单的LOI估算作为目标函数，实际需要使用模型进行预测
         return (sum(individual),)
 
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
@@ -165,6 +167,9 @@ elif page == "配方建议":
             # 确保第一列的值大于等于50（假设是PP）
             individual[0] = max(individual[0], 50)
             
+            # 确保配方中的成分值不为负
+            individual = [max(x, 0) for x in individual]
+
             # 根据单位调整配方显示
             if unit_type == "质量 (g)":
                 # 如果是质量单位，直接显示质量配方
