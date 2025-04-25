@@ -1,5 +1,8 @@
-streamlit
 pandas
+numpy
+joblib
 scikit-learn
-openpyxl
-hyperopt
+streamlit
+deap
+Pillow
+
