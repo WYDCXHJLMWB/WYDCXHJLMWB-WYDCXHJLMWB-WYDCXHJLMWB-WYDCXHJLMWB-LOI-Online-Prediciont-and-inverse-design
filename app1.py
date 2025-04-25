@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-from scipy.optimize import minimize
+from hyperopt import hp, fmin, tpe, STATUS_OK, Trials
+from sklearn.preprocessing import StandardScaler
 from PIL import Image
 import base64
 
@@ -33,7 +34,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "逆向设计"])
+page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "配方建议"])
 
 # 加载模型与缩放器
 data = joblib.load("model_and_scaler_loi.pkl")
@@ -93,45 +94,57 @@ if page == "性能预测":
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
 elif page == "逆向设计":
-    st.subheader("🎯 逆向设计：LOI → 配方")
 
     target_loi = st.number_input("🎯 请输入目标 LOI 值 (%)", value=50.0, step=0.1)
 
     if st.button("🔄 开始逆向设计"):
         with st.spinner("正在反推出最优配方，请稍候..."):
 
-            # 初始猜测：随机生成各个特征的初始值，确保 PP 的初始值合理
-            x0 = np.random.rand(len(feature_names))
+            # 配方范围
+            bounds = {
+                feature: (0, 100) for feature in feature_names
+            }
             pp_index = feature_names.index("PP")
-            x0[pp_index] = 0.7  # 初始PP较高
-
-            bounds = [(0, 1)] * len(feature_names)
-            bounds[pp_index] = (0.5, 1.0)
+            bounds["PP"] = (50, 100)  # 设定PP的范围更高一些
 
             # 目标函数：最小化预测 LOI 与目标 LOI 之间的差异
-            def objective(x):
-                x_norm = x / np.sum(x) * 100
-                x_scaled = scaler.transform([x_norm])
-                pred = model.predict(x_scaled)[0]
-                return abs(pred - target_loi)
+            def objective(params):
+                # 将参数归一化，使总和为100
+                params_norm = np.array(params) / sum(params) * 100
+                params_norm = params_norm.round(3)
+                
+                # 标准化输入并预测
+                params_scaled = scaler.transform([params_norm])
+                prediction = model.predict(params_scaled)[0]
 
-            # 约束：配方总和为 100
-            cons = {'type': 'eq', 'fun': lambda x: np.sum(x) - 1}
+                # 返回误差
+                return abs(prediction - target_loi)
 
-            result = minimize(objective, x0, bounds=bounds, constraints=cons, method='SLSQP')
+            # 配方搜索空间
+            space = [hp.uniform(feature, bounds[feature][0], bounds[feature][1]) for feature in feature_names]
+            
+            # 运行Hyperopt优化
+            trials = Trials()
+            best = fmin(
+                fn=objective,
+                space=space,
+                algo=tpe.suggest,
+                max_evals=100,
+                trials=trials
+            )
+            
+            # 显示结果
+            best_params = np.array([best[feature] for feature in feature_names])
+            best_params_norm = best_params / sum(best_params) * 100
+            best_prediction = model.predict(scaler.transform([best_params_norm]))[0]
 
-            if result.success:
-                best_x = result.x / np.sum(result.x) * 100
-                pred_loi = model.predict(scaler.transform([best_x]))[0]
+            st.success("🎉 成功反推配方！")
+            st.metric("预测 LOI", f"{best_prediction:.2f} %")
 
-                st.success("🎉 成功反推配方！")
-                st.metric("预测 LOI", f"{pred_loi:.2f} %")
+            # 显示最优配方
+            df_result = pd.DataFrame([best_params_norm], columns=feature_names)
+            df_result.columns = [f"{col} (wt%)" for col in df_result.columns]
 
-                unit_suffix = "wt%" if "质量" in unit_type else "vol%"
-                df_result = pd.DataFrame([best_x], columns=feature_names)
-                df_result.columns = [f"{col} ({unit_suffix})" for col in df_result.columns]
+            st.markdown("### 📋 最优配方参数")
+            st.dataframe(df_result.round(2))
 
-                st.markdown("### 📋 最优配方参数")
-                st.dataframe(df_result.round(2))
-            else:
-                st.error("❌ 优化失败，请尝试更改目标 LOI 或检查模型")
