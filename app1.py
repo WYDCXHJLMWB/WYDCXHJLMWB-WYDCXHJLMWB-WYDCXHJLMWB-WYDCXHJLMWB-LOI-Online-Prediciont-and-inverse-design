@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 from sklearn.preprocessing import StandardScaler
+from deap import base, creator, tools, algorithms
 import base64
 
 # Function to convert image to base64
@@ -91,48 +92,63 @@ if page == "性能预测":
                 st.markdown("### 🎯 预测结果")
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
-elif page == "配方建议":
+elif page == "逆向设计":
     # 用户输入的目标 LOI 需要在10到40之间
-    target_loi = st.number_input("🎯 请输入目标 LOI 值 (%)", value=50.0, step=0.1)
+    target_loi = st.number_input("🎯 请输入目标 LOI 值 (%)", value=20.0, step=0.1, min_value=10.0, max_value=40.0)
 
     # 检查目标 LOI 是否在有效范围内
-    if target_loi < 10 or target_loi > 50:
-        st.warning("⚠️ 目标 LOI 值必须在 10 到 50 之间，请重新输入。")
+    if target_loi < 10 or target_loi > 40:
+        st.warning("⚠️ 目标 LOI 值必须在 10 到 40 之间，请重新输入。")
     else:
-        # 提示用户进行逆向设计
-        if st.button("🔄 开始逆向设计"):
-            with st.spinner("正在反推出最优配方，请稍候..."):
-                # 配方范围
-                bounds = {
-                    feature: (0, 100) for feature in feature_names
-                }
-                pp_index = feature_names.index("PP")
-                bounds["PP"] = (50, 100)  # 设定PP的范围更高一些
+        st.write("🔄 正在进行逆向设计，请稍等...")
 
-                # 使用随机搜索（替代遗传算法）来加速计算过程
-                best_individual = None
-                best_prediction = float("inf")
+        # 配方范围
+        bounds = {
+            feature: (0, 100) for feature in feature_names
+        }
+        pp_index = feature_names.index("PP")
+        bounds["PP"] = (50, 100)  # 设定PP的范围更高一些
 
-                # 随机搜索优化配方
-                for _ in range(1000):  # 搜索1000次
-                    individual = np.random.uniform(0, 100, len(feature_names))
-                    individual[pp_index] = np.random.uniform(50, 100)  # PP的范围为50-100
+        # 遗传算法优化（DEAP）
+        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+        creator.create("Individual", list, fitness=creator.FitnessMin)
 
-                    # 确保总和为100
-                    individual_norm = individual / sum(individual) * 100
-                    scaled_input = scaler.transform([individual_norm])
-                    prediction = model.predict(scaled_input)[0]
+        def evaluate(individual):
+            individual_norm = np.array(individual) / sum(individual) * 100  # 确保总和为100
+            individual_norm = individual_norm.round(3)
+            
+            # 确保PP的比例较大，惩罚PP比例较小的个体
+            pp_percentage = individual_norm[pp_index]
+            penalty = 0
+            if pp_percentage < 50:
+                penalty = 10  # 给较小的PP比例较大惩罚
 
-                    if abs(prediction - target_loi) < abs(best_prediction - target_loi):
-                        best_prediction = prediction
-                        best_individual = individual_norm
+            scaled_input = scaler.transform([individual_norm])
+            prediction = model.predict(scaled_input)[0]
+            return abs(prediction - target_loi) + penalty,
 
-                st.success("🎉 成功反推配方！")
-                st.metric("预测 LOI", f"{best_prediction:.2f} %")
+        toolbox = base.Toolbox()
+        toolbox.register("attr_float", np.random.uniform, 0.01, 1.0)
+        toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
+        toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+        toolbox.register("evaluate", evaluate)
+        toolbox.register("mate", tools.cxBlend, alpha=0.5)
+        toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.1, indpb=0.2)
+        toolbox.register("select", tools.selTournament, tournsize=3)
 
-                # 显示最优配方
-                df_result = pd.DataFrame([best_individual], columns=feature_names)
-                df_result.columns = [f"{col} (wt%)" for col in df_result.columns]
+        population = toolbox.population(n=50)
+        algorithms.eaSimple(population, toolbox, cxpb=0.7, mutpb=0.2, ngen=50, verbose=True)
 
-                st.markdown("### 📋 最优配方参数")
-                st.dataframe(df_result.round(2))
+        best_individual = tools.selBest(population, 1)[0]
+        best_individual_norm = np.array(best_individual) / sum(best_individual) * 100  # 确保总和为100
+        best_prediction = model.predict(scaler.transform([best_individual_norm]))[0]
+
+        st.success("🎉 成功反推配方！")
+        st.metric("预测 LOI", f"{best_prediction:.2f} %")
+
+        # 显示最优配方
+        df_result = pd.DataFrame([best_individual_norm], columns=feature_names)
+        df_result.columns = [f"{col} (wt%)" for col in df_result.columns]
+
+        st.markdown("### 📋 最优配方参数")
+        st.dataframe(df_result.round(2))
