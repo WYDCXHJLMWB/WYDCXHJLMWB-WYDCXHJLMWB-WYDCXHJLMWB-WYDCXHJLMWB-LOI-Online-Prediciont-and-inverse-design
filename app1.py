@@ -173,6 +173,20 @@ elif page == "配方建议":
                 ind.fitness.values = fit
             population[:] = offspring
 
-        # 从最后一代中选出最好的配方
-        best_individual = tools.selBest(population, 1)[0]
-        st.write("最佳配方:", dict(zip(feature_names, best_individual)))
+        # 从最后一代中选出最好的多个配方
+        best_individuals = tools.selBest(population, 10)  # 获取10个最佳配方
+
+        # 输出每个最佳配方及其预测LOI
+        for i, individual in enumerate(best_individuals):
+            user_input = dict(zip(feature_names, individual))
+            total = sum(user_input.values())
+            if total != 100:  # 确保总和为100
+                user_input = {k: (v / total) * 100 for k, v in user_input.items()}
+            
+            input_array = np.array([list(user_input.values())])
+            input_scaled = scaler.transform(input_array)
+            predicted_loi = model.predict(input_scaled)[0]
+
+            st.write(f"最佳配方 {i+1}: {dict(zip(feature_names, user_input))}")
+            st.write(f"预测的极限氧指数 (LOI): {predicted_loi:.2f} %")
+
