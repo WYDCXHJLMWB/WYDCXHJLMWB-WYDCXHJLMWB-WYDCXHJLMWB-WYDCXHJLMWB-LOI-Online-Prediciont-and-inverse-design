@@ -92,7 +92,7 @@ if page == "性能预测":
                 st.markdown("### 🎯 预测结果")
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
-elif page == "逆向设计":
+elif page == "配方建议":
     # 用户输入的目标 LOI 需要在10到40之间
     target_loi = st.number_input("🎯 请输入目标 LOI 值 (%)", value=20.0, step=0.1, min_value=10.0, max_value=40.0)
 
@@ -100,7 +100,7 @@ elif page == "逆向设计":
     if target_loi < 10 or target_loi > 40:
         st.warning("⚠️ 目标 LOI 值必须在 10 到 40 之间，请重新输入。")
     else:
-        st.write("🔄 正在进行逆向设计，请稍等...")
+        st.write("🔄 正在给出配方建议，请稍等...")
 
         # 配方范围
         bounds = {
@@ -155,5 +155,5 @@ elif page == "逆向设计":
         df_result = pd.DataFrame(df_results, columns=feature_names + ["预测 LOI"])
         df_result.columns = [f"{col} (wt%)" if col != "预测 LOI" else col for col in df_result.columns]
 
-        st.markdown("### 📋 最优配方参数")
+        st.markdown("### 📋 建议配方")
         st.dataframe(df_result.round(2))
