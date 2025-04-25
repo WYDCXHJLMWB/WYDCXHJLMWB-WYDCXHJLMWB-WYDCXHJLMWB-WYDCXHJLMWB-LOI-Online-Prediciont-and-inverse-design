@@ -124,8 +124,10 @@ elif page == "配方建议":
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     def evaluate(individual):
-        # 这里需要根据目标LOI来计算配方的目标值
-        # 假设返回一个简单的LOI估算作为目标函数，实际需要使用模型进行预测
+        # 确保配方中的值没有负数，且第一列PP值大于等于50
+        individual = np.array(individual)
+        individual[individual < 0] = 0  # 将负值设置为0
+        individual[0] = max(individual[0], 50)  # 确保PP值大于等于50
         return (sum(individual),)
 
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
