@@ -155,9 +155,12 @@ elif page == "配方建议":
 
                 # 如果输出为质量分数或体积分数且PP小于50，给出警告
                 if output_mode in ["质量分数（wt%）", "体积分数（vol%）"]:
-                    df_pp = df_result["PP (wt%)"] if output_mode == "质量分数（wt%）" else df_result["PP (vol%)"]
-                    if df_pp.min() < 50:
-                        st.warning("⚠️ 在质量分数或体积分数输出中，PP的配方至少应大于50，请重新调整目标值或输出方式。")
+                    try:
+                        df_pp = df_result["PP (wt%)"] if output_mode == "质量分数（wt%）" else df_result["PP (vol%)"]
+                        if df_pp.min() < 50:
+                            st.warning("⚠️ 在质量分数或体积分数输出中，PP的配方至少应大于50，请重新调整目标值或输出方式。")
+                    except KeyError:
+                        st.error("❌ 配方数据中缺少 PP 的列，请检查模型输出是否正确。")
                 
                 # 如果输出为质量（g），将质量分数转换为质量
                 if output_mode == "质量（g）":
