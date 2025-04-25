@@ -160,16 +160,4 @@ elif page == "配方建议":
                 ind.fitness.values = fit
             population[:] = offspring
 
-        # 获取最佳配方
-        best_individuals = tools.selBest(population, 10)  # 至少10个推荐配方
-        st.write("### 推荐的配方:")
-        for idx, individual in enumerate(best_individuals, 1):
-            # 归一化，使总和为100
-            individual = np.array(individual)
-            individual /= sum(individual)  # 归一化，确保总和为1
-            individual *= 100  # 将其调整为100
-            
-            # 确保PP最大
-            individual[0] = max(individual[0], 100 - sum(individual[1:]))  # 确保PP占比最大
-
-            st.write(f"配方 {idx}: {dict(zip(feature_names, individual))}")
+       
