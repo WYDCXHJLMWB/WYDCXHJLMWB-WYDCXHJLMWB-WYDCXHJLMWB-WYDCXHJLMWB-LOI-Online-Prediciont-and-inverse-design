@@ -111,7 +111,7 @@ elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
 
     # 用户输入目标LOI值并确保范围在10到50之间
-    target_loi = st.slider("请输入目标极限氧指数 (LOI)", min_value=10.0, max_value=50.0, value=25.0)
+    target_loi = st.number_input("请输入目标极限氧指数 (LOI)", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
 
     # 如果用户输入的目标LOI超出范围，提醒用户
     if target_loi < 10 or target_loi > 50:
