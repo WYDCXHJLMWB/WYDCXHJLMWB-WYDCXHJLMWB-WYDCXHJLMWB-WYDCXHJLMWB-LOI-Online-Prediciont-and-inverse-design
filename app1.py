@@ -174,4 +174,9 @@ elif page == "配方建议":
                 elif output_mode == "质量分数（wt%）":
                     df_result.columns = [f"{col} (wt%)" if col != "预测 LOI" else col for col in df_result.columns]
                 elif output_mode == "体积分数（vol%）":
-                    volume_fractions = df_result.iloc[:, :-1].div(df_result.iloc[:, :-1].sum(axis=1
+                    volume_fractions = df_result.iloc[:, :-1].div(df_result.iloc[:, :-1].sum(axis=1), axis=0) * 100
+                    df_result.iloc[:, :-1] = volume_fractions
+                    df_result.columns = [f"{col} (vol%)" if col != "预测 LOI" else col for col in df_result.columns]
+
+                st.write("### 推荐配方（前10个）")
+                st.write(df_result)
