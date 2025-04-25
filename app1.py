@@ -1,8 +1,39 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from deap import base, creator, tools
 import joblib
+from sklearn.preprocessing import StandardScaler
+from deap import base, creator, tools, algorithms
+import base64
+
+# Function to convert image to base64
+def image_to_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()
+
+# 设置页面配置（保持原样，图标依然是显示在浏览器标签页中）
+image_path = "图片1.png"  # 使用上传的图片路径
+icon_base64 = image_to_base64(image_path)  # 转换为 base64
+
+# 设置页面标题和图标
+st.set_page_config(page_title="聚丙烯LOI模型", layout="wide", page_icon=f"data:image/png;base64,{icon_base64}")
+
+# 图标原始尺寸：507x158，计算出比例
+width = 200  # 设置图标的宽度为100px
+height = int(158 * (width / 507))  # 计算保持比例后的高度
+
+# 在页面上插入图标与标题
+st.markdown(
+    f"""
+    <h1 style="display: flex; align-items: center;">
+        <img src="data:image/png;base64,{icon_base64}" style="width: {width}px; height: {height}px; margin-right: 15px;" />
+        阻燃聚合物复合材料智能设计平台
+    </h1>
+    """, 
+    unsafe_allow_html=True
+)
+
+page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "配方建议"])
 
 # 加载模型与缩放器
 data = joblib.load("model_and_scaler_loi.pkl")
@@ -15,8 +46,6 @@ if "LOI" in feature_names:
     feature_names.remove("LOI")
 
 unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True)
-
-page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "配方建议"])
 
 if page == "性能预测":
     st.subheader("🔬 正向预测：配方 → LOI")
@@ -82,11 +111,7 @@ elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
 
     # 用户输入目标LOI值并确保范围在10到50之间
-    target_loi = st.number_input("请输入目标极限氧指数 (LOI)", min_value=10.0, max_value=50.0, value=25.0)
-
-    # 如果输入的目标值不在范围内，显示警告
-    if target_loi < 10 or target_loi > 50:
-        st.warning("⚠️ 请输入10到50之间的有效LOI目标值。")
+    target_loi = st.slider("请输入目标极限氧指数 (LOI)", min_value=10.0, max_value=50.0, value=25.0)
 
     # 添加遗传算法的部分（例如）
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # 最小化目标
@@ -99,7 +124,8 @@ elif page == "配方建议":
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     def evaluate(individual):
-        # 假设返回一个简单的LOI估算作为目标函数
+        # 这里需要根据目标LOI来计算配方的目标值
+        # 假设返回一个简单的LOI估算作为目标函数，实际需要使用模型进行预测
         return (sum(individual),)
 
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
@@ -132,17 +158,19 @@ elif page == "配方建议":
 
         # 获取最佳配方
         best_individuals = tools.selBest(population, 10)  # 至少10个推荐配方
-        
-        # 修正配方中的负值，确保所有配方的成分都为正
-        for ind in best_individuals:
-            ind[:] = [max(0, value) for value in ind]  # 确保没有负值
-
-        # 确保第一列不为0
-        for ind in best_individuals:
-            ind[0] = max(0.01, ind[0])  # 第一列不能为0，确保有有效值
-
         st.write("### 推荐的配方:")
-
-        # 将配方展示成表格
-        formula_df = pd.DataFrame(best_individuals, columns=feature_names)
-        st.dataframe(formula_df)
+        for idx, individual in enumerate(best_individuals, 1):
+            # 确保第一列的值大于等于50（假设是PP）
+            individual[0] = max(individual[0], 50)
+            
+            # 根据单位调整配方显示
+            if unit_type == "质量 (g)":
+                # 如果是质量单位，直接显示质量配方
+                st.write(f"配方 {idx}: {individual}")
+            elif unit_type == "质量分数 (wt%)":
+                # 如果是质量分数单位，按质量分数显示
+                st.write(f"配方 {idx}: {individual}")
+            elif unit_type == "体积分数 (vol%)":
+                # 如果是体积分数单位，转换为体积分数显示
+                vol_fraction = {name: vol / sum(individual) * 100 for name, vol in zip(feature_names, individual)}
+                st.write(f"配方 {idx}: {vol_fraction}")
