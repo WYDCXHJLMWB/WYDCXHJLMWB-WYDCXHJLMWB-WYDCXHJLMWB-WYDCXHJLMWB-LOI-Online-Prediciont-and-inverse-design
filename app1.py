@@ -133,9 +133,11 @@ elif page == "配方建议":
         # 获取最佳配方
         best_individuals = tools.selBest(population, 10)  # 至少10个推荐配方
         
-        # 修正配方中的负值，确保所有配方的成分都为正
+        # 修正配方中的负值，确保所有配方的成分都为正，且第一列不为0
         for ind in best_individuals:
             ind[:] = [max(0, value) for value in ind]  # 确保没有负值
+            if ind[0] == 0:
+                ind[0] = 0.1  # 确保第一列不为0
 
         st.write("### 推荐的配方:")
 
