@@ -160,4 +160,6 @@ elif page == "配方建议":
                 ind.fitness.values = fit
             population[:] = offspring
 
-       
+        # 从最后一代中选出最好的配方
+        best_individual = tools.selBest(population, 1)[0]
+        st.write("最佳配方:", dict(zip(feature_names, best_individual)))
