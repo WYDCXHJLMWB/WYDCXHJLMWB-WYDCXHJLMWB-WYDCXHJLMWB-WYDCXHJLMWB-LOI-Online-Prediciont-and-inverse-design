@@ -99,65 +99,76 @@ elif page == "配方建议":
     if target_loi < 10 or target_loi > 40:
         st.warning("⚠️ 目标 LOI 值必须在 10 到 40 之间，请重新输入。")
     else:
-        st.write("🔄 正在进行逆向设计，请稍等...")
+        # 添加一个按钮来触发配方推荐
+        generate_button = st.button("🔄 开始推荐配方")
 
-        pp_index = feature_names.index("PP")
-        num_features = len(feature_names)
+        if generate_button:
+            st.write("🔄 正在进行逆向设计，请稍等...")
 
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
-        creator.create("Individual", list, fitness=creator.FitnessMin)
+            pp_index = feature_names.index("PP")
+            num_features = len(feature_names)
 
-        def make_valid_individual():
-            ind = np.random.uniform(0.1, 1, num_features)
-            ind[pp_index] = max(ind) + 0.1
-            ind = np.clip(ind, 0, None)
-            return creator.Individual(ind)
+            creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+            creator.create("Individual", list, fitness=creator.FitnessMin)
 
-        def evaluate(ind):
-            ind = np.clip(ind, 0, None)
-            if ind[pp_index] <= max([x for i, x in enumerate(ind) if i != pp_index]):
-                return 1e6,
-            norm = ind / np.sum(ind) * 100  # 确保加和为100
-            X_scaled = scaler.transform([norm])
-            y_pred = model.predict(X_scaled)[0]
-            return abs(y_pred - target_loi),
+            def make_valid_individual():
+                ind = np.random.uniform(0.1, 1, num_features)
+                ind[pp_index] = max(ind) + 0.1
+                ind = np.clip(ind, 0, None)
+                return creator.Individual(ind)
 
-        toolbox = base.Toolbox()
-        toolbox.register("individual", make_valid_individual)
-        toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-        toolbox.register("evaluate", evaluate)
-        toolbox.register("mate", tools.cxBlend, alpha=0.5)
-        toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.1, indpb=0.3)
-        toolbox.register("select", tools.selTournament, tournsize=3)
+            def evaluate(ind):
+                ind = np.clip(ind, 0, None)
+                if ind[pp_index] <= max([x for i, x in enumerate(ind) if i != pp_index]):
+                    return 1e6,
+                norm = ind / np.sum(ind) * 100  # 确保加和为100
+                X_scaled = scaler.transform([norm])
+                y_pred = model.predict(X_scaled)[0]
+                return abs(y_pred - target_loi),
 
-        pop = toolbox.population(n=100)
-        hof = tools.HallOfFame(20)
+            toolbox = base.Toolbox()
+            toolbox.register("individual", make_valid_individual)
+            toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+            toolbox.register("evaluate", evaluate)
+            toolbox.register("mate", tools.cxBlend, alpha=0.5)
+            toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.1, indpb=0.3)
+            toolbox.register("select", tools.selTournament, tournsize=3)
 
-        algorithms.eaSimple(pop, toolbox, cxpb=0.7, mutpb=0.3, ngen=60, halloffame=hof, verbose=False)
+            pop = toolbox.population(n=100)
+            hof = tools.HallOfFame(20)
 
-        results = []
-        for ind in hof:
-            ind = np.clip(ind, 0, None)
-            norm = ind / np.sum(ind) * 100
-            if norm[pp_index] <= max([x for i, x in enumerate(norm) if i != pp_index]):
-                continue
-            pred_loi = model.predict(scaler.transform([norm]))[0]
-            results.append(list(norm) + [pred_loi])
+            algorithms.eaSimple(pop, toolbox, cxpb=0.7, mutpb=0.3, ngen=60, halloffame=hof, verbose=False)
 
-        if len(results) == 0:
-            st.error("❌ 未能生成符合条件的配方，请尝试调整目标值或放宽条件。")
-        else:
-            df_result = pd.DataFrame(results[:10], columns=feature_names + ["预测 LOI"])
+            results = []
+            for ind in hof:
+                ind = np.clip(ind, 0, None)
+                norm = ind / np.sum(ind) * 100
+                if norm[pp_index] <= max([x for i, x in enumerate(norm) if i != pp_index]):
+                    continue
+                pred_loi = model.predict(scaler.transform([norm]))[0]
+                results.append(list(norm) + [pred_loi])
 
-            if output_mode == "质量（g）":
-                df_result.iloc[:, :-1] = df_result.iloc[:, :-1] * 1.0  # 总质量100g
-                df_result.columns = [f"{col} (g)" if col != "预测 LOI" else col for col in df_result.columns]
-            elif output_mode == "质量分数（wt%）":
-                df_result.columns = [f"{col} (wt%)" if col != "预测 LOI" else col for col in df_result.columns]
-            elif output_mode == "体积分数（vol%）":
-                volume_fractions = df_result.iloc[:, :-1].div(df_result.iloc[:, :-1].sum(axis=1), axis=0) * 100
-                df_result.iloc[:, :-1] = volume_fractions
-                df_result.columns = [f"{col} (vol%)" if col != "预测 LOI" else col for col in df_result.columns]
+            if len(results) == 0:
+                st.error("❌ 未能生成符合条件的配方，请尝试调整目标值或放宽条件。")
+            else:
+                df_result = pd.DataFrame(results[:10], columns=feature_names + ["预测 LOI"])
 
-            st.markdown("### 📋 推荐配方")
-            st.dataframe(df_result.round(2))
+                # 如果输出为质量分数或体积分数且PP小于50，给出警告
+                if output_mode in ["质量分数（wt%）", "体积分数（vol%）"]:
+                    df_pp = df_result["PP (wt%)"] if output_mode == "质量分数（wt%）" else df_result["PP (vol%)"]
+                    if df_pp.min() < 50:
+                        st.warning("⚠️ 在质量分数或体积分数输出中，PP的配方至少应大于50，请重新调整目标值或输出方式。")
+                
+                # 如果输出为质量（g），将质量分数转换为质量
+                if output_mode == "质量（g）":
+                    df_result.iloc[:, :-1] = df_result.iloc[:, :-1] * 1.0  # 总质量100g
+                    df_result.columns = [f"{col} (g)" if col != "预测 LOI" else col for col in df_result.columns]
+                elif output_mode == "质量分数（wt%）":
+                    df_result.columns = [f"{col} (wt%)" if col != "预测 LOI" else col for col in df_result.columns]
+                elif output_mode == "体积分数（vol%）":
+                    volume_fractions = df_result.iloc[:, :-1].div(df_result.iloc[:, :-1].sum(axis=1), axis=0) * 100
+                    df_result.iloc[:, :-1] = volume_fractions
+                    df_result.columns = [f"{col} (vol%)" if col != "预测 LOI" else col for col in df_result.columns]
+
+                st.markdown("### 📋 推荐配方")
+                st.dataframe(df_result.round(2))
