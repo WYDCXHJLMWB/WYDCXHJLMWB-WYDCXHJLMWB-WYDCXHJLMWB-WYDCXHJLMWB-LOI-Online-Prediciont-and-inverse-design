@@ -123,7 +123,7 @@ elif page == "配方建议":
 
     # 示例：用遗传算法生成配方
     toolbox = base.Toolbox()
-    toolbox.register("attr_float", np.random.uniform, 0, 1)
+    toolbox.register("attr_float", np.random.uniform, 0.01, 0.5)  # 设置最小值为0.01，避免负数
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
@@ -164,15 +164,12 @@ elif page == "配方建议":
         best_individuals = tools.selBest(population, 10)  # 至少10个推荐配方
         st.write("### 推荐的配方:")
         for idx, individual in enumerate(best_individuals, 1):
-            # 归一化，使总和为1
+            # 归一化，使总和为100
             individual = np.array(individual)
-            individual /= sum(individual)
+            individual /= sum(individual)  # 归一化，确保总和为1
+            individual *= 100  # 将其调整为100
             
             # 确保PP最大
-            individual[0] = max(individual[0], 0.5)  # 确保PP至少占50%
-            individual /= sum(individual)  # 重新归一化
+            individual[0] = max(individual[0], 100 - sum(individual[1:]))  # 确保PP占比最大
 
-            recommended_recipe = dict(zip(feature_names, individual))
-            st.write(f"推荐配方 {idx}:")
-            st.write(recommended_recipe)
-
+            st.write(f"配方 {idx}: {dict(zip(feature_names, individual))}")
