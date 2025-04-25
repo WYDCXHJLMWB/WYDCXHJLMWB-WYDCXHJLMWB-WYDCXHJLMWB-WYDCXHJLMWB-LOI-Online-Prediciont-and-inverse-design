@@ -123,7 +123,7 @@ elif page == "配方建议":
 
     # 示例：用遗传算法生成配方
     toolbox = base.Toolbox()
-    toolbox.register("attr_float", np.random.uniform, 0, 100)
+    toolbox.register("attr_float", np.random.uniform, 0, 1)
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
@@ -133,7 +133,7 @@ elif page == "配方建议":
         return (sum(individual),)
 
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
-    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=10, indpb=0.2)
+    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=0.1, indpb=0.2)
     toolbox.register("select", tools.selTournament, tournsize=3)
     toolbox.register("evaluate", evaluate)
 
@@ -164,20 +164,15 @@ elif page == "配方建议":
         best_individuals = tools.selBest(population, 10)  # 至少10个推荐配方
         st.write("### 推荐的配方:")
         for idx, individual in enumerate(best_individuals, 1):
-            # 确保第一列的值大于等于50（假设是PP）
-            individual[0] = max(individual[0], 50)
+            # 归一化，使总和为1
+            individual = np.array(individual)
+            individual /= sum(individual)
             
-            # 确保配方中的成分值不为负
-            individual = [max(x, 0) for x in individual]
+            # 确保PP最大
+            individual[0] = max(individual[0], 0.5)  # 确保PP至少占50%
+            individual /= sum(individual)  # 重新归一化
 
-            # 根据单位调整配方显示
-            if unit_type == "质量 (g)":
-                # 如果是质量单位，直接显示质量配方
-                st.write(f"配方 {idx}: {individual}")
-            elif unit_type == "质量分数 (wt%)":
-                # 如果是质量分数单位，按质量分数显示
-                st.write(f"配方 {idx}: {individual}")
-            elif unit_type == "体积分数 (vol%)":
-                # 如果是体积分数单位，转换为体积分数显示
-                vol_fraction = {name: vol / sum(individual) * 100 for name, vol in zip(feature_names, individual)}
-                st.write(f"配方 {idx}: {vol_fraction}")
+            recommended_recipe = dict(zip(feature_names, individual))
+            st.write(f"推荐配方 {idx}:")
+            st.write(recommended_recipe)
+
