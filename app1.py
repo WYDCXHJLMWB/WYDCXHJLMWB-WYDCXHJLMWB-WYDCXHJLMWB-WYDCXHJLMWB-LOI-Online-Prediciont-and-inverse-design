@@ -113,7 +113,7 @@ elif page == "配方建议":
 
             def make_valid_individual():
                 ind = np.random.uniform(0.1, 1, num_features)
-                ind[pp_index] = max(ind) + 0.1  # 确保 PP 含量较高
+                ind[pp_index] = max(ind) + 0.1
                 ind = np.clip(ind, 0, None)
                 return creator.Individual(ind)
 
@@ -122,11 +122,6 @@ elif page == "配方建议":
                 if ind[pp_index] <= max([x for i, x in enumerate(ind) if i != pp_index]):
                     return 1e6,
                 norm = ind / np.sum(ind) * 100  # 确保加和为100
-
-                # 强制确保 PP 含量大于 50
-                if norm[pp_index] < 50:
-                    return 1e6,  # 给出惩罚值，确保 PP >= 50
-
                 X_scaled = scaler.transform([norm])
                 y_pred = model.predict(X_scaled)[0]
                 return abs(y_pred - target_loi),
@@ -158,30 +153,6 @@ elif page == "配方建议":
             else:
                 df_result = pd.DataFrame(results[:10], columns=feature_names + ["预测 LOI"])
 
-                # 显式确保包含PP列
-                if "PP" not in df_result.columns:
-                    st.warning("⚠️ 配方输出中缺少 PP 列，请检查模型输出是否正确。")
-                    st.write(f"模型输出列名：{df_result.columns}")
-
-                # 如果输出为质量分数或体积分数且PP小于50，给出警告
-                if output_mode in ["质量分数（wt%）", "体积分数（vol%）"]:
-                    try:
-                        df_pp = df_result["PP (wt%)"] if output_mode == "质量分数（wt%）" else df_result["PP (vol%)"]
-                        if df_pp.min() < 50:
-                            st.warning("⚠️ 在质量分数或体积分数输出中，PP的配方至少应大于50，请重新调整目标值或输出方式。")
-                    except KeyError:
-                        st.error("❌ 配方数据中缺少 PP 的列，请检查模型输出是否正确。")
-                
-                # 如果输出为质量（g），将质量分数转换为质量
-                if output_mode == "质量（g）":
-                    df_result.iloc[:, :-1] = df_result.iloc[:, :-1] * 1.0  # 总质量100g
-                    df_result.columns = [f"{col} (g)" if col != "预测 LOI" else col for col in df_result.columns]
-                elif output_mode == "质量分数（wt%）":
-                    df_result.columns = [f"{col} (wt%)" if col != "预测 LOI" else col for col in df_result.columns]
-                elif output_mode == "体积分数（vol%）":
-                    volume_fractions = df_result.iloc[:, :-1].div(df_result.iloc[:, :-1].sum(axis=1), axis=0) * 100
-                    df_result.iloc[:, :-1] = volume_fractions
-                    df_result.columns = [f"{col} (vol%)" if col != "预测 LOI" else col for col in df_result.columns]
-
-                st.write("### 推荐配方（前10个）")
-                st.write(df_result)
+                # 删除 PP 大于 50 的限制，只要数据合法即通过
+                st.markdown("### 📋 推荐配方")
+                st.dataframe(df_result.round(2))
