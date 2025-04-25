@@ -110,6 +110,9 @@ if page == "性能预测":
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
 
+    # 用户输入目标LOI值并确保范围在10到50之间
+    target_loi = st.slider("请输入目标极限氧指数 (LOI)", min_value=10.0, max_value=50.0, value=25.0)
+
     # 添加遗传算法的部分（例如）
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # 最小化目标
     creator.create("Individual", list, fitness=creator.FitnessMin)
@@ -130,27 +133,32 @@ elif page == "配方建议":
     toolbox.register("evaluate", evaluate)
 
     population = toolbox.population(n=50)
-    for gen in range(10):  # 10代
-        offspring = toolbox.select(population, len(population))
-        offspring = list(map(toolbox.clone, offspring))
-        for child1, child2 in zip(offspring[::2], offspring[1::2]):
-            if np.random.rand() < 0.7:
-                toolbox.mate(child1, child2)
-                del child1.fitness.values
-                del child2.fitness.values
-        for mutant in offspring:
-            if np.random.rand() < 0.2:
-                toolbox.mutate(mutant)
-                del mutant.fitness.values
-        invalid_individuals = [ind for ind in offspring if not ind.fitness.valid]
-        fitnesses = list(map(toolbox.evaluate, invalid_individuals))
-        for ind, fit in zip(invalid_individuals, fitnesses):
-            ind.fitness.values = fit
-        population[:] = offspring
+    
+    # 开始推荐配方按钮
+    if st.button("开始推荐配方"):
+        # 使用遗传算法生成配方
+        for gen in range(10):  # 10代
+            offspring = toolbox.select(population, len(population))
+            offspring = list(map(toolbox.clone, offspring))
+            for child1, child2 in zip(offspring[::2], offspring[1::2]):
+                if np.random.rand() < 0.7:
+                    toolbox.mate(child1, child2)
+                    del child1.fitness.values
+                    del child2.fitness.values
+            for mutant in offspring:
+                if np.random.rand() < 0.2:
+                    toolbox.mutate(mutant)
+                    del mutant.fitness.values
+            invalid_individuals = [ind for ind in offspring if not ind.fitness.valid]
+            fitnesses = list(map(toolbox.evaluate, invalid_individuals))
+            for ind, fit in zip(invalid_individuals, fitnesses):
+                ind.fitness.values = fit
+            population[:] = offspring
 
-    best_individual = tools.selBest(population, 1)[0]
-    
-    # 确保第一列的值大于等于50（假设是PP）
-    best_individual[0] = max(best_individual[0], 50)
-    
-    st.write(f"最佳配方建议：{best_individual}")
+        # 获取最佳配方
+        best_individuals = tools.selBest(population, 10)  # 至少10个推荐配方
+        st.write("### 推荐的配方:")
+        for idx, individual in enumerate(best_individuals, 1):
+            # 确保第一列的值大于等于50（假设是PP）
+            individual[0] = max(individual[0], 50)
+            st.write(f"配方 {idx}: {individual}")
