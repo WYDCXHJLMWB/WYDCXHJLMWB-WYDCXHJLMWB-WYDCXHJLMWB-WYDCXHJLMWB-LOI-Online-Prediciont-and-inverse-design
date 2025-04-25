@@ -93,64 +93,67 @@ if page == "性能预测":
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
 elif page == "配方建议":
-    # 用户输入的目标 LOI 需要在10到40之间
     target_loi = st.number_input("🎯 请输入目标 LOI 值 (%)", value=20.0, step=0.1, min_value=10.0, max_value=40.0)
 
-    # 检查目标 LOI 是否在有效范围内
     if target_loi < 10 or target_loi > 40:
         st.warning("⚠️ 目标 LOI 值必须在 10 到 40 之间，请重新输入。")
     else:
-        st.write("🔄 正在给出配方建议，请稍等...")
+        st.write("🔄 正在进行逆向设计，请稍等...")
 
-        # 配方范围
-        bounds = {
-            feature: (0, 100) for feature in feature_names
-        }
         pp_index = feature_names.index("PP")
-        bounds["PP"] = (50, 100)  # 设定PP的范围更高一些
+        num_features = len(feature_names)
 
-        # 遗传算法优化（DEAP）
+        # DEAP 遗传算法设置
         creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
         creator.create("Individual", list, fitness=creator.FitnessMin)
 
-        def evaluate(individual):
-            individual_norm = np.array(individual) / sum(individual) * 100  # 确保总和为100
-            individual_norm = individual_norm.round(3)
-            
-            # 确保PP的比例较大，惩罚PP比例较小的个体
-            pp_percentage = individual_norm[pp_index]
-            penalty = 0
-            if pp_percentage < 50:
-                penalty = 10  # 给较小的PP比例较大惩罚
+        def evaluate(ind):
+            ind = np.array(ind)
+            if np.sum(ind) == 0:
+                return 1e6,
+            norm = ind / np.sum(ind) * 100
 
-            scaled_input = scaler.transform([individual_norm])
-            prediction = model.predict(scaled_input)[0]
-            return abs(prediction - target_loi) + penalty,
+            # 检查 PP 是否最大
+            if not all(norm[pp_index] > norm[i] for i in range(len(norm)) if i != pp_index):
+                return 1e6,  # 不满足就给非常差的适应度
+
+            X_scaled = scaler.transform([norm])
+            y_pred = model.predict(X_scaled)[0]
+            return abs(y_pred - target_loi),
 
         toolbox = base.Toolbox()
         toolbox.register("attr_float", np.random.uniform, 0.01, 1.0)
-        toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
+        toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=num_features)
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
         toolbox.register("evaluate", evaluate)
         toolbox.register("mate", tools.cxBlend, alpha=0.5)
-        toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.1, indpb=0.2)
+        toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.2, indpb=0.2)
         toolbox.register("select", tools.selTournament, tournsize=3)
 
-        population = toolbox.population(n=50)
-        algorithms.eaSimple(population, toolbox, cxpb=0.7, mutpb=0.2, ngen=50, verbose=True)
+        pop = toolbox.population(n=100)
+        hof = tools.HallOfFame(20)  # 保存前 20 个个体
 
-        # 选择10个最佳个体
-        best_individuals = tools.selBest(population, 10)
-        best_individuals_norm = [np.array(ind) / sum(ind) * 100 for ind in best_individuals]  # 确保总和为100
+        algorithms.eaSimple(pop, toolbox, cxpb=0.7, mutpb=0.3, ngen=60, halloffame=hof, verbose=True)
 
-        # 显示10个最佳配方及其预测结果
-        st.success("🎉 成功反推多个配方！")
+        results = []
+        for ind in hof:
+            ind = np.array(ind)
+            if np.sum(ind) == 0:
+                continue
+            norm = ind / np.sum(ind) * 100
+            if not all(norm[pp_index] > norm[i] for i in range(len(norm)) if i != pp_index):
+                continue  # 再次确认 PP 最大
+            pred_loi = model.predict(scaler.transform([norm]))[0]
+            results.append(list(norm) + [pred_loi])
 
-        # 显示每个配方的预测结果
-        df_results = []
-        for ind in best_individuals_norm:
-            prediction = model.predict(scaler.transform([ind]))[0]
-            df_results.append(list(ind) + [prediction])
+        if len(results) == 0:
+            st.error("❌ 未能生成符合条件的配方。请尝试调整目标值或放宽条件。")
+        else:
+            df_result = pd.DataFrame(results, columns=feature_names + ["预测 LOI"])
+            df_result.columns = [f"{col} (wt%)" if col != "预测 LOI" else col for col in df_result.columns]
+            st.markdown("### 📋 推荐配方（PP 含量最大，配比总和为 100）")
+            st.dataframe(df_result.round(2))
+
 
         df_result = pd.DataFrame(df_results, columns=feature_names + ["预测 LOI"])
         df_result.columns = [f"{col} (wt%)" if col != "预测 LOI" else col for col in df_result.columns]
