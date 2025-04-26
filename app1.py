@@ -117,7 +117,7 @@ if page == "性能预测":
 # 配方建议部分修改
 # 配方建议部分修改
 elif page == "配方建议":
-    st.subheader("🧪 配方建议：根据性能反推配方")
+       st.subheader("🧪 配方建议：根据性能反推配方")
 
     # 用户输入目标LOI值并确保范围在10到50之间
     target_loi = st.number_input("请输入目标极限氧指数 (LOI)", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
@@ -189,6 +189,7 @@ population = toolbox.population(n=50)
 # 开始推荐配方按钮
 if st.button("开始推荐配方"):
     # 使用遗传算法生成配方
+    results = []
     for gen in range(10):  # 10代
         offspring = toolbox.select(population, len(population))
         offspring = list(map(toolbox.clone, offspring))
@@ -208,14 +209,20 @@ if st.button("开始推荐配方"):
         population[:] = offspring
 
     # 从最后一代中选出最好的配方
-    best_individual = tools.selBest(population, 1)[0]
+    best_individuals = tools.selBest(population, 10)  # 选出10个最佳配方
 
     # 输出实际的配方，保证总和为100
-    total_sum = sum(best_individual)
-    if total_sum != 100:
-        best_individual = [value / total_sum * 100 for value in best_individual]
+    best_recipes = []
+    for best_individual in best_individuals:
+        total_sum = sum(best_individual)
+        if total_sum != 100:
+            best_individual = [value / total_sum * 100 for value in best_individual]
 
-    # 输出配方
-    actual_recipe = dict(zip(feature_names, best_individual))
-    st.write("最佳配方:", actual_recipe)
+        # 输出配方
+        actual_recipe = dict(zip(feature_names, best_individual))
+        best_recipes.append(actual_recipe)
 
+    # 将配方转为数据框展示
+    df_recipes = pd.DataFrame(best_recipes)
+    st.write("最佳配方建议 (前10个):")
+    st.dataframe(df_recipes)
