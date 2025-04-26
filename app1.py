@@ -123,6 +123,10 @@ elif page == "配方建议":
         # 将超参数（配方）转换为字典
         user_input = dict(zip(feature_names, params))
 
+        # 调试：检查每个成分的值和类型
+        for name, value in user_input.items():
+            print(f"Checking {name}: {value} (Type: {type(value)})")  # 调试输出每个成分的值和类型
+
         # 确保user_input是一个包含数字的字典
         if any(isinstance(v, (str, bool, list, dict)) for v in user_input.values()):
             raise ValueError("配方中的成分值必须是数值类型")
