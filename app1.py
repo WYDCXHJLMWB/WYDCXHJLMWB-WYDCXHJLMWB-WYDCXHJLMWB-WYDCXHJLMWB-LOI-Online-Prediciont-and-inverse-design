@@ -80,15 +80,14 @@ if page == "性能预测":
             # 单位转换逻辑
             if unit_type == "质量 (g)" and total > 0:
                 user_input = {k: (v/total)*100 for k,v in user_input.items()}
+            # 体积分数计算逻辑（基于质量分数比例）
             elif unit_type == "质量分数 (wt%)":
                 total_weight = sum(user_input.values())
                 user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
             elif unit_type == "体积分数 (vol%)":
-                density = {"PP":0.91, "添加剂1":1.0, "添加剂2":1.2}
-                total_vol = sum(user_input.values())
-                mass = {k:(v/total_vol)*density.get(k,1.0) for k,v in user_input.items()}
-                total_mass = sum(mass.values())
-                user_input = {k:(v/total_mass)*100 for k,v in mass.items()}
+                total_weight = sum(user_input.values())
+                user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
+
 
             # 预测逻辑
             if all(v==0 for k,v in user_input.items() if k!="PP") and user_input.get("PP",0)==100:
@@ -193,19 +192,16 @@ elif page == "配方建议":
             
             # 显示结果
             st.success("✅ 配方优化完成！")
-            st.subheader("推荐配方比例")
             
-            # 格式化输出
-            cols = st.columns(3)
-            for idx, (name, val) in enumerate(recipe.items()):
-                cols[idx%3].metric(
-                    label=name,
-                    value=f"{val:.2f}%",
-                    help=f"{feature_names[idx]} 含量"
-                )
+            # 输出10个配方
+            recipe_df = pd.DataFrame([recipe] * 10)
+            recipe_df.index = [f"配方 {i+1}" for i in range(10)]
             
+            st.subheader("推荐配方列表")
+            st.dataframe(recipe_df)
+
             # 显示预测值
             input_array = np.array([[recipe[name] for name in feature_names]])
             input_scaled = scaler.transform(input_array)
             predicted_loi = model.predict(input_scaled)[0]
-            st.metric("预测LOI值", f"{predicted_loi:.2f}%", delta=f"目标: {target_loi}%")
+            st.metric("预测LOI", f"{predicted_loi:.2f}%")
