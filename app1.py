@@ -166,44 +166,5 @@ elif page == "配方建议":
         # 确保总和为100
         individual = [(i / total) * 100 for i in individual]
         
-        # 使第一列的值最大
-        individual[0] = max(individual)
-        return individual
-
-    toolbox.register("individual", tools.initIterate, creator.Individual, create_individual)
-
-    population = toolbox.population(n=50)
-
-    # 开始推荐配方按钮
-    if st.button("开始推荐配方"):
-        # 使用遗传算法生成配方
-        results = []
-        for gen in range(10):  # 10代
-            offspring = toolbox.select(population, len(population))
-            offspring = list(map(toolbox.clone, offspring))
-
-            for child1, child2 in zip(offspring[::2], offspring[1::2]):
-                if np.random.random() < 0.7:  # 70%的概率交叉
-                    toolbox.mate(child1, child2)
-                    del child1.fitness.values
-                    del child2.fitness.values
-
-            for mutant in offspring:
-                if np.random.random() < 0.2:  # 20%的概率变异
-                    toolbox.mutate(mutant)
-                    del mutant.fitness.values
-
-            # 重新评估个体的适应度
-            invalid_individuals = [ind for ind in offspring if not ind.fitness.valid]
-            fitnesses = map(toolbox.evaluate, invalid_individuals)
-            for ind, fit in zip(invalid_individuals, fitnesses):
-                ind.fitness.values = fit
-
-            population[:] = offspring
-
-        # 获取最优解
-        best_individual = tools.selBest(population, 1)[0]
-        best_result = dict(zip(feature_names, best_individual))
-
-        st.markdown("### 🎯 建议配方")
-        st.write(best_result)
+        # 确保第一列的值大于等于50
+        individual[0] = max(individual[0], 50.0)  # 如果第一列小
