@@ -1,9 +1,16 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Apr 25 21:40:27 2025
+
+@author: ma'wei'bin
+"""
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
 from sklearn.preprocessing import StandardScaler
-from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
+from deap import base, creator, tools, algorithms
 import base64
 
 # Function to convert image to base64
@@ -107,8 +114,7 @@ if page == "性能预测":
                 st.markdown("### 🎯 预测结果")
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
-# 配方建议部分使用Hyperopt
-# 配方建议部分修改为使用 hyperopt 进行优化
+# 配方建议部分修改
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
 
@@ -119,23 +125,24 @@ elif page == "配方建议":
     if target_loi < 10 or target_loi > 50:
         st.warning("⚠️ 目标LOI应在10到50之间，请重新输入。")
 
-    # 导入 hyperopt 相关库
-    from hyperopt import fmin, tpe, hp, Trials
-    import numpy as np
+    # 添加遗传算法的部分
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # 最小化目标
+    creator.create("Individual", list, fitness=creator.FitnessMin)
 
-    # 定义目标函数
-    def objective(params):
-        # 将超参数（配方）转换为字典
-        user_input = dict(zip(feature_names, params))
+    # 示例：用遗传算法生成配方
+    toolbox = base.Toolbox()
+    toolbox.register("attr_float", np.random.uniform, 0.01, 0.5)  # 设置最小值为0.01，避免负数
+    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
+    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
+    def evaluate(individual):
+        # 将个体（配方）转换为字典形式
+        user_input = dict(zip(feature_names, individual))
+        
         # 保证配方总和为100，必要时进行调整
         total = sum(user_input.values())
         if total != 100:
             user_input = {k: (v / total) * 100 for k, v in user_input.items()}  # 归一化为质量分数
-
-        # 检查配方中的值是否为有效数字，并且每个值在合理范围内
-        if any(value < 0 or value > 100 for value in user_input.values()):
-            return 1e6  # 如果有非法值，返回一个大目标值
 
         # 使用模型进行LOI预测
         input_array = np.array([list(user_input.values())])
@@ -143,25 +150,37 @@ elif page == "配方建议":
         predicted_loi = model.predict(input_scaled)[0]
         
         # 返回LOI与目标LOI之间的差异，作为目标函数值
-        return abs(predicted_loi - target_loi),  # 返回元组，符合 hyperopt 规范
+        return abs(predicted_loi - target_loi),  # 返回元组，符合遗传算法的要求
 
-    # 定义搜索空间
-    space = {name: hp.uniform(name, 0.01, 100) for name in feature_names}
+    toolbox.register("mate", tools.cxBlend, alpha=0.5)
+    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=0.1, indpb=0.2)
+    toolbox.register("select", tools.selTournament, tournsize=3)
+    toolbox.register("evaluate", evaluate)
 
-    # 设置 hyperopt 的 Trials 对象，用于记录搜索过程中的各个结果
-    trials = Trials()
+    population = toolbox.population(n=50)
+    
+    # 开始推荐配方按钮
+    if st.button("开始推荐配方"):
+        # 使用遗传算法生成配方
+        for gen in range(10):  # 10代
+            offspring = toolbox.select(population, len(population))
+            offspring = list(map(toolbox.clone, offspring))
+            for child1, child2 in zip(offspring[::2], offspring[1::2]):
+                if np.random.rand() < 0.7:
+                    toolbox.mate(child1, child2)
+                    del child1.fitness.values
+                    del child2.fitness.values
+            for mutant in offspring:
+                if np.random.rand() < 0.2:
+                    toolbox.mutate(mutant)
+                    del mutant.fitness.values
+            invalid_individuals = [ind for ind in offspring if not ind.fitness.valid]
+            fitnesses = list(map(toolbox.evaluate, invalid_individuals))
+            for ind, fit in zip(invalid_individuals, fitnesses):
+                ind.fitness.values = fit
+            population[:] = offspring
 
-    # 进行优化，最大迭代次数为100
-    best = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=100, trials=trials)
-
-    # 打印出最佳的配方
-    st.write("最佳配方:", dict(zip(feature_names, best)))
-
-    # 最佳配方预测
-    input_array = np.array([list(best.values())])
-    input_scaled = scaler.transform(input_array)
-    prediction = model.predict(input_scaled)[0]
-
-    st.markdown("### 🎯 预测结果")
-    st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
+        # 从最后一代中选出最好的配方
+        best_individual = tools.selBest(population, 1)[0]
+        st.write("最佳配方:", dict(zip(feature_names, best_individual))) 
 
