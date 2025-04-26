@@ -139,7 +139,7 @@ elif page == "配方建议":
         return abs(predicted_loi - target_loi)
 
     # 定义搜索空间
-    space = {name: hp.uniform(name, 0, 100 for name in feature_names}
+    space = {name: hp.uniform(name, 0.01, 0.5) for name in feature_names}
 
     # 使用Hyperopt进行优化
     trials = Trials()
