@@ -108,7 +108,6 @@ if page == "性能预测":
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
 # 配方建议部分使用Hyperopt
-# 配方建议部分使用Hyperopt
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
 
@@ -139,25 +138,14 @@ elif page == "配方建议":
         # 使用Atom描述符生成器（例如Atom类实例）计算描述符
         ratios = np.array(list(user_input.values()))
         ratios = ratios.round(3)
-        
-        ratio_descriptors = pd.Series(ratios, index=atoms)
-        sample_descriptors = []
-        for atom, ratio in zip(atoms, ratios):
-            atom_descriptors = atom_gen.describe(atom, onehot=True) * float(ratio)
-            atom_descriptors.name = atom
-            sample_descriptors.append(atom_descriptors)
-        
-        sample_descriptors = pd.concat(sample_descriptors, axis=1)
-        sample_descriptors_sum = sample_descriptors.sum(axis=1)
-        sample_descriptors_sum = pd.concat([ratio_descriptors, sample_descriptors_sum])
-        sample_descriptors_sum = sample_descriptors_sum[fnames]
 
-        # 特征缩放
-        sample_descriptors_sum_scaled = pd.DataFrame(sample_descriptors_sum).T
-        sample_descriptors_sum_scaled.iloc[:, :] = scaler.transform(sample_descriptors_sum_scaled)
+        # 计算描述符和预测LOI
+        sample_descriptors = pd.Series(ratios, index=feature_names)
+        sample_descriptors_sum = sample_descriptors.sum()
+        sample_descriptors_scaled = scaler.transform(sample_descriptors.values.reshape(1, -1))
 
         # 使用模型进行LOI预测
-        predicted_loi = model.predict(sample_descriptors_sum_scaled.values)[0]
+        predicted_loi = model.predict(sample_descriptors_scaled)[0]
 
         # 返回LOI与目标LOI之间的差异，作为目标函数值
         return abs(predicted_loi - target_loi)
@@ -180,6 +168,7 @@ elif page == "配方建议":
     st.dataframe(result_df)
 
     # 记录并保存新的配方
+    logpath = "配方建议日志.txt"
     formular = "-".join([f"{atom}{value}" for atom, value in best_result.items()])
     with open(logpath, "a") as f:
         f.writelines(f"{formular}, {predicted_loi}, {', '.join([str(value) for value in best_result.values()])}\n")
