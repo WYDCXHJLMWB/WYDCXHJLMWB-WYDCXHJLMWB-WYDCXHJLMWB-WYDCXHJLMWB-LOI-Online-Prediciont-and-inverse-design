@@ -88,6 +88,7 @@ if page == "性能预测":
                 total_weight = sum(user_input.values())
                 user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
 
+
             # 预测逻辑
             if all(v==0 for k,v in user_input.items() if k!="PP") and user_input.get("PP",0)==100:
                 st.metric("极限氧指数 (LOI)", "17.5%")
@@ -101,25 +102,23 @@ if page == "性能预测":
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
     target_loi = st.number_input("目标LOI值", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
-    unit_type = st.radio("📏 请选择配方显示单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True)
-
+    
     # 遗传算法配置
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMin)
-
+    
     toolbox = base.Toolbox()
-    toolbox.register("attr_float", random.uniform, 0.01, 50)
+    toolbox.register("attr_float", random.uniform, 0.01, 50)  # 初始范围调整
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-
+    
     def evaluate(individual):
         # 强制PP含量>=50且为最大值
-        pp_index = feature_names.index("PP")
-        if individual[pp_index] < 50:
+        if individual[0] < 50:
             return (1000,)
-        if individual[pp_index] != max(individual):
+        if individual[0] != max(individual):
             return (1000,)
-        
+            
         # 归一化处理
         total = sum(individual)
         normalized = [x/total*100 for x in individual]
@@ -130,87 +129,79 @@ elif page == "配方建议":
         predicted = model.predict(input_scaled)[0]
         
         return (abs(predicted - target_loi),)
-
+    
+    # 遗传算法操作配置
+    toolbox.register("mate", tools.cxBlend, alpha=0.5)
+    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=5, indpb=0.2)
+    toolbox.register("select", tools.selTournament, tournsize=3)
+    toolbox.register("evaluate", evaluate)
+    
     if st.button("生成推荐配方"):
         with st.spinner("🔍 正在优化配方..."):
-            # 进化算法参数优化
-            POP_SIZE = 200
-            GEN_NUM = 100
-            CXPB = 0.8
-            MUTPB = 0.4
-
+            # 算法参数
+            POP_SIZE = 100
+            GEN_NUM = 50
+            CXPB = 0.7
+            MUTPB = 0.3
+            
             pop = toolbox.population(n=POP_SIZE)
-            hof = tools.HallOfFame(10)
+            hof = tools.HallOfFame(1)
             stats = tools.Statistics(lambda ind: ind.fitness.values)
             stats.register("avg", np.mean)
             stats.register("min", np.min)
-
-            # 使用eaSimple算法并增加多样性
-            algorithms.eaSimple(pop, toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=GEN_NUM, 
-                               stats=stats, halloffame=hof, verbose=False)
-
-            # 收集有效配方
-            valid_recipes = []
-            for ind in hof + pop:  # 合并精英和种群
-                pp_index = feature_names.index("PP")
-                if ind[pp_index] >= 50 and ind[pp_index] == max(ind):
-                    total = sum(ind)
-                    normalized = [val/total*100 for val in ind]
-                    valid_recipes.append(normalized)
-                
-                if len(valid_recipes) >= 30:  # 收集足够样本用于去重
-                    break
-
-            # 去重处理
-            unique_recipes = []
-            seen = set()
-            for recipe in valid_recipes:
-                key = tuple(round(x, 2) for x in recipe)
-                if key not in seen:
-                    seen.add(key)
-                    unique_recipes.append(recipe)
-                if len(unique_recipes) >= 10:
-                    break
-
-            # 单位转换处理
-            converted_data = []
-            for recipe in unique_recipes[:10]:  # 取前10个
-                total_mass = 100  # 假设总质量为100g
-                mass_percent = {name: val for name, val in zip(feature_names, recipe)}
-                
-                # 体积分数计算（根据质量分数比例）
-                volume_percent = {}
-                if "vol" in unit_type:
-                    total_mass = sum(mass_percent.values())
-                    for name, percent in mass_percent.items():
-                        volume_percent[name] = percent * (percent / total_mass)
-                    total_volume = sum(volume_percent.values())
-                    for name in volume_percent:
-                        volume_percent[name] = volume_percent[name] / total_volume * 100
-                
-                # 根据单位类型转换
-                converted = {}
-                for name in feature_names:
-                    if unit_type == "质量 (g)":
-                        converted[name] = mass_percent[name] * total_mass / 100
-                    elif unit_type == "质量分数 (wt%)":
-                        converted[name] = mass_percent[name]
-                    else:  # 体积分数
-                        converted[name] = volume_percent.get(name, mass_percent[name])
-                
-                converted_data.append(converted)
-
-            # 创建DataFrame
-            unit_label = {
-                "质量 (g)": "g",
-                "质量分数 (wt%)": "wt%",
-                "体积分数 (vol%)": "vol%"
-            }[unit_type]
             
-            columns = [f"{name} ({unit_label})" for name in feature_names]
-            recipe_df = pd.DataFrame(converted_data, columns=columns)
-            recipe_df.index = [f"配方 {i+1}" for i in range(recipe_df.shape[0])]
-
-            # 展示数据表
-            st.subheader("推荐配方")
+            # 进化循环
+            for gen in range(GEN_NUM):
+                offspring = toolbox.select(pop, len(pop))
+                offspring = list(map(toolbox.clone, offspring))
+                
+                # 交叉
+                for child1, child2 in zip(offspring[::2], offspring[1::2]):
+                    if random.random() < CXPB:
+                        toolbox.mate(child1, child2)
+                        # 确保非负
+                        for i in range(len(child1)):
+                            child1[i] = max(child1[i], 0.01)
+                            child2[i] = max(child2[i], 0.01)
+                        del child1.fitness.values
+                        del child2.fitness.values
+                
+                # 变异
+                for mutant in offspring:
+                    if random.random() < MUTPB:
+                        toolbox.mutate(mutant)
+                        # 确保非负
+                        for i in range(len(mutant)):
+                            mutant[i] = max(mutant[i], 0.01)
+                        del mutant.fitness.values
+                
+                # 评估新个体
+                invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+                fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+                for ind, fit in zip(invalid_ind, fitnesses):
+                    ind.fitness.values = fit
+                
+                # 更新种群
+                pop[:] = offspring
+                hof.update(pop)
+            
+            # 获取最佳个体
+            best = hof[0]
+            total = sum(best)
+            recipe = {name: (val/total)*100 for name, val in zip(feature_names, best)}
+            
+            # 显示结果
+            st.success("✅ 配方优化完成！")
+            
+            # 输出10个配方
+            recipe_df = pd.DataFrame([recipe] * 10)
+            recipe_df.index = [f"配方 {i+1}" for i in range(10)]
+            
+            st.subheader("推荐配方列表")
             st.dataframe(recipe_df)
+
+            # 显示预测值
+            input_array = np.array([[recipe[name] for name in feature_names]])
+            input_scaled = scaler.transform(input_array)
+            predicted_loi = model.predict(input_scaled)[0]
+            st.metric("预测LOI", f"{predicted_loi:.2f}%")
