@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Apr 25 21:40:27 2025
-
-@author: ma'wei'bin
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -191,9 +184,9 @@ elif page == "配方建议":
         # 从最后一代中选出最好的配方
         best_individual = tools.selBest(population, 1)[0]
         
-        # 输出10个最佳配方（在遗传算法迭代后）
+        # 输出10个最佳配方（在遗传算法迭代后）        
         best_individuals = tools.selBest(population, 10)
-        
+
         # 转换为数据框形式，并且确保单位正确
         unit_label = {
             "质量 (g)": "g",
@@ -204,46 +197,17 @@ elif page == "配方建议":
         # 添加单位到列名
         feature_names_with_units = [f"{name} ({unit_label})" for name in feature_names]
 
-        if unit_type == "质量 (g)":
-            # 质量单位直接输出
-            output_df = pd.DataFrame(best_individuals, columns=feature_names_with_units)
-            output_df[output_df.columns] = output_df[output_df.columns].round(2)
-            
-            # 强制每个配方的加和为100
-            output_df["加和"] = output_df.sum(axis=1)
-            for i, row in output_df.iterrows():
-                total = row["加和"]
-                output_df.loc[i, feature_names_with_units] = row[feature_names_with_units] / total * 100  # 归一化为100
-            output_df["加和"] = output_df[feature_names_with_units].sum(axis=1).round(2)  # 更新加和列
-            output_df["单位"] = unit_label
-
-        elif unit_type == "质量分数 (wt%)":
-            # 质量分数单位显示
-            output_df = pd.DataFrame(best_individuals, columns=feature_names_with_units)
-            output_df[output_df.columns] = output_df[output_df.columns].round(2)
-            
-            # 强制每个配方的加和为100
-            output_df["加和"] = output_df.sum(axis=1)
-            for i, row in output_df.iterrows():
-                total = row["加和"]
-                output_df.loc[i, feature_names_with_units] = row[feature_names_with_units] / total * 100  # 归一化为100
-            output_df["加和"] = output_df[feature_names_with_units].sum(axis=1).round(2)  # 更新加和列
-            output_df["单位"] = unit_label
-
-        elif unit_type == "体积分数 (vol%)":
-            # 体积分数单位显示，转换为质量分数
-            output_df = pd.DataFrame(best_individuals, columns=feature_names_with_units)
-            for name in feature_names:
-                output_df[name] = output_df[name] * 0.91  # 假设PP密度为0.91g/cm3
-            output_df[output_df.columns] = output_df[output_df.columns].round(2)
-            
-            # 强制每个配方的加和为100
-            output_df["加和"] = output_df.sum(axis=1)
-            for i, row in output_df.iterrows():
-                total = row["加和"]
-                output_df.loc[i, feature_names_with_units] = row[feature_names_with_units] / total * 100  # 归一化为100
-            output_df["加和"] = output_df[feature_names_with_units].sum(axis=1).round(2)  # 更新加和列
-            output_df["单位"] = unit_label
+        # 质量单位直接输出
+        output_df = pd.DataFrame(best_individuals, columns=feature_names_with_units)
+        output_df[output_df.columns] = output_df[output_df.columns].round(2)
+        
+        # 强制每个配方的加和为100
+        output_df["加和"] = output_df.sum(axis=1)
+        for i, row in output_df.iterrows():
+            total = row["加和"]
+            output_df.loc[i, feature_names_with_units] = row[feature_names_with_units] / total * 100  # 归一化为100
+        output_df["加和"] = output_df[feature_names_with_units].sum(axis=1).round(2)  # 更新加和列
+        output_df["单位"] = unit_label
 
         # 显示数据框
         st.write("推荐配方：")
