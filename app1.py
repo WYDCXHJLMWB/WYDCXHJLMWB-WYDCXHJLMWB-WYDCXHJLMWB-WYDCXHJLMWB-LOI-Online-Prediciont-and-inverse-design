@@ -115,6 +115,7 @@ if page == "性能预测":
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
 # 配方建议部分修改
+# 配方建议部分修改
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
 
@@ -182,5 +183,40 @@ elif page == "配方建议":
 
         # 从最后一代中选出最好的配方
         best_individual = tools.selBest(population, 1)[0]
-        st.write("最佳配方:", dict(zip(feature_names, best_individual)))
+        
+        # 输出10个最佳配方（在遗传算法迭代后）
+        best_individuals = tools.selBest(population, 10)
+        
+        # 转换为数据框形式，并且确保单位正确
+        unit_label = {
+            "质量 (g)": "g",
+            "质量分数 (wt%)": "wt%",
+            "体积分数 (vol%)": "vol%"
+        }[unit_type]
 
+        if unit_type == "质量 (g)":
+            # 质量单位直接输出
+            output_df = pd.DataFrame(best_individuals, columns=feature_names)
+            output_df[output_df.columns] = output_df[output_df.columns].round(2)
+            output_df["加和"] = output_df.sum(axis=1).round(2)
+            output_df["单位"] = unit_label
+
+        elif unit_type == "质量分数 (wt%)":
+            # 质量分数单位显示
+            output_df = pd.DataFrame(best_individuals, columns=feature_names)
+            output_df[output_df.columns] = output_df[output_df.columns].round(2)
+            output_df["加和"] = output_df.sum(axis=1).round(2)
+            output_df["单位"] = unit_label
+
+        elif unit_type == "体积分数 (vol%)":
+            # 体积分数单位显示，转换为质量分数
+            output_df = pd.DataFrame(best_individuals, columns=feature_names)
+            for name in feature_names:
+                output_df[name] = output_df[name] * 0.91  # 假设PP密度为0.91g/cm3
+            output_df[output_df.columns] = output_df[output_df.columns].round(2)
+            output_df["加和"] = output_df.sum(axis=1).round(2)
+            output_df["单位"] = unit_label
+
+        # 显示数据框
+        st.write("推荐配方：")
+        st.dataframe(output_df)
