@@ -1,16 +1,9 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Apr 25 21:40:27 2025
-
-@author: ma'wei'bin
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
 from sklearn.preprocessing import StandardScaler
-from deap import base, creator, tools, algorithms
+from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 import base64
 
 # Function to convert image to base64
@@ -114,7 +107,7 @@ if page == "性能预测":
                 st.markdown("### 🎯 预测结果")
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
-# 配方建议部分修改
+# 配方建议部分使用Hyperopt
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
 
@@ -125,20 +118,10 @@ elif page == "配方建议":
     if target_loi < 10 or target_loi > 50:
         st.warning("⚠️ 目标LOI应在10到50之间，请重新输入。")
 
-    # 添加遗传算法的部分
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # 最小化目标
-    creator.create("Individual", list, fitness=creator.FitnessMin)
-
-    # 示例：用遗传算法生成配方
-    toolbox = base.Toolbox()
-    toolbox.register("attr_float", np.random.uniform, 0.01, 0.5)  # 设置最小值为0.01，避免负数
-    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
-    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-
-    # 修改遗传算法部分以确保配方值为正且总和为100
-    def evaluate(individual):
-        # 将个体（配方）转换为字典形式
-        user_input = dict(zip(feature_names, individual))
+    # 使用Hyperopt优化配方
+    def objective(params):
+        # 将超参数（配方）转换为字典
+        user_input = dict(zip(feature_names, params))
         
         # 保证配方总和为100，必要时进行调整
         total = sum(user_input.values())
@@ -151,50 +134,17 @@ elif page == "配方建议":
         predicted_loi = model.predict(input_scaled)[0]
         
         # 返回LOI与目标LOI之间的差异，作为目标函数值
-        return abs(predicted_loi - target_loi),
+        return abs(predicted_loi - target_loi)
 
-    toolbox.register("mate", tools.cxBlend, alpha=0.5)
-    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=0.1, indpb=0.2)
-    toolbox.register("select", tools.selTournament, tournsize=3)
-    toolbox.register("evaluate", evaluate)
+    # 定义搜索空间
+    space = {name: hp.uniform(name, 0.01, 0.5) for name in feature_names}
 
-    # 修改个体生成方式，确保生成的个体总和为100，且第一列含量最多
-    def create_individual():
-        individual = np.random.uniform(0.01, 0.5, len(feature_names))  # 生成0.01到0.5之间的值
-        individual[0] = max(individual[0], 50.0)  # 确保第一列的值大于等于50
-        total = sum(individual)
-        individual = (individual / total) * 100  # 确保总和为100
-        return individual
-
-    population = [create_individual() for _ in range(100)]
-
-    # 运行遗传算法
-    for gen in range(100):
-        offspring = toolbox.select(population, len(population))
-        offspring = list(map(toolbox.clone, offspring))
-
-        for child1, child2 in zip(offspring[::2], offspring[1::2]):
-            if np.random.random() < 0.7:  # 70%的概率交叉
-                toolbox.mate(child1, child2)
-                del child1.fitness.values
-                del child2.fitness.values
-
-        for mutant in offspring:
-            if np.random.random() < 0.2:  # 20%的概率变异
-                toolbox.mutate(mutant)
-                del mutant.fitness.values
-
-        # 重新评估个体的适应度
-        invalid_individuals = [ind for ind in offspring if not ind.fitness.valid]
-        fitnesses = map(toolbox.evaluate, invalid_individuals)
-        for ind, fit in zip(invalid_individuals, fitnesses):
-            ind.fitness.values = fit
-
-        population[:] = offspring
+    # 使用Hyperopt进行优化
+    trials = Trials()
+    best = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=100, trials=trials)
 
     # 获取最优解并输出为数据框格式
-    best_individual = tools.selBest(population, 1)[0]
-    best_result = dict(zip(feature_names, best_individual))
+    best_result = dict(zip(feature_names, best.values()))
 
     # 将结果转换为数据框
     result_df = pd.DataFrame(list(best_result.items()), columns=["成分", "质量分数 (wt%)"])
