@@ -108,6 +108,7 @@ if page == "性能预测":
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
 # 配方建议部分使用Hyperopt
+# 配方建议部分使用Hyperopt
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
 
@@ -122,10 +123,6 @@ elif page == "配方建议":
     def objective(params):
         # 将超参数（配方）转换为字典
         user_input = dict(zip(feature_names, params))
-
-        # 确保user_input是一个包含数字的字典
-        if any(isinstance(v, (str, bool, list, dict)) for v in user_input.values()):
-            raise ValueError("配方中的成分值必须是数值类型")
 
         # 保证配方总和为100，必要时进行调整
         total = sum(user_input.values())
@@ -151,8 +148,8 @@ elif page == "配方建议":
         # 返回LOI与目标LOI之间的差异，作为目标函数值
         return abs(predicted_loi - target_loi)
 
-    # 定义搜索空间
-    space = {name: hp.uniform(name, 0.01, 100) for name in feature_names}
+    # 定义搜索空间，确保每个超参数是数值类型
+    space = {name: hp.uniform(name, 0.01, 0.5) for name in feature_names}
 
     # 使用Hyperopt进行优化
     trials = Trials()
