@@ -138,6 +138,8 @@ elif page == "配方建议":
 
     # 修改遗传算法部分以确保配方值为正且总和为100
 
+# 修改遗传算法部分以确保配方值为正、总和为100，且第一列（如"PP"）含量最多
+
 def evaluate(individual):
     # 将个体（配方）转换为字典形式
     user_input = dict(zip(feature_names, individual))
@@ -160,11 +162,22 @@ toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=0.1, indpb=0.2)
 toolbox.register("select", tools.selTournament, tournsize=3)
 toolbox.register("evaluate", evaluate)
 
-# 修改个体生成方式，确保生成的个体总和为100
+# 修改个体生成方式，确保生成的个体总和为100，且第一列含量最多
 def create_individual():
     individual = np.random.uniform(0.01, 0.5, len(feature_names))  # 生成0.01到0.5之间的随机数
     total = sum(individual)
-    individual = (individual / total) * 100  # 保证总和为100
+    
+    # 确保总和为100
+    individual = (individual / total) * 100
+    
+    # 保证第一列的值最大，例如PP
+    individual[0] = max(individual[0], sum(individual[1:]))  # 确保第一列含量最多
+    
+    # 如果第一列还是不够大，再做调整
+    total = sum(individual)
+    if total != 100:
+        individual = (individual / total) * 100  # 保证总和为100
+    
     return individual
 
 toolbox.register("individual", tools.initIterate, creator.Individual, create_individual)
@@ -203,3 +216,4 @@ if st.button("开始推荐配方"):
     # 输出配方
     actual_recipe = dict(zip(feature_names, best_individual))
     st.write("最佳配方:", actual_recipe)
+
