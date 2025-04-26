@@ -122,19 +122,23 @@ elif page == "配方建议":
     def objective(params):
         # 将超参数（配方）转换为字典
         user_input = dict(zip(feature_names, params))
-        
+
+        # 确保user_input是一个包含数字的字典
+        if any(isinstance(v, (str, bool, list, dict)) for v in user_input.values()):
+            raise ValueError("配方中的成分值必须是数值类型")
+
         # 保证配方总和为100，必要时进行调整
         total = sum(user_input.values())
-        
+
         # 如果总和不为100，进行归一化处理
         if total != 100:
             user_input = {k: (v / total) * 100 for k, v in user_input.items()}  # 归一化为质量分数
-        
+
         # 使用模型进行LOI预测
         input_array = np.array([list(user_input.values())])
         input_scaled = scaler.transform(input_array)
         predicted_loi = model.predict(input_scaled)[0]
-        
+
         # 返回LOI与目标LOI之间的差异，作为目标函数值
         return abs(predicted_loi - target_loi)
 
