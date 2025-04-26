@@ -123,10 +123,6 @@ elif page == "配方建议":
         # 将超参数（配方）转换为字典
         user_input = dict(zip(feature_names, params))
 
-        # 调试：检查每个成分的值和类型
-        for name, value in user_input.items():
-            print(f"Checking {name}: {value} (Type: {type(value)})")  # 调试输出每个成分的值和类型
-
         # 确保user_input是一个包含数字的字典
         if any(isinstance(v, (str, bool, list, dict)) for v in user_input.values()):
             raise ValueError("配方中的成分值必须是数值类型")
@@ -138,6 +134,15 @@ elif page == "配方建议":
         if total != 100:
             user_input = {k: (v / total) * 100 for k, v in user_input.items()}  # 归一化为质量分数
 
+        # 确保每个配方成分都在0到100范围内
+        for value in user_input.values():
+            if value < 0 or value > 100:
+                return 1e6  # 不符合要求，返回一个很大的目标值
+
+        # 确保第一个配方成分大于等于50
+        if user_input[feature_names[0]] < 50:
+            return 1e6  # 不符合要求，返回一个很大的目标值
+
         # 使用模型进行LOI预测
         input_array = np.array([list(user_input.values())])
         input_scaled = scaler.transform(input_array)
@@ -147,7 +152,7 @@ elif page == "配方建议":
         return abs(predicted_loi - target_loi)
 
     # 定义搜索空间
-    space = {name: hp.uniform(name, 0.01, 0.5) for name in feature_names}
+    space = {name: hp.uniform(name, 0.01, 100) for name in feature_names}
 
     # 使用Hyperopt进行优化
     trials = Trials()
