@@ -198,14 +198,26 @@ elif page == "配方建议":
             # 质量单位直接输出
             output_df = pd.DataFrame(best_individuals, columns=feature_names)
             output_df[output_df.columns] = output_df[output_df.columns].round(2)
-            output_df["加和"] = output_df.sum(axis=1).round(2)
+            
+            # 强制每个配方的加和为100
+            output_df["加和"] = output_df.sum(axis=1)
+            for i, row in output_df.iterrows():
+                total = row["加和"]
+                output_df.loc[i, feature_names] = row[feature_names] / total * 100  # 归一化为100
+            output_df["加和"] = output_df[feature_names].sum(axis=1).round(2)  # 更新加和列
             output_df["单位"] = unit_label
 
         elif unit_type == "质量分数 (wt%)":
             # 质量分数单位显示
             output_df = pd.DataFrame(best_individuals, columns=feature_names)
             output_df[output_df.columns] = output_df[output_df.columns].round(2)
-            output_df["加和"] = output_df.sum(axis=1).round(2)
+            
+            # 强制每个配方的加和为100
+            output_df["加和"] = output_df.sum(axis=1)
+            for i, row in output_df.iterrows():
+                total = row["加和"]
+                output_df.loc[i, feature_names] = row[feature_names] / total * 100  # 归一化为100
+            output_df["加和"] = output_df[feature_names].sum(axis=1).round(2)  # 更新加和列
             output_df["单位"] = unit_label
 
         elif unit_type == "体积分数 (vol%)":
@@ -214,7 +226,13 @@ elif page == "配方建议":
             for name in feature_names:
                 output_df[name] = output_df[name] * 0.91  # 假设PP密度为0.91g/cm3
             output_df[output_df.columns] = output_df[output_df.columns].round(2)
-            output_df["加和"] = output_df.sum(axis=1).round(2)
+            
+            # 强制每个配方的加和为100
+            output_df["加和"] = output_df.sum(axis=1)
+            for i, row in output_df.iterrows():
+                total = row["加和"]
+                output_df.loc[i, feature_names] = row[feature_names] / total * 100  # 归一化为100
+            output_df["加和"] = output_df[feature_names].sum(axis=1).round(2)  # 更新加和列
             output_df["单位"] = unit_label
 
         # 显示数据框
