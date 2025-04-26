@@ -151,7 +151,7 @@ elif page == "配方建议":
         predicted_loi = model.predict(input_scaled)[0]
         
         # 返回LOI与目标LOI之间的差异，作为目标函数值
-        return abs(predicted_loi - target_loi),  # 返回元组，符合遗传算法的要求
+        return abs(predicted_loi - target_loi),
 
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
     toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=0.1, indpb=0.2)
@@ -160,18 +160,14 @@ elif page == "配方建议":
 
     # 修改个体生成方式，确保生成的个体总和为100，且第一列含量最多
     def create_individual():
-        individual = np.random.uniform(0.01, 0.5, len(feature_names))  # 生成0.01到0.5之间的随机数
+        individual = np.random.uniform(0.01, 0.5, len(feature_names))  # 生成0.01到0.5之间的值
+        individual[0] = max(individual[0], 50.0)  # 确保第一列的值大于等于50
         total = sum(individual)
-        
-        # 确保总和为100
-        individual = [(i / total) * 100 for i in individual]
-        
-        # 确保第一列的值大于等于50
-        individual[0] = max(individual[0], 50.0)  # 如果第一列小于50，则设置为50
+        individual = (individual / total) * 100  # 确保总和为100
         return individual
 
     population = [create_individual() for _ in range(100)]
-    
+
     # 运行遗传算法
     for gen in range(100):
         offspring = toolbox.select(population, len(population))
@@ -202,7 +198,7 @@ elif page == "配方建议":
 
     # 将结果转换为数据框
     result_df = pd.DataFrame(list(best_result.items()), columns=["成分", "质量分数 (wt%)"])
-    
+
     # 显示配方建议
     st.markdown("### 🎯 建议配方")
     st.dataframe(result_df)
