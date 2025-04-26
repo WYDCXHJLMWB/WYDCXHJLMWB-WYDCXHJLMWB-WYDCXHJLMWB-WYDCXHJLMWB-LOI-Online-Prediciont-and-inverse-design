@@ -12,14 +12,14 @@ def image_to_base64(image_path):
         return base64.b64encode(image_file.read()).decode()
 
 # 设置页面配置（保持原样，图标依然是显示在浏览器标签页中）
-image_path = "图片 1.png"  # 使用上传的图片路径
+image_path = "图片1.png"  # 使用上传的图片路径
 icon_base64 = image_to_base64(image_path)  # 转换为 base64
 
 # 设置页面标题和图标
-st.set_page_config(page_title="聚丙烯 LOI 模型", layout="wide", page_icon=f"data:image/png;base64,{icon_base64}")
+st.set_page_config(page_title="聚丙烯LOI模型", layout="wide", page_icon=f"data:image/png;base64,{icon_base64}")
 
 # 图标原始尺寸：507x158，计算出比例
-width = 200  # 设置图标的宽度为 100px
+width = 200  # 设置图标的宽度为100px
 height = int(158 * (width / 507))  # 计算保持比例后的高度
 
 # 在页面上插入图标与标题
@@ -67,9 +67,9 @@ if page == "性能预测":
         submitted = st.form_submit_button("📊 开始预测")
 
     if submitted:
-        # 保证总和为 100
+        # 保证总和为100
         if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
-            st.warning("⚠️ 配方加和不为 100，无法预测。请确保总和为 100 后再进行预测。")
+            st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
         else:
             # 如果是质量单位，将质量转换为质量分数
             if unit_type == "质量 (g)" and total > 0:
@@ -85,7 +85,7 @@ if page == "性能预测":
             elif unit_type == "体积分数 (vol%)":
                 # 计算各成分的体积分数转换为质量分数
                 total_volume = sum(user_input.values())
-                density = {"PP": 0.91, "添加剂 1": 1.0, "添加剂 2": 1.2}  # 示例密度字典，实际需要根据配方调整
+                density = {"PP": 0.91, "添加剂1": 1.0, "添加剂2": 1.2}  # 示例密度字典，实际需要根据配方调整
                 mass_frac = {}
                 for name, vol_fraction in user_input.items():
                     vol_frac = vol_fraction / total_volume  # 比例
@@ -95,7 +95,7 @@ if page == "性能预测":
                         mass_frac[name] = vol_frac * 100  # 没有密度数据的默认处理
                 user_input = mass_frac
 
-            # 检查是否仅输入了 PP，并且 PP 为100
+            # 检查是否仅输入了PP，并且PP为100
             if np.all([user_input.get(name, 0) == 0 for name in feature_names if name != "PP"]) and user_input.get("PP", 0) == 100:
                 st.markdown("### 🎯 预测结果")
                 st.metric(label="极限氧指数 (LOI)", value="17.5 %")
@@ -111,12 +111,12 @@ if page == "性能预测":
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
 
-    # 用户输入目标 LOI 值并确保范围在 10 到50 之间
+    # 用户输入目标LOI值并确保范围在10到50之间
     target_loi = st.number_input("请输入目标极限氧指数 (LOI)", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
 
-    # 如果用户输入的目标 LOI 超出范围，提醒用户
+    # 如果用户输入的目标LOI超出范围，提醒用户
     if target_loi < 10 or target_loi > 50:
-        st.warning("⚠️ 目标 LOI 应在 10 到50 之间，请重新输入。")
+        st.warning("⚠️ 目标LOI应在10到50之间，请重新输入。")
 
     # 添加遗传算法的部分
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # 最小化目标
@@ -124,21 +124,15 @@ elif page == "配方建议":
 
     # 示例：用遗传算法生成配方
     toolbox = base.Toolbox()
-    
-    def generate_individual():
-        individual = [np.random.uniform(0.01, 0.5) for _ in range(len(feature_names))]
-        pp_index = feature_names.index('PP')
-        individual[pp_index] = max(individual) + np.random.uniform(0.01, 0.5)  # Ensure PP is the largest
-        return individual
-
-    toolbox.register("individual", tools.initIterate, creator.Individual, generate_individual)
+    toolbox.register("attr_float", np.random.uniform, 0.01, 0.5)  # 设置最小值为0.01，避免负数
+    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     def evaluate(individual):
         # 将个体（配方）转换为字典形式
         user_input = dict(zip(feature_names, individual))
 
-        # 强制第一列配方大于等于 50 并且是最大的
+        # 强制第一列配方大于等于50并且是最大的
         if user_input[feature_names[0]] < 50:
             return 1000,  # 不符合条件，返回较大的误差值
 
@@ -146,17 +140,17 @@ elif page == "配方建议":
         if user_input[feature_names[0]] != max(user_input.values()):
             return 1000,  # 如果第一列不是最大值，返回较大的误差值
 
-        # 保证配方总和为 100，必要时进行调整
+        # 保证配方总和为100，必要时进行调整
         total = sum(user_input.values())
         if total != 100:
             user_input = {k: (v / total) * 100 for k, v in user_input.items()}  # 归一化为质量分数
 
-        # 使用模型进行 LOI 预测
+        # 使用模型进行LOI预测
         input_array = np.array([list(user_input.values())])
         input_scaled = scaler.transform(input_array)
         predicted_loi = model.predict(input_scaled)[0]
         
-        # 返回 LOI 与目标 LOI 之间的差异，作为目标函数值
+        # 返回LOI与目标LOI之间的差异，作为目标函数值
         return abs(predicted_loi - target_loi),  # 返回元组，符合遗传算法的要求
 
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
@@ -169,7 +163,7 @@ elif page == "配方建议":
     # 开始推荐配方按钮
     if st.button("开始推荐配方"):
         # 使用遗传算法生成配方
-        for gen in range(10):  # 10 代
+        for gen in range(10):  # 10代
             offspring = toolbox.select(population, len(population))
             offspring = list(map(toolbox.clone, offspring))
             for child1, child2 in zip(offspring[::2], offspring[1::2]):
@@ -180,12 +174,6 @@ elif page == "配方建议":
             for mutant in offspring:
                 if np.random.rand() < 0.2:
                     toolbox.mutate(mutant)
-                    # Ensure no negative values and PP is the largest after mutation
-                    for i in range(len(mutant)):
-                        if mutant[i] < 0:
-                            mutant[i] = 0.01
-                    pp_index = feature_names.index('PP')
-                    mutant[pp_index] = max(mutant) + np.random.uniform(0.01, 0.5)
                     del mutant.fitness.values
             invalid_individuals = [ind for ind in offspring if not ind.fitness.valid]
             fitnesses = list(map(toolbox.evaluate, invalid_individuals))
@@ -196,7 +184,7 @@ elif page == "配方建议":
         # 从最后一代中选出最好的配方
         best_individual = tools.selBest(population, 1)[0]
         
-        # 输出 10 个最佳配方（在遗传算法迭代后）        
+        # 输出10个最佳配方（在遗传算法迭代后）        
         best_individuals = tools.selBest(population, 10)
 
         # 转换为数据框形式，并且确保单位正确
@@ -213,14 +201,14 @@ elif page == "配方建议":
         output_df = pd.DataFrame(best_individuals, columns=feature_names_with_units)
         output_df[output_df.columns] = output_df[output_df.columns].round(2)
         
-        # 强制每个配方的加和为 100
+        # 强制每个配方的加和为100
         output_df["加和"] = output_df.sum(axis=1)
         for i, row in output_df.iterrows():
             total = row["加和"]
-            output_df.loc[i, feature_names_with_units] = row[feature_names_with_units] / total * 100  # 归一化为 100
+            output_df.loc[i, feature_names_with_units] = row[feature_names_with_units] / total * 100  # 归一化为100
         output_df["加和"] = output_df[feature_names_with_units].sum(axis=1).round(2)  # 更新加和列
         output_df["单位"] = unit_label
 
         # 显示数据框
         st.write("推荐配方：")
-        st.dataframe(output_df)
+        st.dataframe(output_df) 
