@@ -140,6 +140,8 @@ elif page == "配方建议":
 
 # 修改遗传算法部分以确保配方值为正、总和为100，且第一列（如"PP"）含量最多
 
+# 修改遗传算法部分以确保配方值为正、总和为100，且第一列（如"PP"）含量最多
+
 def evaluate(individual):
     # 将个体（配方）转换为字典形式
     user_input = dict(zip(feature_names, individual))
