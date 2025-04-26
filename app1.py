@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Apr 25 21:40:27 2025
+
+@author: ma'wei'bin
+"""
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -106,6 +113,7 @@ if page == "性能预测":
 
                 st.markdown("### 🎯 预测结果")
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
+
 # 配方建议部分修改
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
@@ -123,7 +131,6 @@ elif page == "配方建议":
 
     # 示例：用遗传算法生成配方
     toolbox = base.Toolbox()
-    # 修改：确保初始化的值大于0，并且不会出现负数
     toolbox.register("attr_float", np.random.uniform, 0.01, 0.5)  # 设置最小值为0.01，避免负数
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
@@ -175,25 +182,5 @@ elif page == "配方建议":
 
         # 从最后一代中选出最好的配方
         best_individual = tools.selBest(population, 1)[0]
+        st.write("最佳配方:", dict(zip(feature_names, best_individual)))
 
-        # 输出多个配方
-        num_recipes = 10
-        recipes = []
-        for _ in range(num_recipes):
-            individual = tools.selBest(population, 1)[0]
-            # 确保每个配方的总和为100
-            total = sum(individual)
-            individual = [(i / total) * 100 for i in individual]
-            recipes.append(dict(zip(feature_names, individual)))
-
-        # 显示推荐的配方及其单位
-        unit_label = {
-            "质量 (g)": "g",
-            "质量分数 (wt%)": "wt%",
-            "体积分数 (vol%)": "vol%"
-        }[unit_type]
-        
-        # 创建数据框并显示
-        df_recipes = pd.DataFrame(recipes)
-        df_recipes["单位"] = unit_label
-        st.dataframe(df_recipes)
