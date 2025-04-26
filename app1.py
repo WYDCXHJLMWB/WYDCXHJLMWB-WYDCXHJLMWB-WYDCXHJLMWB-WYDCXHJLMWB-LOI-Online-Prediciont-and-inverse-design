@@ -125,6 +125,8 @@ elif page == "配方建议":
         
         # 保证配方总和为100，必要时进行调整
         total = sum(user_input.values())
+        
+        # 如果总和不为100，进行归一化处理
         if total != 100:
             user_input = {k: (v / total) * 100 for k, v in user_input.items()}  # 归一化为质量分数
         
@@ -137,7 +139,7 @@ elif page == "配方建议":
         return abs(predicted_loi - target_loi)
 
     # 定义搜索空间
-    space = {name: hp.uniform(name, 0.01, 0.5) for name in feature_names}
+    space = {name: hp.uniform(name, 0, 100 for name in feature_names}
 
     # 使用Hyperopt进行优化
     trials = Trials()
