@@ -115,7 +115,6 @@ if page == "性能预测":
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
 # 配方建议部分修改
-# 配方建议部分修改
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
 
