@@ -88,7 +88,6 @@ if page == "性能预测":
                 total_weight = sum(user_input.values())
                 user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
 
-
             # 预测逻辑
             if all(v==0 for k,v in user_input.items() if k!="PP") and user_input.get("PP",0)==100:
                 st.metric("极限氧指数 (LOI)", "17.5%")
@@ -131,8 +130,6 @@ elif page == "配方建议":
         predicted = model.predict(input_scaled)[0]
         
         return (abs(predicted - target_loi),)
-
-    # ...（保持遗传算法操作配置不变）...
 
     if st.button("生成推荐配方"):
         with st.spinner("🔍 正在优化配方..."):
@@ -181,14 +178,13 @@ elif page == "配方建议":
                 total_mass = 100  # 假设总质量为100g
                 mass_percent = {name: val for name, val in zip(feature_names, recipe)}
                 
-                # 体积分数计算
+                # 体积分数计算（根据质量分数比例）
                 volume_percent = {}
                 if "vol" in unit_type:
-                    total_volume = 0
+                    total_mass = sum(mass_percent.values())
                     for name, percent in mass_percent.items():
-                        density = DENSITIES.get(name, 1.0)  # 默认密度1.0
-                        volume_percent[name] = percent / density
-                        total_volume += volume_percent[name]
+                        volume_percent[name] = percent * (percent / total_mass)
+                    total_volume = sum(volume_percent.values())
                     for name in volume_percent:
                         volume_percent[name] = volume_percent[name] / total_volume * 100
                 
@@ -215,29 +211,6 @@ elif page == "配方建议":
             recipe_df = pd.DataFrame(converted_data, columns=columns)
             recipe_df.index = [f"配方 {i+1}" for i in range(recipe_df.shape[0])]
 
-            # 计算预测LOI
-            predictions = []
-            for _, row in recipe_df.iterrows():
-                if "vol" in unit_type:
-                    # 需要转换回质量分数进行预测
-                    vol_values = row.values
-                    mass_values = []
-                    total_mass = 0
-                    for name, vol in zip(feature_names, vol_values):
-                        density = DENSITIES.get(name, 1.0)
-                        mass = vol * density
-                        mass_values.append(mass)
-                        total_mass += mass
-                    normalized = [mass/total_mass*100 for mass in mass_values]
-                else:
-                    normalized = row.values
-                
-                input_array = np.array([normalized])
-                input_scaled = scaler.transform(input_array)
-                predictions.append(model.predict(input_scaled)[0])
-            
-            recipe_df["预测LOI (%)"] = [f"{x:.2f}" for x in predictions]
-
-            st.success(f"✅ 成功生成{len(recipe_df)}个优化配方！")
-            st.subheader("推荐配方列表")
-            st.dataframe(recipe_df.style.format("{:.2f}"))
+            # 展示数据表
+            st.subheader("推荐配方")
+            st.dataframe(recipe_df)
