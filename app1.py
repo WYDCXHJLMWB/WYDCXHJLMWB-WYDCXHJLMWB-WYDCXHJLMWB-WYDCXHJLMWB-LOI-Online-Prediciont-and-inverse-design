@@ -108,6 +108,7 @@ if page == "性能预测":
                 st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
 # 配方建议部分使用Hyperopt
+# 配方建议部分修改为使用 hyperopt 进行优化
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
 
@@ -118,57 +119,49 @@ elif page == "配方建议":
     if target_loi < 10 or target_loi > 50:
         st.warning("⚠️ 目标LOI应在10到50之间，请重新输入。")
 
-    # 使用Hyperopt优化配方
+    # 导入 hyperopt 相关库
+    from hyperopt import fmin, tpe, hp, Trials
+    import numpy as np
+
+    # 定义目标函数
     def objective(params):
         # 将超参数（配方）转换为字典
         user_input = dict(zip(feature_names, params))
 
         # 保证配方总和为100，必要时进行调整
         total = sum(user_input.values())
-
-        # 如果总和不为100，进行归一化处理
         if total != 100:
             user_input = {k: (v / total) * 100 for k, v in user_input.items()}  # 归一化为质量分数
 
-        # 确保每个配方成分都在0到100范围内
-        for value in user_input.values():
-            if value < 0 or value > 100:
-                return 1e6  # 不符合要求，返回一个很大的目标值
-
-        # 使用Atom描述符生成器（例如Atom类实例）计算描述符
-        ratios = np.array(list(user_input.values()))
-        ratios = ratios.round(3)
-
-        # 计算描述符和预测LOI
-        sample_descriptors = pd.Series(ratios, index=feature_names)
-        sample_descriptors_sum = sample_descriptors.sum()
-        sample_descriptors_scaled = scaler.transform(sample_descriptors.values.reshape(1, -1))
+        # 检查配方中的值是否为有效数字，并且每个值在合理范围内
+        if any(value < 0 or value > 100 for value in user_input.values()):
+            return 1e6  # 如果有非法值，返回一个大目标值
 
         # 使用模型进行LOI预测
-        predicted_loi = model.predict(sample_descriptors_scaled)[0]
-
+        input_array = np.array([list(user_input.values())])
+        input_scaled = scaler.transform(input_array)
+        predicted_loi = model.predict(input_scaled)[0]
+        
         # 返回LOI与目标LOI之间的差异，作为目标函数值
-        return abs(predicted_loi - target_loi)
+        return abs(predicted_loi - target_loi),  # 返回元组，符合 hyperopt 规范
 
-    # 定义搜索空间，确保每个超参数是数值类型
-    space = {name: hp.uniform(name, 0.01, 0.5) for name in feature_names}
+    # 定义搜索空间
+    space = {name: hp.uniform(name, 0.01, 100) for name in feature_names}
 
-    # 使用Hyperopt进行优化
+    # 设置 hyperopt 的 Trials 对象，用于记录搜索过程中的各个结果
     trials = Trials()
+
+    # 进行优化，最大迭代次数为100
     best = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=100, trials=trials)
 
-    # 获取最优解并输出为数据框格式
-    best_result = dict(zip(feature_names, best.values()))
+    # 打印出最佳的配方
+    st.write("最佳配方:", dict(zip(feature_names, best)))
 
-    # 将结果转换为数据框
-    result_df = pd.DataFrame(list(best_result.items()), columns=["成分", "质量分数 (wt%)"])
+    # 最佳配方预测
+    input_array = np.array([list(best.values())])
+    input_scaled = scaler.transform(input_array)
+    prediction = model.predict(input_scaled)[0]
 
-    # 显示配方建议
-    st.markdown("### 🎯 建议配方")
-    st.dataframe(result_df)
+    st.markdown("### 🎯 预测结果")
+    st.metric(label="极限氧指数 (LOI)", value=f"{prediction:.2f} %")
 
-    # 记录并保存新的配方
-    logpath = "配方建议日志.txt"
-    formular = "-".join([f"{atom}{value}" for atom, value in best_result.items()])
-    with open(logpath, "a") as f:
-        f.writelines(f"{formular}, {predicted_loi}, {', '.join([str(value) for value in best_result.values()])}\n")
