@@ -136,14 +136,28 @@ elif page == "配方建议":
             if value < 0 or value > 100:
                 return 1e6  # 不符合要求，返回一个很大的目标值
 
-        # 确保第一个配方成分大于等于50
-        if user_input[feature_names[0]] < 50:
-            return 1e6  # 不符合要求，返回一个很大的目标值
+        # 使用Atom描述符生成器（例如Atom类实例）计算描述符
+        ratios = np.array(list(user_input.values()))
+        ratios = ratios.round(3)
+        
+        ratio_descriptors = pd.Series(ratios, index=atoms)
+        sample_descriptors = []
+        for atom, ratio in zip(atoms, ratios):
+            atom_descriptors = atom_gen.describe(atom, onehot=True) * float(ratio)
+            atom_descriptors.name = atom
+            sample_descriptors.append(atom_descriptors)
+        
+        sample_descriptors = pd.concat(sample_descriptors, axis=1)
+        sample_descriptors_sum = sample_descriptors.sum(axis=1)
+        sample_descriptors_sum = pd.concat([ratio_descriptors, sample_descriptors_sum])
+        sample_descriptors_sum = sample_descriptors_sum[fnames]
+
+        # 特征缩放
+        sample_descriptors_sum_scaled = pd.DataFrame(sample_descriptors_sum).T
+        sample_descriptors_sum_scaled.iloc[:, :] = scaler.transform(sample_descriptors_sum_scaled)
 
         # 使用模型进行LOI预测
-        input_array = np.array([list(user_input.values())])
-        input_scaled = scaler.transform(input_array)
-        predicted_loi = model.predict(input_scaled)[0]
+        predicted_loi = model.predict(sample_descriptors_sum_scaled.values)[0]
 
         # 返回LOI与目标LOI之间的差异，作为目标函数值
         return abs(predicted_loi - target_loi)
@@ -164,3 +178,8 @@ elif page == "配方建议":
     # 显示配方建议
     st.markdown("### 🎯 建议配方")
     st.dataframe(result_df)
+
+    # 记录并保存新的配方
+    formular = "-".join([f"{atom}{value}" for atom, value in best_result.items()])
+    with open(logpath, "a") as f:
+        f.writelines(f"{formular}, {predicted_loi}, {', '.join([str(value) for value in best_result.values()])}\n")
