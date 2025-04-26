@@ -167,4 +167,42 @@ elif page == "配方建议":
         individual = [(i / total) * 100 for i in individual]
         
         # 确保第一列的值大于等于50
-        individual[0] = max(individual[0], 50.0)  # 如果第一列小
+        individual[0] = max(individual[0], 50.0)  # 如果第一列小于50，则设置为50
+        return individual
+
+    population = [create_individual() for _ in range(100)]
+    
+    # 运行遗传算法
+    for gen in range(100):
+        offspring = toolbox.select(population, len(population))
+        offspring = list(map(toolbox.clone, offspring))
+
+        for child1, child2 in zip(offspring[::2], offspring[1::2]):
+            if np.random.random() < 0.7:  # 70%的概率交叉
+                toolbox.mate(child1, child2)
+                del child1.fitness.values
+                del child2.fitness.values
+
+        for mutant in offspring:
+            if np.random.random() < 0.2:  # 20%的概率变异
+                toolbox.mutate(mutant)
+                del mutant.fitness.values
+
+        # 重新评估个体的适应度
+        invalid_individuals = [ind for ind in offspring if not ind.fitness.valid]
+        fitnesses = map(toolbox.evaluate, invalid_individuals)
+        for ind, fit in zip(invalid_individuals, fitnesses):
+            ind.fitness.values = fit
+
+        population[:] = offspring
+
+    # 获取最优解并输出为数据框格式
+    best_individual = tools.selBest(population, 1)[0]
+    best_result = dict(zip(feature_names, best_individual))
+
+    # 将结果转换为数据框
+    result_df = pd.DataFrame(list(best_result.items()), columns=["成分", "质量分数 (wt%)"])
+    
+    # 显示配方建议
+    st.markdown("### 🎯 建议配方")
+    st.dataframe(result_df)
