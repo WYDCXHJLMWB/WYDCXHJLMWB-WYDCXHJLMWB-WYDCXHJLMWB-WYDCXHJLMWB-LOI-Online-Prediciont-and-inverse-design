@@ -42,9 +42,9 @@ data = joblib.load("model_and_scaler_loi.pkl")
 model = data["model"]
 scaler = data["scaler"]
 df = pd.read_excel("trainrg3.xlsx")
-feature_names = df.columns.tolist()
-if "LOI" in feature_names:
-    feature_names.remove("LOI")
+#feature_names = df.columns.tolist()
+#if "LOI" in feature_names:
+    #feature_names.remove("LOI")
 
 # 单位类型处理
 unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True)
@@ -84,7 +84,6 @@ if page == "性能预测":
         total += pp_value
         
         # 阻燃剂下拉框
-        st.subheader("选择阻燃剂")
         flame_retardant_options = [
             "PAPP", "DOPO", "APP", "MPP", "XS-HFFR-8332", 
             "ZS", "ZHS", "Al(OH)3", "ZBS-PV-OA", 
@@ -94,10 +93,10 @@ if page == "性能预测":
         flame_retardant_selection = st.multiselect("选择阻燃剂", flame_retardant_options, default=["其他"])
         
         # 助剂下拉框
-        st.subheader("选择助剂")
         additive_options = ["silane coupling agent", "antioxidant", "EBS", "Anti-drip-agent", 
                             "ZnB", "CFA", "wollastonite", "TCA", "M-2200B", "其他"]
         additive_selection = st.multiselect("选择助剂", additive_options, default=["其他"])
+
 
         # 处理阻燃剂和助剂的输入
         flame_retardant_quantities = {}
