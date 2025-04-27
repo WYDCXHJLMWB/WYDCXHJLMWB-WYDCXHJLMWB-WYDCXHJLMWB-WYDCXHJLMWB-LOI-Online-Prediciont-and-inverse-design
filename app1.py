@@ -50,6 +50,7 @@ if "LOI" in feature_names:
 unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True)
 
 # 性能预测页面
+# 性能预测页面
 if page == "性能预测":
     st.subheader("🔬 正向预测：配方 → LOI")
     
@@ -57,13 +58,20 @@ if page == "性能预测":
         user_input = {}
         total = 0
         cols = st.columns(3)
+        
+        # 选择基体材料
+        base_material = st.selectbox("请选择基体材料", ["PP", "PA", "PC/ABS", "POM", "PBT", "PVC", "其他"])
+        
+        # 用户输入的配方
         for i, name in enumerate(feature_names):
+            if name == "PP":
+                continue  # PP单独处理，不放在这里
             unit_label = {
                 "质量 (g)": "g",
                 "质量分数 (wt%)": "wt%",
                 "体积分数 (vol%)": "vol%"
             }[unit_type]
-            val = cols[i%3].number_input(
+            val = cols[i % 3].number_input(
                 f"{name} ({unit_label})", 
                 value=0.0, 
                 step=0.1 if "质量" in unit_type else 0.01
@@ -71,6 +79,29 @@ if page == "性能预测":
             user_input[name] = val
             total += val
 
+        # 添加PP输入选项，用户选择后输入其量
+        pp_value = st.number_input(f"PP ({unit_label})", value=0.0, step=0.1 if "质量" in unit_type else 0.01)
+        user_input["PP"] = pp_value
+        total += pp_value
+        
+        # 阻燃剂下拉框
+        st.subheader("选择阻燃剂")
+        flame_retardant_options = [
+            "PAPP", "DOPO", "APP", "MPP", "XS-HFFR-8332", 
+            "ZS", "ZHS", "Al(OH)3", "ZBS-PV-OA", 
+            "ammonium octamolybdate", "Mg(OH)2", "antimony oxides", "Pentaerythritol", "XS-FR-8310"
+        ]
+        flame_retardant_selection = st.multiselect("选择阻燃剂", flame_retardant_options, default=["其他"])
+        
+        # 助剂下拉框
+        st.subheader("选择助剂")
+        additive_options = ["其他助剂1", "其他助剂2", "其他助剂3", "其他"]
+        additive_selection = st.multiselect("选择助剂", additive_options, default=["其他"])
+
+        # 处理阻燃剂和助剂的输入
+        user_input["Flame Retardants"] = ", ".join(flame_retardant_selection)
+        user_input["Additives"] = ", ".join(additive_selection)
+        
         submitted = st.form_submit_button("📊 开始预测")
 
     if submitted:
