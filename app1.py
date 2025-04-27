@@ -16,7 +16,7 @@ def image_to_base64(image_path):
 image_path = "图片1.png"
 icon_base64 = image_to_base64(image_path)
 st.set_page_config(
-    page_title="聚丙烯LOI模型",
+    page_title="聚丙烯阻燃聚合物复合材料智能设计平台",
     layout="wide",
     page_icon=f"data:image/png;base64,{icon_base64}"
 )
@@ -69,7 +69,7 @@ if page == "性能预测":
                        horizontal=True, 
                        key="unit_type")
     
-    st.subheader("🔬 正向预测：配方 → LOI")
+    st.subheader("🔬 正向预测：配方 → 性能")
     
     # 阻燃剂和助剂选择（在表单外）
     flame_retardant_selection = st.multiselect(
@@ -181,19 +181,14 @@ if page == "性能预测":
                 # 创建输入数组
                 input_array = np.array([list(user_input.values())])
                 
-                # 获取训练数据统计信息
-                train_loi_min = df["LOI"].min()  # 获取训练数据最小LOI值
-                train_loi_max = df["LOI"].max()  # 获取训练数据最大LOI值
-                
                 try:
-                    # 直接使用模型预测（假设模型未使用特征缩放）
+                    # 直接使用模型预测
                     prediction = model.predict(input_array)[0]
                     
-                    # 应用物理约束
-                    prediction = max(prediction, train_loi_min)  # 确保不低于训练数据最小值
-                    prediction = min(prediction, train_loi_max)  # 确保不超过训练数据最大值
+                    # 确保预测值不为负
+                    prediction = max(prediction, 0.0)  # 如果预测值小于0则设置为0
                     
-                    st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
+                    st.metric("预测性能", f"{prediction:.2f}")  # 显示预测的性能值
                     
                 except Exception as e:
                     st.error(f"预测失败: {str(e)}")
@@ -210,7 +205,7 @@ elif page == "配方建议":
                                horizontal=True, 
                                key="inverse_unit")
     
-    target_loi = st.number_input("目标LOI值", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
+    target_value = st.number_input("目标性能值", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
     
     # 遗传算法配置
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
@@ -225,30 +220,12 @@ elif page == "配方建议":
         return sum(individual),
     
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
-    toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=1.0, indpb=0.2)
+    toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=0.1, indpb=0.2)
     toolbox.register("select", tools.selTournament, tournsize=3)
     toolbox.register("evaluate", evalFormula)
     
-    population = toolbox.population(n=100)
-    generations = 100
-    for gen in range(generations):
-        offspring = list(map(toolbox.clone, population))
-        for child1, child2 in zip(offspring[::2], offspring[1::2]):
-            if random.random() < 0.7:
-                toolbox.mate(child1, child2)
-                del child1.fitness.values
-                del child2.fitness.values
-        
-        for mutant in offspring:
-            if random.random() < 0.2:
-                toolbox.mutate(mutant)
-                del mutant.fitness.values
-        
-        for individual in offspring:
-            if not individual.fitness.valid:
-                individual.fitness.values = toolbox.evaluate(individual)
-        
-        population[:] = offspring
-        
-    best_individual = tools.selBest(population, 1)[0]
-    st.write("建议配方：", best_individual)
+    # 提交按钮
+    inversed = st.form_submit_button("🔄 反向推演配方")
+
+    if inversed:
+        pass  # 更多的反推逻辑
