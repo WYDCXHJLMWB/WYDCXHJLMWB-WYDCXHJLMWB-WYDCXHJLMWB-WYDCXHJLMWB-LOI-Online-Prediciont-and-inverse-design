@@ -97,24 +97,27 @@ if page == "性能预测":
         }[unit_type]
 
         # 基体材料选择（只能选一个）
-        selected_base = st.multiselect(
-            "选择基体材料（只能选一个）",
+       selected_base = st.selectbox(
+            "选择基体材料（必选）",
             base_materials,
-            max_selections=1,
-            key='base_material_multiselect'
+            index=None,  # 默认不选择
+            placeholder="请选择基体材料...",
+            key='base_material_select'
         )
 
-        # 基体材料输入
+        # 基体材料输入处理
         if selected_base:
-            base_name = selected_base[0]            
             base_value = st.number_input(
-                f"{base_name} ({unit_label})",
+                f"{selected_base} ({unit_label})",
                 value=0.0,
+                min_value=0.0,
                 step=0.1 if "质量" in unit_type else 0.01,
-                key=f'base_{base_name}'
+                key=f'base_{selected_base}'
             )
-            user_input[base_name] = base_value
+            user_input[selected_base] = base_value
             total += base_value
+        else:
+            st.warning("⚠️ 请选择基体材料")
 
         # 阻燃剂输入
         for flame in flame_retardant_selection:
@@ -159,8 +162,11 @@ if page == "性能预测":
         # 提交按钮
         submitted = st.form_submit_button("📊 开始预测")
 
-        if submitted:
-            if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
+          if submitted:
+            # 基体材料必选验证
+            if not selected_base:
+                st.error("❌ 必须选择基体材料")
+            elif unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
                 st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
             else:
                 if unit_type == "质量 (g)" and total > 0:
@@ -169,7 +175,6 @@ if page == "性能预测":
                 input_scaled = scaler.transform(input_array)
                 prediction = model.predict(input_scaled)[0]
                 st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
-
 # 配方建议页面
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
