@@ -1,4 +1,102 @@
-# ...（前面的代码保持不变，直到配方建议部分）
+import streamlit as st
+import pandas as pd
+import numpy as np
+import joblib
+from sklearn.preprocessing import StandardScaler
+from deap import base, creator, tools, algorithms
+import random
+import base64
+
+# 辅助函数：图片转base64
+def image_to_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()
+
+# 页面配置
+image_path = "图片1.png"
+icon_base64 = image_to_base64(image_path)
+st.set_page_config(
+    page_title="聚丙烯LOI模型",
+    layout="wide",
+    page_icon=f"data:image/png;base64,{icon_base64}"
+)
+
+# 页面标题样式
+width = 200
+height = int(158 * (width / 507))
+st.markdown(
+    f"""
+    <h1 style="display: flex; align-items: center;">
+        <img src="data:image/png;base64,{icon_base64}" style="width: {width}px; height: {height}px; margin-right: 15px;" />
+        阻燃聚合物复合材料智能设计平台
+    </h1>
+    """, 
+    unsafe_allow_html=True
+)
+
+# 侧边栏导航
+page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "配方建议"])
+
+# 加载模型和数据
+data = joblib.load("model_and_scaler_loi.pkl")
+model = data["model"]
+scaler = data["scaler"]
+df = pd.read_excel("trainrg3.xlsx")
+feature_names = df.columns.tolist()
+if "LOI" in feature_names:
+    feature_names.remove("LOI")
+
+# 单位类型处理
+unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True)
+
+# 性能预测页面
+if page == "性能预测":
+    st.subheader("🔬 正向预测：配方 → LOI")
+    
+    with st.form("input_form"):
+        user_input = {}
+        total = 0
+        cols = st.columns(3)
+        for i, name in enumerate(feature_names):
+            unit_label = {
+                "质量 (g)": "g",
+                "质量分数 (wt%)": "wt%",
+                "体积分数 (vol%)": "vol%"
+            }[unit_type]
+            val = cols[i%3].number_input(
+                f"{name} ({unit_label})", 
+                value=0.0, 
+                step=0.1 if "质量" in unit_type else 0.01
+            )
+            user_input[name] = val
+            total += val
+
+        submitted = st.form_submit_button("📊 开始预测")
+
+    if submitted:
+        if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
+            st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
+        else:
+            # 单位转换逻辑
+            if unit_type == "质量 (g)" and total > 0:
+                user_input = {k: (v/total)*100 for k,v in user_input.items()}
+            # 体积分数计算逻辑（基于质量分数比例）
+            elif unit_type == "质量分数 (wt%)":
+                total_weight = sum(user_input.values())
+                user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
+            elif unit_type == "体积分数 (vol%)":
+                total_weight = sum(user_input.values())
+                user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
+
+
+            # 预测逻辑
+            if all(v==0 for k,v in user_input.items() if k!="PP") and user_input.get("PP",0)==100:
+                st.metric("极限氧指数 (LOI)", "17.5%")
+            else:
+                input_array = np.array([list(user_input.values())])
+                input_scaled = scaler.transform(input_array)
+                prediction = model.predict(input_scaled)[0]
+                st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
 
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
