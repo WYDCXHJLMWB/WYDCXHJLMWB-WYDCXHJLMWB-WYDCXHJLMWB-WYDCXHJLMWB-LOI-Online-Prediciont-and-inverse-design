@@ -83,20 +83,30 @@ if page == "性能预测":
         user_input["PP"] = pp_value
         total += pp_value
         
-        # 阻燃剂下拉框
-        flame_retardant_options = [
-            "PAPP", "DOPO", "APP", "MPP", "XS-HFFR-8332", 
-            "ZS", "ZHS", "Al(OH)3", "ZBS-PV-OA", 
-            "ammonium octamolybdate", "Mg(OH)2", "antimony oxides", 
-            "Pentaerythritol", "XS-FR-8310", "Xiucheng", "其他"
-        ]
-        flame_retardant_selection = st.multiselect("选择阻燃剂", flame_retardant_options, default=["其他"])
+        with st.form(key='my_form'):
+            flame_retardant_options = [
+                "PAPP", "DOPO", "APP", "MPP", "XS-HFFR-8332", 
+                "ZS", "ZHS", "Al(OH)3", "ZBS-PV-OA", 
+                "ammonium octamolybdate", "Mg(OH)2", "antimony oxides", 
+                "Pentaerythritol", "XS-FR-8310", "Xiucheng", "其他"
+            ]
+            flame_retardant_selection = st.multiselect("选择阻燃剂", flame_retardant_options, default=["其他"])
         
-        # 助剂下拉框
-        additive_options = ["silane coupling agent", "antioxidant", "EBS", "Anti-drip-agent", 
-                            "ZnB", "CFA", "wollastonite", "TCA", "M-2200B", "其他"]
-        additive_selection = st.multiselect("选择助剂", additive_options, default=["其他"])
-
+            additive_options = ["silane coupling agent", "antioxidant", "EBS", "Anti-drip-agent", 
+                                "ZnB", "CFA", "wollastonite", "TCA", "M-2200B", "其他"]
+            additive_selection = st.multiselect("选择助剂", additive_options, default=["其他"])
+        
+            # 添加数量输入框
+            quantity = {}
+            for additive in additive_selection:
+                quantity[additive] = st.number_input(f"输入 {additive} 数量 (g)", min_value=0.0, value=0.0, step=0.1)
+            
+            # 提交按钮
+            submit_button = st.form_submit_button(label='提交')
+        
+        # 当用户点击提交按钮时处理数据
+        if submit_button:
+            st.write("提交的数据:", flame_retardant_selection, additive_selection, quantity)
 
         # 处理阻燃剂和助剂的输入
         flame_retardant_quantities = {}
