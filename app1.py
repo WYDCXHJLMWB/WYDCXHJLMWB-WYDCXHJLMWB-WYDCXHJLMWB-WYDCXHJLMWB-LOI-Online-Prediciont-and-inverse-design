@@ -50,7 +50,6 @@ if "LOI" in feature_names:
 unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True)
 
 # 性能预测页面
-# 性能预测页面
 if page == "性能预测":
     st.subheader("🔬 正向预测：配方 → LOI")
     
@@ -89,19 +88,34 @@ if page == "性能预测":
         flame_retardant_options = [
             "PAPP", "DOPO", "APP", "MPP", "XS-HFFR-8332", 
             "ZS", "ZHS", "Al(OH)3", "ZBS-PV-OA", 
-            "ammonium octamolybdate", "Mg(OH)2", "antimony oxides", "Pentaerythritol", "XS-FR-8310"
+            "ammonium octamolybdate", "Mg(OH)2", "antimony oxides", 
+            "Pentaerythritol", "XS-FR-8310", "Xiucheng", "其他"
         ]
         flame_retardant_selection = st.multiselect("选择阻燃剂", flame_retardant_options, default=["其他"])
         
         # 助剂下拉框
         st.subheader("选择助剂")
-        additive_options = ["其他助剂1", "其他助剂2", "其他助剂3", "其他"]
+        additive_options = ["silane coupling agent", "antioxidant", "EBS", "Anti-drip-agent", 
+                            "ZnB", "CFA", "wollastonite", "TCA", "M-2200B", "其他"]
         additive_selection = st.multiselect("选择助剂", additive_options, default=["其他"])
 
         # 处理阻燃剂和助剂的输入
+        flame_retardant_quantities = {}
+        for flame_retardant in flame_retardant_selection:
+            quantity = st.number_input(f"输入 {flame_retardant} 数量 (g)", min_value=0.0, value=0.0, step=0.1)
+            flame_retardant_quantities[flame_retardant] = quantity
+        
+        additive_quantities = {}
+        for additive in additive_selection:
+            quantity = st.number_input(f"输入 {additive} 数量 (g)", min_value=0.0, value=0.0, step=0.1)
+            additive_quantities[additive] = quantity
+
+        # 将阻燃剂和助剂的数量加入到配方中
         user_input["Flame Retardants"] = ", ".join(flame_retardant_selection)
         user_input["Additives"] = ", ".join(additive_selection)
-        
+        user_input.update(flame_retardant_quantities)
+        user_input.update(additive_quantities)
+
         submitted = st.form_submit_button("📊 开始预测")
 
     if submitted:
