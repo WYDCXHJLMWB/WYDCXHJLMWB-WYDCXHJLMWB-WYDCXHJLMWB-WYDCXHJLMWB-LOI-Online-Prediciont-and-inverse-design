@@ -113,10 +113,6 @@ elif page == "配方建议":
     toolbox.register("attr_float", random.uniform, 0.01, 50)
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-    
-    # 注册evaluate函数
-    toolbox.register("evaluate", evaluate)  # 这里注册evaluate函数
-
     def evaluate(individual):
         # 强制PP含量>=50且为最大值
         pp_index = feature_names.index("PP")  # 获取PP的索引
@@ -139,7 +135,7 @@ elif page == "配方建议":
             return (1000,)
         
         return (abs(predicted - target_loi),)  # 返回预测值与目标LOI值的差
-    
+    toolbox.register("evaluate", evaluate)  # 这里注册evaluate函数
     # 配方生成部分（确保PP含量强制≥50）
     if st.button("生成推荐配方"):
         with st.spinner("🔍 正在优化配方..."):
