@@ -46,6 +46,21 @@ feature_names = df.columns.tolist()
 if "LOI" in feature_names:
     feature_names.remove("LOI")
 
+# 基体材料选项
+base_materials = ["PP", "PA", "PC/ABS", "POM", "PBT", "PVC", "其他"]
+# 阻燃剂选项
+flame_retardant_options = [
+    "PAPP", "DOPO", "APP", "MPP", "XS-HFFR-8332", 
+    "ZS", "ZHS", "Al(OH)3", "ZBS-PV-OA", 
+    "ammonium octamolybdate", "Mg(OH)2", "antimony oxides", 
+    "Pentaerythritol", "XS-FR-8310", "Xiucheng", "其他"
+]
+# 助剂选项
+additive_options = [
+    "silane coupling agent", "antioxidant", "EBS", "Anti-drip-agent",
+    "ZnB", "CFA", "wollastonite", "TCA", "M-2200B", "其他"
+]
+
 # 单位类型处理
 unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True, key="unit_type")
 
@@ -53,22 +68,81 @@ unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量�
 if page == "性能预测":
     st.subheader("🔬 正向预测：配方 → LOI")
     
+    # 阻燃剂和助剂选择（在表单外）
+    flame_retardant_selection = st.multiselect(
+        "选择阻燃剂",
+        flame_retardant_options,
+        key="flame_retardant_selection"
+    )
+    
+    additive_selection = st.multiselect(
+        "选择助剂",
+        additive_options,
+        key="additive_selection"
+    )
+
     # 使用唯一键的表单
     with st.form(key='input_form'):
-        user_input = {}
-        total = 0
-        
-        # 基体材料选择（修改为类似阻燃剂和助剂的选择形式）
-        base_material = st.selectbox(
-            "请选择基体材料",
-            ["PP", "PA", "PC/ABS", "POM", "PBT", "PVC", "其他"],
-            key='base_material_select'
+        user_input = {name: 0.0 for name in feature_names}  # 初始化所有特征为0
+        total = 0.0
+
+        # 基体材料选择（只能选一个）
+        selected_base = st.multiselect(
+            "选择基体材料（只能选一个）",
+            base_materials,
+            max_selections=1,
+            key='base_material_multiselect'
         )
+
+        # 基体材料输入
+        if selected_base:
+            base_name = selected_base[0]
+            unit_label = {
+                "质量 (g)": "g",
+                "质量分数 (wt%)": "wt%",
+                "体积分数 (vol%)": "vol%"
+            }[unit_type]
+            
+            base_value = st.number_input(
+                f"{base_name} ({unit_label})",
+                value=0.0,
+                step=0.1 if "质量" in unit_type else 0.01,
+                key=f'base_{base_name}'
+            )
+            user_input[base_name] = base_value
+            total += base_value
+
+        # 阻燃剂输入
+        for flame in flame_retardant_selection:
+            qty = st.number_input(
+                f"{flame} ({unit_label})",
+                min_value=0.0,
+                value=0.0,
+                step=0.1,
+                key=f'flame_{flame}'
+            )
+            user_input[flame] = qty  # 假设特征名称与选项一致
+            total += qty
+
+        # 助剂输入
+        for additive in additive_selection:
+            qty = st.number_input(
+                f"{additive} ({unit_label})",
+                min_value=0.0,
+                value=0.0,
+                step=0.1,
+                key=f'additive_{additive}'
+            )
+            user_input[additive] = qty  # 假设特征名称与选项一致
+            total += qty
+
+        # 其他成分输入（非基体材料、非阻燃剂、非助剂）
+        other_features = [name for name in feature_names 
+                        if name not in base_materials 
+                        and name not in flame_retardant_options
+                        and name not in additive_options]
         
-        # 用户输入的配方（删除原有的三列特征输入部分）
-        for i, name in enumerate(feature_names):
-            if name == "PP":
-                continue  # PP单独处理
+        for name in other_features:
             unit_label = {
                 "质量 (g)": "g",
                 "质量分数 (wt%)": "wt%",
@@ -78,84 +152,16 @@ if page == "性能预测":
                 f"{name} ({unit_label})", 
                 value=0.0, 
                 step=0.1 if "质量" in unit_type else 0.01,
-                key=f'input_{name}_{i}'  # 唯一键
+                key=f'input_{name}'
             )
             user_input[name] = val
             total += val
 
-        # 添加PP输入选项（独立键）
-        pp_value = st.number_input(
-            f"PP ({unit_label})",
-            value=0.0,
-            step=0.1 if "质量" in unit_type else 0.01,
-            key='pp_input_unique'
-        )
-        user_input["PP"] = pp_value
-        total += pp_value
-        
-        # 阻燃剂选择（带唯一键）
-        flame_retardant_options = [
-            "PAPP", "DOPO", "APP", "MPP", "XS-HFFR-8332", 
-            "ZS", "ZHS", "Al(OH)3", "ZBS-PV-OA", 
-            "ammonium octamolybdate", "Mg(OH)2", "antimony oxides", 
-            "Pentaerythritol", "XS-FR-8310", "Xiucheng", "其他"
-        ]
-        flame_retardant_selection = st.multiselect(
-            "选择阻燃剂",
-            flame_retardant_options,
-            default=["其他"],
-            key='flame_retardant_multiselect'
-        )
-        
-        # 动态生成阻燃剂数量输入（带索引键）
-        flame_retardant_quantities = {}
-        for idx, flame in enumerate(flame_retardant_selection):
-            qty = st.number_input(
-                f"输入 {flame} 数量 (g)",
-                min_value=0.0,
-                value=0.0,
-                step=0.1,
-                key=f'flame_{flame}_{idx}'  # 动态唯一键
-            )
-            flame_retardant_quantities[flame] = qty
-        
-        # 助剂选择（带唯一键）
-        additive_options = [
-            "silane coupling agent", "antioxidant", "EBS", "Anti-drip-agent",
-            "ZnB", "CFA", "wollastonite", "TCA", "M-2200B", "其他"
-        ]
-        additive_selection = st.multiselect(
-            "选择助剂",
-            additive_options,
-            default=["其他"],
-            key='additive_multiselect'
-        )
-        
-        # 动态生成助剂数量输入（带索引键）
-        additive_quantities = {}
-        for idx, additive in enumerate(additive_selection):
-            qty = st.number_input(
-                f"输入 {additive} 数量 (g)",
-                min_value=0.0,
-                value=0.0,
-                step=0.1,
-                key=f'additive_{additive}_{idx}'  # 动态唯一键
-            )
-            additive_quantities[additive] = qty
-
-        # 唯一提交按钮
+        # 提交按钮
         submitted = st.form_submit_button("📊 开始预测")
 
     # 提交后的处理逻辑
     if submitted:
-        # 合并数据到user_input
-        user_input["Flame Retardants"] = ", ".join(flame_retardant_selection)
-        user_input["Additives"] = ", ".join(additive_selection)
-        user_input.update(flame_retardant_quantities)
-        user_input.update(additive_quantities)
-        
-        st.write("提交的数据:", flame_retardant_selection, additive_selection, additive_quantities)
-        
         # 验证单位类型
         if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
             st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
@@ -171,13 +177,10 @@ if page == "性能预测":
                 user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
 
             # 预测逻辑
-            if all(v==0 for k,v in user_input.items() if k!="PP") and user_input.get("PP",0)==100:
-                st.metric("极限氧指数 (LOI)", "17.5%")
-            else:
-                input_array = np.array([list(user_input.values())])
-                input_scaled = scaler.transform(input_array)
-                prediction = model.predict(input_scaled)[0]
-                st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
+            input_array = np.array([list(user_input.values())])
+            input_scaled = scaler.transform(input_array)
+            prediction = model.predict(input_scaled)[0]
+            st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
 
 # 配方建议页面（保持不变）
 elif page == "配方建议":
