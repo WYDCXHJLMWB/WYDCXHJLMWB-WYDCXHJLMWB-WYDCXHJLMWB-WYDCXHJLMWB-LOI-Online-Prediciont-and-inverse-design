@@ -50,9 +50,11 @@ if "LOI" in feature_names:
 unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True)
 
 # 性能预测页面
+# 性能预测页面
 if page == "性能预测":
     st.subheader("🔬 正向预测：配方 → LOI")
     
+    # 使用 with st.form() 来创建表单
     with st.form("input_form"):
         user_input = {}
         total = 0
@@ -73,67 +75,53 @@ if page == "性能预测":
             val = cols[i % 3].number_input(
                 f"{name} ({unit_label})", 
                 value=0.0, 
-                step=0.1 if "质量" in unit_type else 0.01
+                step=0.1 if "质量" in unit_type else 0.01,
+                key=f"{name}_input_{i}"  # 为每个number_input添加唯一的key
             )
             user_input[name] = val
             total += val
 
         # 添加PP输入选项，用户选择后输入其量
-        pp_value = st.number_input(f"PP ({unit_label})", value=0.0, step=0.1 if "质量" in unit_type else 0.01)
+        pp_value = st.number_input(
+            f"PP ({unit_label})", 
+            value=0.0, 
+            step=0.1 if "质量" in unit_type else 0.01,
+            key="PP_input"  # 给PP单独添加key
+        )
         user_input["PP"] = pp_value
         total += pp_value
         
         # 提交按钮放在表单里
         submit_button = st.form_submit_button(label="提交")
         
-        # 当用户点击提交按钮时处理数据
-        if submit_button:
-            st.write("提交的数据:", flame_retardant_selection, additive_selection, quantity)
-
-        # 处理阻燃剂和助剂的输入
-        flame_retardant_quantities = {}
-        for flame_retardant in flame_retardant_selection:
-            quantity = st.number_input(f"输入 {flame_retardant} 数量 (g)", min_value=0.0, value=0.0, step=0.1)
-            flame_retardant_quantities[flame_retardant] = quantity
-        
-        additive_quantities = {}
-        for additive in additive_selection:
-            quantity = st.number_input(f"输入 {additive} 数量 (g)", min_value=0.0, value=0.0, step=0.1)
-            additive_quantities[additive] = quantity
-
-        # 将阻燃剂和助剂的数量加入到配方中
-        user_input["Flame Retardants"] = ", ".join(flame_retardant_selection)
-        user_input["Additives"] = ", ".join(additive_selection)
-        user_input.update(flame_retardant_quantities)
-        user_input.update(additive_quantities)
+        # 判断配方加和是否为100
+        if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
+            st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
 
     # 决定是否提交表单
     submitted = st.form_submit_button("📊 开始预测")
 
     if submitted:
-        if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
-            st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
+        # 单位转换逻辑：如果单位不是质量，则将配方的比例转换为100为单位
+        if unit_type == "质量 (g)" and total > 0:
+            user_input = {k: (v/total)*100 for k,v in user_input.items()}
+        elif unit_type == "质量分数 (wt%)" and total != 100:
+            st.warning("⚠️ 质量分数总和不为100，请检查输入值。")
+        elif unit_type == "体积分数 (vol%)" and total != 100:
+            st.warning("⚠️ 体积分数总和不为100，请检查输入值。")
+        
+        # 预测逻辑
+        if all(v==0 for k,v in user_input.items() if k!="PP") and user_input.get("PP", 0) == 100:
+            st.metric("极限氧指数 (LOI)", "17.5%")  # 如果PP占100%，则返回一个固定值
         else:
-            # 单位转换逻辑
-            if unit_type == "质量 (g)" and total > 0:
-                user_input = {k: (v/total)*100 for k,v in user_input.items()}
-            # 体积分数计算逻辑（基于质量分数比例）
-            elif unit_type == "质量分数 (wt%)":
-                total_weight = sum(user_input.values())
-                user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
-            elif unit_type == "体积分数 (vol%)":
-                total_weight = sum(user_input.values())
-                user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
-
-
-            # 预测逻辑
-            if all(v==0 for k,v in user_input.items() if k!="PP") and user_input.get("PP",0)==100:
-                st.metric("极限氧指数 (LOI)", "17.5%")
-            else:
+            try:
+                # 对输入数据进行预处理
                 input_array = np.array([list(user_input.values())])
-                input_scaled = scaler.transform(input_array)
-                prediction = model.predict(input_scaled)[0]
+                input_scaled = scaler.transform(input_array)  # 使用标准化器进行标准化
+                prediction = model.predict(input_scaled)[0]  # 预测LOI值
                 st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
+            except Exception as e:
+                st.error(f"预测过程中出现错误: {e}")
 
 # 配方建议页面
 elif page == "配方建议":
