@@ -61,11 +61,14 @@ additive_options = [
     "ZnB", "CFA", "wollastonite", "TCA", "M-2200B", "其他"
 ]
 
-# 单位类型处理
-unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True, key="unit_type")
-
 # 性能预测页面
 if page == "性能预测":
+    # 单位类型处理（仅本页面）
+    unit_type = st.radio("📏 请选择配方输入单位", 
+                       ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], 
+                       horizontal=True, 
+                       key="unit_type")
+    
     st.subheader("🔬 正向预测：配方 → LOI")
     
     # 阻燃剂和助剂选择（在表单外）
@@ -156,12 +159,30 @@ if page == "性能预测":
         # 提交按钮
         submitted = st.form_submit_button("📊 开始预测")
 
-# 配方建议页面（保持不变）
+        if submitted:
+            if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
+                st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
+            else:
+                if unit_type == "质量 (g)" and total > 0:
+                    user_input = {k: (v/total)*100 for k,v in user_input.items()}
+                input_array = np.array([list(user_input.values())])
+                input_scaled = scaler.transform(input_array)
+                prediction = model.predict(input_scaled)[0]
+                st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
+
+# 配方建议页面
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
+    
+    # 添加独立的单位选择（仅本页面使用）
+    inverse_unit_type = st.radio("📏 请选择配方显示单位", 
+                               ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], 
+                               horizontal=True, 
+                               key="inverse_unit")
+    
     target_loi = st.number_input("目标LOI值", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
     
-    # 遗传算法配置（保持不变）
+    # 遗传算法配置
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMin)
     
@@ -198,7 +219,12 @@ elif page == "配方建议":
             MUTPB = 0.3
             
             pop = toolbox.population(n=POP_SIZE)
-            for g in range(GEN_NUM):
+            hof = tools.HallOfFame(10)
+            stats = tools.Statistics(lambda ind: ind.fitness.values)
+            stats.register("avg", np.mean)
+            stats.register("min", np.min)
+            
+            for gen in range(GEN_NUM):
                 offspring = toolbox.select(pop, len(pop))
                 offspring = list(map(toolbox.clone, offspring))
                 
@@ -219,8 +245,28 @@ elif page == "配方建议":
                     ind.fitness.values = fit
                 
                 pop[:] = offspring
-                
-            best_ind = tools.selBest(pop, 1)[0]
-            st.write("推荐配方：")
-            for i, value in enumerate(best_ind):
-                st.write(f"{feature_names[i]}: {value:.2f}")
+                hof.update(pop)
+            
+            best_individuals = hof[:10]
+            
+            # 生成结果DataFrame
+            recipe_list = []
+            for best in best_individuals:
+                total = sum(best)
+                recipe = {name: (val/total)*100 for name, val in zip(feature_names, best)}
+                recipe_list.append(recipe)
+            
+            recipe_df = pd.DataFrame(recipe_list)
+            recipe_df.index = [f"配方 {i+1}" for i in range(10)]
+            
+            # 使用本页面的单位标签
+            unit_label = {
+                "质量 (g)": "g",
+                "质量分数 (wt%)": "wt%",
+                "体积分数 (vol%)": "vol%"
+            }[inverse_unit_type]
+            
+            recipe_df.columns = [f"{col} ({unit_label})" for col in recipe_df.columns]
+            
+            st.success("✅ 配方优化完成！")
+            st.dataframe(recipe_df)
