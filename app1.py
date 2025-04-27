@@ -42,9 +42,9 @@ data = joblib.load("model_and_scaler_loi.pkl")
 model = data["model"]
 scaler = data["scaler"]
 df = pd.read_excel("trainrg3.xlsx")
-#feature_names = df.columns.tolist()
-#if "LOI" in feature_names:
-    #feature_names.remove("LOI")
+feature_names = df.columns.tolist()
+if "LOI" in feature_names:
+    feature_names.remove("LOI")
 
 # 单位类型处理
 unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True)
