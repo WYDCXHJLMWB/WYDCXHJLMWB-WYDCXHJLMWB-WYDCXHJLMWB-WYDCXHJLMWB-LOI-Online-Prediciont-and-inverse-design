@@ -83,26 +83,8 @@ if page == "性能预测":
         user_input["PP"] = pp_value
         total += pp_value
         
-        with st.form(key='my_form'):
-            flame_retardant_options = [
-                "PAPP", "DOPO", "APP", "MPP", "XS-HFFR-8332", 
-                "ZS", "ZHS", "Al(OH)3", "ZBS-PV-OA", 
-                "ammonium octamolybdate", "Mg(OH)2", "antimony oxides", 
-                "Pentaerythritol", "XS-FR-8310", "Xiucheng", "其他"
-            ]
-            flame_retardant_selection = st.multiselect("选择阻燃剂", flame_retardant_options, default=["其他"])
-        
-            additive_options = ["silane coupling agent", "antioxidant", "EBS", "Anti-drip-agent", 
-                                "ZnB", "CFA", "wollastonite", "TCA", "M-2200B", "其他"]
-            additive_selection = st.multiselect("选择助剂", additive_options, default=["其他"])
-        
-            # 添加数量输入框
-            quantity = {}
-            for additive in additive_selection:
-                quantity[additive] = st.number_input(f"输入 {additive} 数量 (g)", min_value=0.0, value=0.0, step=0.1)
-            
-            # 提交按钮
-            submit_button = st.form_submit_button(label='提交')
+        # 提交按钮放在表单里
+        submit_button = st.form_submit_button(label="提交")
         
         # 当用户点击提交按钮时处理数据
         if submit_button:
@@ -125,7 +107,8 @@ if page == "性能预测":
         user_input.update(flame_retardant_quantities)
         user_input.update(additive_quantities)
 
-        submitted = st.form_submit_button("📊 开始预测")
+    # 决定是否提交表单
+    submitted = st.form_submit_button("📊 开始预测")
 
     if submitted:
         if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
@@ -213,10 +196,7 @@ elif page == "配方建议":
                 for child1, child2 in zip(offspring[::2], offspring[1::2]):
                     if random.random() < CXPB:
                         toolbox.mate(child1, child2)
-                        # 确保非负
-                        for i in range(len(child1)):
-                            child1[i] = max(child1[i], 0.01)
-                            child2[i] = max(child2[i], 0.01)
+                        # 删除不合规子代
                         del child1.fitness.values
                         del child2.fitness.values
                 
@@ -224,43 +204,21 @@ elif page == "配方建议":
                 for mutant in offspring:
                     if random.random() < MUTPB:
                         toolbox.mutate(mutant)
-                        # 确保非负
-                        for i in range(len(mutant)):
-                            mutant[i] = max(mutant[i], 0.01)
+                        # 删除不合规子代
                         del mutant.fitness.values
                 
-                # 评估新个体
-                invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-                fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
-                for ind, fit in zip(invalid_ind, fitnesses):
+                # 评估所有个体
+                invalid_individuals = [ind for ind in offspring if not ind.fitness.valid]
+                fitnesses = map(toolbox.evaluate, invalid_individuals)
+                for ind, fit in zip(invalid_individuals, fitnesses):
                     ind.fitness.values = fit
                 
                 # 更新种群
                 pop[:] = offspring
                 hof.update(pop)
             
-            # 获取最佳个体
-            best_individuals = hof[:10]  # 获取10个最好的配方
-            
-            # 转换为推荐配方列表
-            recipe_list = []
-            for best in best_individuals:
-                total = sum(best)
-                recipe = {name: (val/total)*100 for name, val in zip(feature_names, best)}
-                recipe_list.append(recipe)
-            
             # 显示结果
-            st.success("✅ 配方优化完成！")
-            
-            # 输出10个不同的配方
-            recipe_df = pd.DataFrame(recipe_list)
-            recipe_df.index = [f"配方 {i+1}" for i in range(10)]
-            
-            # 加上单位
-            unit_label = {
-                "质量 (g)": "g",
-                "质量分数 (wt%)": "wt%",
-                "体积分数 (vol%)": "vol%"
-            }[unit_type]
-            recipe_df.columns = [f"{col} ({unit_label})" for col in recipe_df.columns]
-            st.dataframe(recipe_df)
+            best_individual = hof[0]
+            best_values = [round(val, 2) for val in best_individual]
+            st.write(f"最佳配方 (质量分数)：{dict(zip(feature_names, best_values))}")
+            st.write(f"目标LOI: {target_loi}%")
