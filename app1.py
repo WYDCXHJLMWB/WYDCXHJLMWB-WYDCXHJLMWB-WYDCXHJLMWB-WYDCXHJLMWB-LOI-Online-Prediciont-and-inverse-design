@@ -116,6 +116,8 @@ elif page == "配方建议":
     toolbox.register("select", tools.selTournament, tournsize=3)
     # 注册交叉操作 (使用两点交叉)
     toolbox.register("mate", tools.cxTwoPoint)
+    # 注册变异操作 (使用高斯变异)
+    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1.0, indpb=0.2)
 
     def evaluate(individual):
         # 强制PP含量>=50且为最大值
