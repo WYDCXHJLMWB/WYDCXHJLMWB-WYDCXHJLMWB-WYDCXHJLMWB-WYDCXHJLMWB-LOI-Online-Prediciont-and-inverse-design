@@ -53,7 +53,7 @@ flame_retardant_options = [
     "PAPP", "DOPO", "APP", "MPP", "XS-HFFR-8332", 
     "ZS", "ZHS", "Al(OH)3", "ZBS-PV-OA", 
     "ammonium octamolybdate", "Mg(OH)2", "antimony oxides", 
-    "Pentaerythritol", "XS-FR-8310", "Xiucheng", "其他"
+    "Pentaerythritol", "XS-FR-8310", "XiuCheng", "其他"
 ]
 # 助剂选项
 additive_options = [
