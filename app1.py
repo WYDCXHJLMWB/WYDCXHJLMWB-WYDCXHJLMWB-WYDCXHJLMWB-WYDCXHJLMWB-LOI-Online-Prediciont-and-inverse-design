@@ -105,6 +105,9 @@ if page == "性能预测":
             key='base_material_select'
         )
 
+        # 输出当前选择的基体材料，调试用
+        st.write("选中的基体材料：", selected_base)
+
         # 基体材料输入处理
         if selected_base:
             base_value = st.number_input(
@@ -218,81 +221,34 @@ elif page == "配方建议":
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
-    def evaluate(individual):
-        if individual[0] < 50:
-            return (1000,)
-        if individual[0] != max(individual):
-            return (1000,)
-            
-        total = sum(individual)
-        normalized = [x/total*100 for x in individual]
-        
-        input_array = np.array([normalized])
-        input_scaled = scaler.transform(input_array)
-        predicted = model.predict(input_scaled)[0]
-        
-        return (abs(predicted - target_loi),)
+    def evalFormula(individual):
+        return sum(individual), 
     
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
-    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=5, indpb=0.2)
+    toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=1.0, indpb=0.2)
     toolbox.register("select", tools.selTournament, tournsize=3)
-    toolbox.register("evaluate", evaluate)
+    toolbox.register("evaluate", evalFormula)
     
-    if st.button("生成推荐配方"):
-        with st.spinner("🔍 正在优化配方..."):
-            POP_SIZE = 100
-            GEN_NUM = 50
-            CXPB = 0.7
-            MUTPB = 0.3
-            
-            pop = toolbox.population(n=POP_SIZE)
-            hof = tools.HallOfFame(10)
-            stats = tools.Statistics(lambda ind: ind.fitness.values)
-            stats.register("avg", np.mean)
-            stats.register("min", np.min)
-            
-            for gen in range(GEN_NUM):
-                offspring = toolbox.select(pop, len(pop))
-                offspring = list(map(toolbox.clone, offspring))
-                
-                for child1, child2 in zip(offspring[::2], offspring[1::2]):
-                    if random.random() < CXPB:
-                        toolbox.mate(child1, child2)
-                        del child1.fitness.values
-                        del child2.fitness.values
-                for mutant in offspring:
-                    if random.random() < MUTPB:
-                        toolbox.mutate(mutant)
-                        del mutant.fitness.values
-                
-                invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-                fitnesses = list(map(toolbox.evaluate, invalid_ind))
-                for ind, fit in zip(invalid_ind, fitnesses):
-                    ind.fitness.values = fit
-                
-                pop[:] = offspring
-                hof.update(pop)
-            
-            best_individuals = hof[:10]
-            
-            # 生成结果DataFrame
-            recipe_list = []
-            for best in best_individuals:
-                total = sum(best)
-                recipe = {name: (val/total)*100 for name, val in zip(feature_names, best)}
-                recipe_list.append(recipe)
-            
-            recipe_df = pd.DataFrame(recipe_list)
-            recipe_df.index = [f"配方 {i+1}" for i in range(10)]
-            
-            # 使用本页面的单位标签
-            unit_label = {
-                "质量 (g)": "g",
-                "质量分数 (wt%)": "wt%",
-                "体积分数 (vol%)": "vol%"
-            }[inverse_unit_type]
-            
-            recipe_df.columns = [f"{col} ({unit_label})" for col in recipe_df.columns]
-            
-            st.success("✅ 配方优化完成！")
-            st.dataframe(recipe_df)
+    population = toolbox.population(n=100)
+    generations = 100
+    for gen in range(generations):
+        offspring = list(map(toolbox.clone, population))
+        for child1, child2 in zip(offspring[::2], offspring[1::2]):
+            if random.random() < 0.7:
+                toolbox.mate(child1, child2)
+                del child1.fitness.values
+                del child2.fitness.values
+        
+        for mutant in offspring:
+            if random.random() < 0.2:
+                toolbox.mutate(mutant)
+                del mutant.fitness.values
+        
+        for individual in offspring:
+            if not individual.fitness.valid:
+                individual.fitness.values = toolbox.evaluate(individual)
+        
+        population[:] = offspring
+        
+    best_individual = tools.selBest(population, 1)[0]
+    st.write("建议配方：", best_individual)
