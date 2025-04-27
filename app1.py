@@ -104,7 +104,7 @@ elif page == "配方建议":
     target_loi = st.number_input("目标LOI值", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
     
     # 遗传算法配置
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  
     creator.create("Individual", list, fitness=creator.FitnessMin)
     
     toolbox = base.Toolbox()
@@ -165,7 +165,6 @@ elif page == "配方建议":
                             child2[i] = max(child2[i], 0.01)
                         del child1.fitness.values
                         del child2.fitness.values
-                
                 # 变异
                 for mutant in offspring:
                     if random.random() < MUTPB:
@@ -197,6 +196,14 @@ elif page == "配方建议":
             recipe_df = pd.DataFrame([recipe] * 10)
             recipe_df.index = [f"配方 {i+1}" for i in range(10)]
             
+            # 根据选择的单位更新列标题
+            unit_label = {
+                "质量 (g)": "g",
+                "质量分数 (wt%)": "wt%",
+                "体积分数 (vol%)": "vol%"
+            }[unit_type]
+            recipe_df.columns = [f"{name} ({unit_label})" for name in feature_names]
+            
             st.subheader("推荐配方列表")
             st.dataframe(recipe_df)
 
@@ -204,4 +211,3 @@ elif page == "配方建议":
             input_array = np.array([[recipe[name] for name in feature_names]])
             input_scaled = scaler.transform(input_array)
             predicted_loi = model.predict(input_scaled)[0]
-            st.metric("预测LOI", f"{predicted_loi:.2f}%")
