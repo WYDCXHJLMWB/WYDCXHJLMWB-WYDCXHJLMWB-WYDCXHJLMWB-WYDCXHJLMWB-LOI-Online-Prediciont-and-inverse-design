@@ -115,23 +115,22 @@ elif page == "配方建议":
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
     def evaluate(individual):
-        # 强制PP含量>=50且为最大值
-        pp_index = feature_names.index("PP")  # 修复2：动态获取PP的索引位置
-        if individual[pp_index] < 50:
-            return (1000,)
+        # 强制PP含量是最大值
+        pp_index = feature_names.index("PP")  # 动态获取PP的索引位置
         if individual[pp_index] != max(individual):
             return (1000,)
-            
+    
         # 归一化处理
         total = sum(individual)
         normalized = [x/total*100 for x in individual]
-        
+    
         # 预测LOI
         input_array = np.array([normalized])
         input_scaled = scaler.transform(input_array)
         predicted = model.predict(input_scaled)[0]
-        
+    
         return (abs(predicted - target_loi),)
+
     
     # 遗传算法操作配置
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
