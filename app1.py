@@ -86,6 +86,13 @@ if page == "性能预测":
         user_input = {name: 0.0 for name in feature_names}  # 初始化所有特征为0
         total = 0.0
 
+        # 根据单位类型确定标签（在所有输入字段之前定义）
+        unit_label = {
+            "质量 (g)": "g",
+            "质量分数 (wt%)": "wt%",
+            "体积分数 (vol%)": "vol%"
+        }[unit_type]
+
         # 基体材料选择（只能选一个）
         selected_base = st.multiselect(
             "选择基体材料（只能选一个）",
@@ -96,13 +103,7 @@ if page == "性能预测":
 
         # 基体材料输入
         if selected_base:
-            base_name = selected_base[0]
-            unit_label = {
-                "质量 (g)": "g",
-                "质量分数 (wt%)": "wt%",
-                "体积分数 (vol%)": "vol%"
-            }[unit_type]
-            
+            base_name = selected_base[0]            
             base_value = st.number_input(
                 f"{base_name} ({unit_label})",
                 value=0.0,
@@ -115,13 +116,13 @@ if page == "性能预测":
         # 阻燃剂输入
         for flame in flame_retardant_selection:
             qty = st.number_input(
-                f"{flame} ({unit_label})",  # Now unit_label is always defined here
+                f"{flame} ({unit_label})",
                 min_value=0.0,
                 value=0.0,
                 step=0.1,
                 key=f'flame_{flame}'
             )
-            user_input[flame] = qty  # 假设特征名称与选项一致
+            user_input[flame] = qty
             total += qty
 
         # 助剂输入
@@ -133,7 +134,7 @@ if page == "性能预测":
                 step=0.1,
                 key=f'additive_{additive}'
             )
-            user_input[additive] = qty  # 假设特征名称与选项一致
+            user_input[additive] = qty
             total += qty
 
         # 其他成分输入（非基体材料、非阻燃剂、非助剂）
@@ -144,7 +145,7 @@ if page == "性能预测":
         
         for name in other_features:
             val = st.number_input(
-                f"{name} ({unit_label})",  # Now unit_label is always defined here
+                f"{name} ({unit_label})", 
                 value=0.0, 
                 step=0.1 if "质量" in unit_type else 0.01,
                 key=f'input_{name}'
@@ -154,28 +155,6 @@ if page == "性能预测":
 
         # 提交按钮
         submitted = st.form_submit_button("📊 开始预测")
-
-        # 提交后的处理逻辑
-        if submitted:
-            # 验证单位类型
-            if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
-                st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
-            else:
-                # 单位转换逻辑（如果需要）
-                if unit_type == "质量 (g)" and total > 0:
-                    user_input = {k: (v/total)*100 for k,v in user_input.items()}
-                elif unit_type == "质量分数 (wt%)":
-                    total_weight = sum(user_input.values())
-                    user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
-                elif unit_type == "体积分数 (vol%)":
-                    total_weight = sum(user_input.values())
-                    user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
-
-                # 预测逻辑（调用模型进行预测）
-                input_array = np.array([list(user_input.values())])
-                input_scaled = scaler.transform(input_array)
-                prediction = model.predict(input_scaled)[0]
-                st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
 
 # 配方建议页面（保持不变）
 elif page == "配方建议":
