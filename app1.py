@@ -97,7 +97,7 @@ if page == "性能预测":
         }[unit_type]
 
         # 基体材料选择（只能选一个）
-       selected_base = st.selectbox(
+        selected_base = st.selectbox(
             "选择基体材料（必选）",
             base_materials,
             index=None,  # 默认不选择
@@ -162,7 +162,7 @@ if page == "性能预测":
         # 提交按钮
         submitted = st.form_submit_button("📊 开始预测")
 
-          if submitted:
+        if submitted:
             # 基体材料必选验证
             if not selected_base:
                 st.error("❌ 必须选择基体材料")
@@ -175,6 +175,7 @@ if page == "性能预测":
                 input_scaled = scaler.transform(input_array)
                 prediction = model.predict(input_scaled)[0]
                 st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
+
 # 配方建议页面
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
