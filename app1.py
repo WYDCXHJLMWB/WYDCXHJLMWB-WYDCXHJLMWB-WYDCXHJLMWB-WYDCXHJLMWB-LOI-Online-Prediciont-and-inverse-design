@@ -160,7 +160,7 @@ if page == "性能预测":
                 if unit_type == "质量 (g)" and total > 0:
                     user_input = {k: (v/total)*100 for k,v in user_input.items()}
                 
-                input_array = np.array([list(user_input.values())]
+                input_array = np.array([list(user_input.values())])  # 修复了缺少的圆括号
                 
                 try:
                     prediction = model.predict(input_array)[0]
@@ -170,7 +170,8 @@ if page == "性能预测":
                     
                 except Exception as e:
                     st.error(f"预测失败: {str(e)}")
-                    # 配方建议页面
+
+# 配方建议页面
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
     
@@ -192,8 +193,12 @@ elif page == "配方建议":
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
     def evalFormula(individual):
-        return sum(individual),
-    
+        # 这里根据目标LOI计算适应度
+        # 假设目标LOI需要与某些输入特征进行比对，具体计算可以根据实际情况修改
+        # 以简单的距离度量为例
+        prediction = model.predict([individual])[0]
+        return abs(target_loi - prediction),
+
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
     toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=1.0, indpb=0.2)
     toolbox.register("select", tools.selTournament, tournsize=3)
