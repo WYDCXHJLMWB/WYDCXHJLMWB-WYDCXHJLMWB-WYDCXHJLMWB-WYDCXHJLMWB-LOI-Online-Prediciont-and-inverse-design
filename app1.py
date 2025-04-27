@@ -145,7 +145,7 @@ elif page == "配方建议":
             MUTPB = 0.3
             
             pop = toolbox.population(n=POP_SIZE)
-            hof = tools.HallOfFame(1)
+            hof = tools.HallOfFame(10)  # 获取10个最佳配方
             stats = tools.Statistics(lambda ind: ind.fitness.values)
             stats.register("avg", np.mean)
             stats.register("min", np.min)
@@ -186,15 +186,20 @@ elif page == "配方建议":
                 hof.update(pop)
             
             # 获取最佳个体
-            best = hof[0]
-            total = sum(best)
-            recipe = {name: (val/total)*100 for name, val in zip(feature_names, best)}
+            best_individuals = hof[:10]  # 获取10个最好的配方
+            
+            # 转换为推荐配方列表
+            recipe_list = []
+            for best in best_individuals:
+                total = sum(best)
+                recipe = {name: (val/total)*100 for name, val in zip(feature_names, best)}
+                recipe_list.append(recipe)
             
             # 显示结果
             st.success("✅ 配方优化完成！")
             
-            # 输出10个配方
-            recipe_df = pd.DataFrame([recipe] * 10)
+            # 输出10个不同的配方
+            recipe_df = pd.DataFrame(recipe_list)
             recipe_df.index = [f"配方 {i+1}" for i in range(10)]
             
             # 加上单位
@@ -203,15 +208,5 @@ elif page == "配方建议":
                 "质量分数 (wt%)": "wt%",
                 "体积分数 (vol%)": "vol%"
             }[unit_type]
-            
-            # 为表头添加单位
             recipe_df.columns = [f"{col} ({unit_label})" for col in recipe_df.columns]
-            
-            st.subheader("推荐配方列表")
             st.dataframe(recipe_df)
-
-            # 显示预测值
-            input_array = np.array([[recipe[name] for name in feature_names]])
-            input_scaled = scaler.transform(input_array)
-            predicted_loi = model.predict(input_scaled)[0]
-            st.metric("预测LOI", f"{predicted_loi:.2f}%")
