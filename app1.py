@@ -63,7 +63,6 @@ additive_options = [
 
 # 单位类型处理
 unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True, key="unit_type")
-
 # 性能预测页面
 if page == "性能预测":
     st.subheader("🔬 正向预测：配方 → LOI")
@@ -115,7 +114,7 @@ if page == "性能预测":
         # 阻燃剂输入
         for flame in flame_retardant_selection:
             qty = st.number_input(
-                f"{flame} ({unit_label})",
+                f"{flame} ({unit_label})",  # Now unit_label is always defined here
                 min_value=0.0,
                 value=0.0,
                 step=0.1,
@@ -143,13 +142,8 @@ if page == "性能预测":
                         and name not in additive_options]
         
         for name in other_features:
-            unit_label = {
-                "质量 (g)": "g",
-                "质量分数 (wt%)": "wt%",
-                "体积分数 (vol%)": "vol%"
-            }[unit_type]
             val = st.number_input(
-                f"{name} ({unit_label})", 
+                f"{name} ({unit_label})",  # Now unit_label is always defined here
                 value=0.0, 
                 step=0.1 if "质量" in unit_type else 0.01,
                 key=f'input_{name}'
@@ -160,27 +154,6 @@ if page == "性能预测":
         # 提交按钮
         submitted = st.form_submit_button("📊 开始预测")
 
-    # 提交后的处理逻辑
-    if submitted:
-        # 验证单位类型
-        if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
-            st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
-        else:
-            # 单位转换逻辑
-            if unit_type == "质量 (g)" and total > 0:
-                user_input = {k: (v/total)*100 for k,v in user_input.items()}
-            elif unit_type == "质量分数 (wt%)":
-                total_weight = sum(user_input.values())
-                user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
-            elif unit_type == "体积分数 (vol%)":
-                total_weight = sum(user_input.values())
-                user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
-
-            # 预测逻辑
-            input_array = np.array([list(user_input.values())])
-            input_scaled = scaler.transform(input_array)
-            prediction = model.predict(input_scaled)[0]
-            st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
 
 # 配方建议页面（保持不变）
 elif page == "配方建议":
