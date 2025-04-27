@@ -174,13 +174,6 @@ if page == "性能预测":
 # 配方建议页面
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
-    
-    # 添加独立的单位选择（仅本页面使用）
-    inverse_unit_type = st.radio("📏 请选择配方显示单位", 
-                               ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], 
-                               horizontal=True, 
-                               key="inverse_unit")
-    
     target_loi = st.number_input("目标LOI值", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
     
     # 遗传算法配置
@@ -188,42 +181,100 @@ elif page == "配方建议":
     creator.create("Individual", list, fitness=creator.FitnessMin)
     
     toolbox = base.Toolbox()
-    toolbox.register("attr_float", random.uniform, 0, 1)
+    toolbox.register("attr_float", random.uniform, 0.01, 50)  # 初始范围调整
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
-    def evalFormula(individual):
-        # 这里根据目标LOI计算适应度
-        # 假设目标LOI需要与某些输入特征进行比对，具体计算可以根据实际情况修改
-        # 以简单的距离度量为例
-        prediction = model.predict([individual])[0]
-        return abs(target_loi - prediction),
-
-    toolbox.register("mate", tools.cxBlend, alpha=0.5)
-    toolbox.register("mutate", tools.mutGaussian, mu=0.0, sigma=1.0, indpb=0.2)
-    toolbox.register("select", tools.selTournament, tournsize=3)
-    toolbox.register("evaluate", evalFormula)
+    def evaluate(individual):
+        # 强制PP含量>=50且为最大值
+        if individual[0] < 50:
+            return (1000,)
+        if individual[0] != max(individual):
+            return (1000,)
+            
+        # 归一化处理
+        total = sum(individual)
+        normalized = [x/total*100 for x in individual]
+        
+        # 预测LOI
+        input_array = np.array([normalized])
+        input_scaled = scaler.transform(input_array)
+        predicted = model.predict(input_scaled)[0]
+        
+        return (abs(predicted - target_loi),)
     
-    population = toolbox.population(n=100)
-    generations = 100
-    for gen in range(generations):
-        offspring = list(map(toolbox.clone, population))
-        for child1, child2 in zip(offspring[::2], offspring[1::2]):
-            if random.random() < 0.7:
-                toolbox.mate(child1, child2)
-                del child1.fitness.values
-                del child2.fitness.values
-        
-        for mutant in offspring:
-            if random.random() < 0.2:
-                toolbox.mutate(mutant)
-                del mutant.fitness.values
-        
-        for individual in offspring:
-            if not individual.fitness.valid:
-                individual.fitness.values = toolbox.evaluate(individual)
-        
-        population[:] = offspring
-        
-    best_individual = tools.selBest(population, 1)[0]
-    st.write("建议配方：", best_individual)
+    # 遗传算法操作配置
+    toolbox.register("mate", tools.cxBlend, alpha=0.5)
+    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=5, indpb=0.2)
+    toolbox.register("select", tools.selTournament, tournsize=3)
+    toolbox.register("evaluate", evaluate)
+    
+    if st.button("生成推荐配方"):
+        with st.spinner("🔍 正在优化配方..."):
+            # 算法参数
+            POP_SIZE = 100
+            GEN_NUM = 50
+            CXPB = 0.7
+            MUTPB = 0.3
+            
+            pop = toolbox.population(n=POP_SIZE)
+            hof = tools.HallOfFame(1)
+            stats = tools.Statistics(lambda ind: ind.fitness.values)
+            stats.register("avg", np.mean)
+            stats.register("min", np.min)
+            
+            # 进化循环
+            for gen in range(GEN_NUM):
+                offspring = toolbox.select(pop, len(pop))
+                offspring = list(map(toolbox.clone, offspring))
+                
+                # 交叉
+                for child1, child2 in zip(offspring[::2], offspring[1::2]):
+                    if random.random() < CXPB:
+                        toolbox.mate(child1, child2)
+                        # 确保非负
+                        for i in range(len(child1)):
+                            child1[i] = max(child1[i], 0.01)
+                            child2[i] = max(child2[i], 0.01)
+                        del child1.fitness.values
+                        del child2.fitness.values
+                
+                # 变异
+                for mutant in offspring:
+                    if random.random() < MUTPB:
+                        toolbox.mutate(mutant)
+                        # 确保非负
+                        for i in range(len(mutant)):
+                            mutant[i] = max(mutant[i], 0.01)
+                        del mutant.fitness.values
+                
+                # 评估新个体
+                invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+                fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+                for ind, fit in zip(invalid_ind, fitnesses):
+                    ind.fitness.values = fit
+                
+                # 更新种群
+                pop[:] = offspring
+                hof.update(pop)
+            
+            # 获取最佳个体
+            best = hof[0]
+            total = sum(best)
+            recipe = {name: (val/total)*100 for name, val in zip(feature_names, best)}
+            
+            # 显示结果
+            st.success("✅ 配方优化完成！")
+            
+            # 输出10个配方
+            recipe_df = pd.DataFrame([recipe] * 10)
+            recipe_df.index = [f"配方 {i+1}" for i in range(10)]
+            
+            st.subheader("推荐配方列表")
+            st.dataframe(recipe_df)
+
+            # 显示预测值
+            input_array = np.array([[recipe[name] for name in feature_names]])
+            input_scaled = scaler.transform(input_array)
+            predicted_loi = model.predict(input_scaled)[0]
+            st.metric("预测LOI", f"{predicted_loi:.2f}%")
