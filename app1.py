@@ -113,8 +113,9 @@ elif page == "配方建议":
     toolbox.register("attr_float", random.uniform, 0.01, 50)
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-    # 注册选择函数
     toolbox.register("select", tools.selTournament, tournsize=3)
+    # 注册交叉操作 (使用两点交叉)
+    toolbox.register("mate", tools.cxTwoPoint)
 
     def evaluate(individual):
         # 强制PP含量>=50且为最大值
