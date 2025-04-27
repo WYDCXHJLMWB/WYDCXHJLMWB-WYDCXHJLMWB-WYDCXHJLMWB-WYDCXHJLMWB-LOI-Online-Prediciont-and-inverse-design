@@ -57,16 +57,15 @@ if page == "性能预测":
     with st.form(key='input_form'):
         user_input = {}
         total = 0
-        cols = st.columns(3)
         
-        # 选择基体材料（添加唯一键）
+        # 基体材料选择（修改为类似阻燃剂和助剂的选择形式）
         base_material = st.selectbox(
             "请选择基体材料",
             ["PP", "PA", "PC/ABS", "POM", "PBT", "PVC", "其他"],
             key='base_material_select'
         )
         
-        # 用户输入的配方（添加动态键）
+        # 用户输入的配方（删除原有的三列特征输入部分）
         for i, name in enumerate(feature_names):
             if name == "PP":
                 continue  # PP单独处理
@@ -75,7 +74,7 @@ if page == "性能预测":
                 "质量分数 (wt%)": "wt%",
                 "体积分数 (vol%)": "vol%"
             }[unit_type]
-            val = cols[i % 3].number_input(
+            val = st.number_input(
                 f"{name} ({unit_label})", 
                 value=0.0, 
                 step=0.1 if "质量" in unit_type else 0.01,
