@@ -126,15 +126,15 @@ elif page == "配方建议":
         print(f"Individual: {individual}")
         print(f"Normalized: {normalized}")
 
-    # 预测LOI
-    input_array = np.array([normalized])
-    input_scaled = scaler.transform(input_array)
-    predicted = model.predict(input_scaled)[0]
-
-    # 调试输出，查看预测结果
-    print(f"Predicted LOI: {predicted}")
-
-    return (abs(predicted - target_loi),)  # 返回目标LOI的误差
+        # 预测LOI
+        input_array = np.array([normalized])
+        input_scaled = scaler.transform(input_array)
+        predicted = model.predict(input_scaled)[0]
+    
+        # 调试输出，查看预测结果
+        print(f"Predicted LOI: {predicted}")
+    
+        return (abs(predicted - target_loi),)  # 返回目标LOI的误差
 
 
 
