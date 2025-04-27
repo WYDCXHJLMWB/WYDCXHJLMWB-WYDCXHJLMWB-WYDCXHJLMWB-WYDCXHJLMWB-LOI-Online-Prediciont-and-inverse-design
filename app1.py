@@ -157,8 +157,8 @@ elif page == "配方建议":
             # 算法参数
             POP_SIZE = 100
             GEN_NUM = 50
-            CXPB = 0.7
-            MUTPB = 0.3
+            CXPB = 0.1
+            MUTPB = 0.1
             
             pop = toolbox.population(n=POP_SIZE)
             stats = tools.Statistics(lambda ind: ind.fitness.values)
