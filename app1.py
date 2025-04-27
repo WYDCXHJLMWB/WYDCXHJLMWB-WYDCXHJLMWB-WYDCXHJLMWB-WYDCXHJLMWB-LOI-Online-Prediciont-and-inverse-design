@@ -123,7 +123,7 @@ if page == "性能预测":
         for flame in flame_retardant_selection:
             qty = st.number_input(
                 f"{flame} ({unit_label})",
-                min_value=0.0,
+                min_value=0.0,  # 防止负值
                 value=0.0,
                 step=0.1,
                 key=f'flame_{flame}'
@@ -135,7 +135,7 @@ if page == "性能预测":
         for additive in additive_selection:
             qty = st.number_input(
                 f"{additive} ({unit_label})",
-                min_value=0.0,
+                min_value=0.0,  # 防止负值
                 value=0.0,
                 step=0.1,
                 key=f'additive_{additive}'
@@ -153,6 +153,7 @@ if page == "性能预测":
             val = st.number_input(
                 f"{name} ({unit_label})", 
                 value=0.0, 
+                min_value=0.0,  # 防止负值
                 step=0.1 if "质量" in unit_type else 0.01,
                 key=f'input_{name}'
             )
@@ -175,6 +176,7 @@ if page == "性能预测":
                 input_scaled = scaler.transform(input_array)
                 prediction = model.predict(input_scaled)[0]
                 st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
+
 
 # 配方建议页面
 elif page == "配方建议":
