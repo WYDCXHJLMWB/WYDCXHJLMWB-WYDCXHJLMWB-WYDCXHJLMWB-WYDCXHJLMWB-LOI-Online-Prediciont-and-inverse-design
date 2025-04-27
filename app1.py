@@ -136,9 +136,6 @@ elif page == "配方建议":
     
         return (abs(predicted - target_loi),)  # 返回目标LOI的误差
 
-
-
-    
     # 遗传算法操作配置
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
     toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=5, indpb=0.2)
@@ -188,14 +185,6 @@ elif page == "配方建议":
             recipe_df = pd.DataFrame([recipe]*10, columns=columns_with_units)
             recipe_df.index = [f"配方 {i+1}" for i in range(10)]
 
-            # 验证PP含量
-            pp_col = f"PP ({unit_label})"
-            for i in range(10):
-                # 确保PP是最大值且≥50%
-                recipe_df.loc[f"配方 {i+1}", pp_col] = max(recipe_df.loc[f"配方 {i+1}"])
-                if recipe_df.loc[f"配方 {i+1}", pp_col] < 50:
-                    recipe_df.loc[f"配方 {i+1}", pp_col] = 50
-
             st.success("✅ 配方优化完成！")
             
             st.subheader("推荐配方列表")
@@ -206,3 +195,4 @@ elif page == "配方建议":
             input_scaled = scaler.transform(input_array)
             predicted_loi = model.predict(input_scaled)[0]
             st.metric("预测LOI", f"{predicted_loi:.2f}%")
+
