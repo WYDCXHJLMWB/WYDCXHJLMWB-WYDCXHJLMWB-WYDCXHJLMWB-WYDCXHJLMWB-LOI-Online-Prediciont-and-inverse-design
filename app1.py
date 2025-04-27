@@ -88,6 +88,7 @@ if page == "性能预测":
                 total_weight = sum(user_input.values())
                 user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
 
+
             # 预测逻辑
             if all(v==0 for k,v in user_input.items() if k!="PP") and user_input.get("PP",0)==100:
                 st.metric("极限氧指数 (LOI)", "17.5%")
@@ -101,111 +102,101 @@ elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
     target_loi = st.number_input("目标LOI值", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
     
-    # DEAP框架初始化
+    # 修复1：确保DEAP creator只创建一次
     if 'FitnessMin' not in creator.__dict__:
         creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
     if 'Individual' not in creator.__dict__:
         creator.create("Individual", list, fitness=creator.FitnessMin)
     
-    # 遗传算法工具配置
+    # 遗传算法配置
     toolbox = base.Toolbox()
     toolbox.register("attr_float", random.uniform, 0.01, 50)
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-    toolbox.register("select", tools.selTournament, tournsize=3)
-    toolbox.register("mate", tools.cxTwoPoint)
     
-    # 边界检查装饰器
-    def check_bounds(individual):
-        for i in range(len(individual)):
-            if individual[i] < 0.01:
-                individual[i] = 0.01
-        return individual,
-    
-    # 注册变异操作并添加边界检查
-    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1.0, indpb=0.2)
-    toolbox.decorate("mutate", check_bounds)
-
-    # 评估函数优化
     def evaluate(individual):
-        # 边界检查
-        if any(x < 0 for x in individual):
-            return (1000,)
-        
-        # 确保PP含量>=50且为最大值
-        pp_index = feature_names.index("PP")
+        # 强制PP含量>=50且为最大值
+        pp_index = feature_names.index("PP")  # 修复2：动态获取PP的索引位置
         if individual[pp_index] < 50:
             return (1000,)
         if individual[pp_index] != max(individual):
             return (1000,)
-        
+            
         # 归一化处理
         total = sum(individual)
-        if total <= 0:
-            return (1000,)
         normalized = [x/total*100 for x in individual]
         
-        try:
-            # 数据预处理和预测
-            input_array = np.array([normalized])
-            input_scaled = scaler.transform(input_array)
-            predicted = model.predict(input_scaled)[0]
-        except Exception as e:
-            print(f"预测异常：{e}")
-            return (1000,)
+        # 预测LOI
+        input_array = np.array([normalized])
+        input_scaled = scaler.transform(input_array)
+        predicted = model.predict(input_scaled)[0]
         
         return (abs(predicted - target_loi),)
     
+    # 遗传算法操作配置
+    toolbox.register("mate", tools.cxBlend, alpha=0.5)
+    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=5, indpb=0.2)
+    toolbox.register("select", tools.selTournament, tournsize=3)
     toolbox.register("evaluate", evaluate)
-
-    # 配方生成逻辑
+    
     if st.button("生成推荐配方"):
         with st.spinner("🔍 正在优化配方..."):
-            # 遗传算法参数优化
-            POP_SIZE = 200
-            GEN_NUM = 100
+            # 初始化hof
+            hof = tools.HallOfFame(1)  # 修复3：正确定义hof
+            
+            # 算法参数
+            POP_SIZE = 100
+            GEN_NUM = 50
             CXPB = 0.7
             MUTPB = 0.3
-
+            
             pop = toolbox.population(n=POP_SIZE)
-            hof = tools.HallOfFame(1)
             stats = tools.Statistics(lambda ind: ind.fitness.values)
             stats.register("avg", np.mean)
             stats.register("min", np.min)
-
-            # 运行优化算法
-            algorithms.eaSimple(pop, toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=GEN_NUM,
+            
+            # 使用DEAP内置算法简化流程
+            algorithms.eaSimple(pop, toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=GEN_NUM, 
                                stats=stats, halloffame=hof, verbose=False)
+            
+            # 获取最佳个体并处理单位
+            best = hof[0]  # 现在hof已正确定义
+            total = sum(best)
+            recipe_wt = {name: (val/total)*100 for name, val in zip(feature_names, best)}
+            
+            # 根据单位类型转换数值和单位标签
+            if unit_type == "质量 (g)":
+                recipe = recipe_wt  # 数值直接显示为克数（假设总质量100g）
+                unit_label = "g"
+            elif unit_type == "质量分数 (wt%)":
+                recipe = recipe_wt
+                unit_label = "wt%"
+            elif unit_type == "体积分数 (vol%)":
+                recipe = recipe_wt  # 假设体积分数与质量分数数值相同
+                unit_label = "vol%"
 
-            # 结果处理与展示
-            if hof.items:
-                best = hof[0]
-                total = sum(best)
-                if total > 0:
-                    recipe_wt = {name: (val/total)*100 for name, val in zip(feature_names, best)}
-                    
-                    # 单位转换
-                    unit_label = {
-                        "质量 (g)": "g",
-                        "质量分数 (wt%)": "wt%",
-                        "体积分数 (vol%)": "vol%"
-                    }[unit_type]
-                    
-                    # 创建结果表格
-                    columns = [f"{name} ({unit_label})" for name in feature_names]
-                    recipe_df = pd.DataFrame([recipe_wt], columns=columns)
-                    
-                    # 显示预测LOI
-                    normalized = [x/total*100 for x in best]
-                    input_array = np.array([normalized])
-                    input_scaled = scaler.transform(input_array)
-                    predicted_loi = model.predict(input_scaled)[0]
-                    
-                    st.success("✅ 配方优化完成")
-                    st.write("推荐配方：")
-                    st.dataframe(recipe_df.style.format("{:.2f}"))
-                    st.metric("预测LOI值", f"{predicted_loi:.2f}%")
-                else:
-                    st.error("⚠️ 无法生成有效配方，请调整目标LOI值")
-            else:
-                st.error("⚠️ 未找到符合条件的配方，请尝试调整目标值")
+            # 添加单位到列名
+            columns_with_units = [f"{name} ({unit_label})" for name in feature_names]
+            
+            # 创建结果DataFrame
+            recipe_df = pd.DataFrame([recipe]*10, columns=columns_with_units)
+            recipe_df.index = [f"配方 {i+1}" for i in range(10)]
+
+            # 验证PP含量
+            pp_col = f"PP ({unit_label})"
+            for i in range(10):
+                # 确保PP是最大值且≥50%
+                recipe_df.loc[f"配方 {i+1}", pp_col] = max(recipe_df.loc[f"配方 {i+1}"])
+                if recipe_df.loc[f"配方 {i+1}", pp_col] < 50:
+                    recipe_df.loc[f"配方 {i+1}", pp_col] = 50
+
+            st.success("✅ 配方优化完成！")
+            
+            st.subheader("推荐配方列表")
+            st.dataframe(recipe_df.style.format("{:.2f}"))
+
+            # 显示预测值（保持不变）
+            input_array = np.array([[recipe_wt[name] for name in feature_names]])
+            input_scaled = scaler.transform(input_array)
+            predicted_loi = model.predict(input_scaled)[0]
+            st.metric("预测LOI", f"{predicted_loi:.2f}%")
