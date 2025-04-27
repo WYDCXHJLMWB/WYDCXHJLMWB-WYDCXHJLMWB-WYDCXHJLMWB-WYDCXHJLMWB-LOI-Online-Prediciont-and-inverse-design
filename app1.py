@@ -189,7 +189,7 @@ elif page == "配方建议":
     target_loi = st.number_input("目标LOI值", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
     
     # 遗传算法配置
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) 
     creator.create("Individual", list, fitness=creator.FitnessMin)
     
     toolbox = base.Toolbox()
@@ -239,7 +239,6 @@ elif page == "配方建议":
                         toolbox.mate(child1, child2)
                         del child1.fitness.values
                         del child2.fitness.values
-                
                 for mutant in offspring:
                     if random.random() < MUTPB:
                         toolbox.mutate(mutant)
