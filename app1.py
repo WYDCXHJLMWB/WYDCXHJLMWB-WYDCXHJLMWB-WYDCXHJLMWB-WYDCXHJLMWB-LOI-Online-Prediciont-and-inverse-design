@@ -197,6 +197,16 @@ elif page == "配方建议":
             recipe_df = pd.DataFrame([recipe] * 10)
             recipe_df.index = [f"配方 {i+1}" for i in range(10)]
             
+            # 加上单位
+            unit_label = {
+                "质量 (g)": "g",
+                "质量分数 (wt%)": "wt%",
+                "体积分数 (vol%)": "vol%"
+            }[unit_type]
+            
+            # 为表头添加单位
+            recipe_df.columns = [f"{col} ({unit_label})" for col in recipe_df.columns]
+            
             st.subheader("推荐配方列表")
             st.dataframe(recipe_df)
 
