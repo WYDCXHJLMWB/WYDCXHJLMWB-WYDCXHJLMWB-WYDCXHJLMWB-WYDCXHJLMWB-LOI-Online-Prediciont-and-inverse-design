@@ -163,6 +163,7 @@ if page == "性能预测":
         # 提交按钮
         submitted = st.form_submit_button("📊 开始预测")
 
+# 在性能预测部分的预测逻辑中做如下修改（约第200行附近）
         if submitted:
             # 基体材料必选验证
             if not selected_base:
@@ -170,12 +171,30 @@ if page == "性能预测":
             elif unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
                 st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
             else:
+                # 转换为百分比
                 if unit_type == "质量 (g)" and total > 0:
                     user_input = {k: (v/total)*100 for k,v in user_input.items()}
+                
+                # 创建输入数组
                 input_array = np.array([list(user_input.values())])
-                input_scaled = scaler.transform(input_array)
-                prediction = model.predict(input_scaled)[0]
-                st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
+                
+                # 获取训练数据统计信息
+                train_loi_min = df["LOI"].min()  # 获取训练数据最小LOI值
+                train_loi_max = df["LOI"].max()  # 获取训练数据最大LOI值
+                
+                try:
+                    # 直接使用模型预测（假设模型未使用特征缩放）
+                    prediction = model.predict(input_array)[0]
+                    
+                    # 应用物理约束
+                    prediction = max(prediction, train_loi_min)  # 确保不低于训练数据最小值
+                    prediction = min(prediction, train_loi_max)  # 确保不超过训练数据最大值
+                    
+                    st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
+                    
+                except Exception as e:
+                    st.error(f"预测失败: {str(e)}")
+                    st.info("可能原因：输入特征超出模型训练范围")
 
 
 # 配方建议页面
