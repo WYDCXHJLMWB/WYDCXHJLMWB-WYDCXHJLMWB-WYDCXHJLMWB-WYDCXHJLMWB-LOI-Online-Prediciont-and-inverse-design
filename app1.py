@@ -113,7 +113,7 @@ elif page == "配方建议":
     toolbox.register("attr_float", random.uniform, 0.01, 50)
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=len(feature_names))
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-    
+
     def evaluate(individual):
         # 强制PP含量>=50且为最大值
         pp_index = feature_names.index("PP")  # 获取PP的索引
@@ -194,5 +194,5 @@ elif page == "配方建议":
             # 显示预测LOI
             input_array = np.array([[recipe_wt[name] for name in feature_names]])
             input_scaled = scaler.transform(input_array)
-            predicted_loi = model.predict(input_scaled)[0]
-            st.metric("预测LOI", f"{predicted_loi:.2f}%")
+            prediction = model.predict(input_scaled)[0]
+            st.metric("预计LOI", f"{prediction:.2f}%")
