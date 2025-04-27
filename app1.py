@@ -63,6 +63,7 @@ additive_options = [
 
 # 单位类型处理
 unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True, key="unit_type")
+
 # 性能预测页面
 if page == "性能预测":
     st.subheader("🔬 正向预测：配方 → LOI")
@@ -154,6 +155,27 @@ if page == "性能预测":
         # 提交按钮
         submitted = st.form_submit_button("📊 开始预测")
 
+        # 提交后的处理逻辑
+        if submitted:
+            # 验证单位类型
+            if unit_type != "质量 (g)" and abs(total - 100) > 1e-3:
+                st.warning("⚠️ 配方加和不为100，无法预测。请确保总和为100后再进行预测。")
+            else:
+                # 单位转换逻辑（如果需要）
+                if unit_type == "质量 (g)" and total > 0:
+                    user_input = {k: (v/total)*100 for k,v in user_input.items()}
+                elif unit_type == "质量分数 (wt%)":
+                    total_weight = sum(user_input.values())
+                    user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
+                elif unit_type == "体积分数 (vol%)":
+                    total_weight = sum(user_input.values())
+                    user_input = {k: (v/total_weight)*100 for k,v in user_input.items()}
+
+                # 预测逻辑（调用模型进行预测）
+                input_array = np.array([list(user_input.values())])
+                input_scaled = scaler.transform(input_array)
+                prediction = model.predict(input_scaled)[0]
+                st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
 
 # 配方建议页面（保持不变）
 elif page == "配方建议":
@@ -197,56 +219,29 @@ elif page == "配方建议":
             MUTPB = 0.3
             
             pop = toolbox.population(n=POP_SIZE)
-            hof = tools.HallOfFame(10)
-            stats = tools.Statistics(lambda ind: ind.fitness.values)
-            stats.register("avg", np.mean)
-            stats.register("min", np.min)
-            
-            for gen in range(GEN_NUM):
+            for g in range(GEN_NUM):
                 offspring = toolbox.select(pop, len(pop))
                 offspring = list(map(toolbox.clone, offspring))
                 
                 for child1, child2 in zip(offspring[::2], offspring[1::2]):
                     if random.random() < CXPB:
                         toolbox.mate(child1, child2)
-                        for i in range(len(child1)):
-                            child1[i] = max(child1[i], 0.01)
-                            child2[i] = max(child2[i], 0.01)
                         del child1.fitness.values
                         del child2.fitness.values
                 
                 for mutant in offspring:
                     if random.random() < MUTPB:
                         toolbox.mutate(mutant)
-                        for i in range(len(mutant)):
-                            mutant[i] = max(mutant[i], 0.01)
                         del mutant.fitness.values
                 
                 invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-                fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+                fitnesses = list(map(toolbox.evaluate, invalid_ind))
                 for ind, fit in zip(invalid_ind, fitnesses):
                     ind.fitness.values = fit
                 
                 pop[:] = offspring
-                hof.update(pop)
-            
-            best_individuals = hof[:10]
-            
-            recipe_list = []
-            for best in best_individuals:
-                total = sum(best)
-                recipe = {name: (val/total)*100 for name, val in zip(feature_names, best)}
-                recipe_list.append(recipe)
-            
-            st.success("✅ 配方优化完成！")
-            
-            recipe_df = pd.DataFrame(recipe_list)
-            recipe_df.index = [f"配方 {i+1}" for i in range(10)]
-            
-            unit_label = {
-                "质量 (g)": "g",
-                "质量分数 (wt%)": "wt%",
-                "体积分数 (vol%)": "vol%"
-            }[unit_type]
-            recipe_df.columns = [f"{col} ({unit_label})" for col in recipe_df.columns]
-            st.dataframe(recipe_df)
+                
+            best_ind = tools.selBest(pop, 1)[0]
+            st.write("推荐配方：")
+            for i, value in enumerate(best_ind):
+                st.write(f"{feature_names[i]}: {value:.2f}")
