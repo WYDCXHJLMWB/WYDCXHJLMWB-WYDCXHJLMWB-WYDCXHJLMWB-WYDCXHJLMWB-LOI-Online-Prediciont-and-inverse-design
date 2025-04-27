@@ -115,11 +115,6 @@ elif page == "配方建议":
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
     def evaluate(individual):
-        # 强制PP含量是最大值
-        pp_index = feature_names.index("PP")  # 动态获取PP的索引位置
-        if individual[pp_index] != max(individual):
-            return (1000,)  # 如果PP不是最大值，返回一个大值，保证不选择这个个体
-    
         # 归一化处理
         total = sum(individual)
         if total == 0:  # 如果总和为0，返回一个错误值，防止除零
@@ -130,16 +125,17 @@ elif page == "配方建议":
         # 调试输出，查看individual和归一化后的结果
         print(f"Individual: {individual}")
         print(f"Normalized: {normalized}")
-    
-        # 预测LOI
-        input_array = np.array([normalized])
-        input_scaled = scaler.transform(input_array)
-        predicted = model.predict(input_scaled)[0]
-    
-        # 调试输出，查看预测结果
-        print(f"Predicted LOI: {predicted}")
-    
-        return (abs(predicted - target_loi),)  # 返回目标LOI的误差
+
+    # 预测LOI
+    input_array = np.array([normalized])
+    input_scaled = scaler.transform(input_array)
+    predicted = model.predict(input_scaled)[0]
+
+    # 调试输出，查看预测结果
+    print(f"Predicted LOI: {predicted}")
+
+    return (abs(predicted - target_loi),)  # 返回目标LOI的误差
+
 
 
     
