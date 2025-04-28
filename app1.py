@@ -1,12 +1,19 @@
 class Predictor:
     def __init__(self, scaler_path, svc_path):
+        # 加载训练好的 scaler 和 svc 模型
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
+        # 定义静态特征和时序特征的列名（顺序与训练时一致）
         self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
         self.time_series_cols = ["黄度值_3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
 
     def _truncate(self, df):
+        """
+        对 df 中时序列进行 truncate 预处理：找到时序列中最大值所在的位置，并将该位置之后的值置为 NaN.
+        """
+        # 获取时序列（列名中包含 "min"）
         time_cols = [col for col in df.columns if "min" in col.lower()]
+        # 保留原有列顺序
         time_cols_ordered = [col for col in df.columns if col in time_cols]
         if time_cols_ordered:
             row = df.iloc[0][time_cols_ordered]
@@ -18,17 +25,53 @@ class Predictor:
         return df
 
     def predict_one(self, sample):
+        """
+        处理单条数据进行预测。
+        参数:
+            sample: numpy 数组，形状为 (n_features,) ，要求顺序：
+              添加比例, 产品质量指标_Sn%, 一甲%, 黄度值_3min, 黄度值_15min, 黄度值_18min, 黄度值_21min, 黄度值_24min
+        返回:
+            预测结果
+        """
+        # 构造完整 DataFrame
         all_cols = self.static_cols + self.time_series_cols
+        # print("all_cols: ", all_cols)
+
         df = pd.DataFrame([sample], columns=all_cols)
+
+        # 进行 truncate 预处理
         df = self._truncate(df)
+
+        # 提取静态特征：从每个静态特征搜索匹配（按训练时取第一个匹配）
         static_data = {}
         for feat in self.static_cols:
             matching = [col for col in df.columns if feat in col]
             if matching:
                 static_data[feat] = df.at[0, matching[0]]
         static_df = pd.DataFrame([static_data])
-        X_transformed = self.scaler.transform(static_df.values)
-        return self.model.predict(X_transformed)[0]
+
+        # 提取时序数据（即含 "min" 字段的列）
+        ts_cols = [col for col in df.columns if "min" in col.lower()]
+        ts_df = df[ts_cols]
+
+        eng_features = ['seq_length', 'max_value', 'mean_value', 'min_value',
+                        'std_value', 'trend', 'range_value', 'autocorr']
+
+        eng_df, _ = extract_time_series_features(df, feature_types=eng_features)
+
+        # print(eng_df)
+
+
+        # 合并静态特征和工程特征
+        # combined = pd.concat([static_df, eng_df], axis=1)
+        combined = eng_df
+
+        print(combined)
+
+        # 标准化处理（注意 scaler 训练时的特征顺序要与此处一致）
+        X_transformed = self.scaler.transform(combined.values)
+        pred = self.model.predict(X_transformed)
+        return pred[0]
 import streamlit as st
 import pandas as pd
 import numpy as np
