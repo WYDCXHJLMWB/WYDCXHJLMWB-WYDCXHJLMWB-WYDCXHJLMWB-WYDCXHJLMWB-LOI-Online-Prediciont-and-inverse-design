@@ -309,8 +309,8 @@ elif page == "配方建议":
         @st.cache_resource
         def load_predictor():
             return Predictor(
-                scaler_path="models/scaler_fold_1.pkl",
-                svc_path="models/svc_fold_1.pkl"
+                scaler_path="scaler_fold_1.pkl",
+                svc_path="svc_fold_1.pkl"
             )
         
         predictor = load_predictor()  # 注意这里修正了拼写错误
