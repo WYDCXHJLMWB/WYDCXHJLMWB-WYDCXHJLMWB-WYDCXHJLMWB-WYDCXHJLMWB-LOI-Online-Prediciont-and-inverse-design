@@ -179,173 +179,46 @@ elif page == "配方建议":
                 individual = [random.uniform(0, 100) for _ in range(n_features)]
                 total = sum(individual)
                 # 保证总和为100，且不含负值
-                return [max(0, x / total * 100) for x in individual]
-            
+                return [x * 100.0 / total for x in individual]
+    
+            # 初始化种群
             toolbox.register("individual", tools.initIterate, creator.Individual, generate_individual)
             toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-            
+    
+            # 目标函数
             def evaluate(individual):
-                # 单位转换处理
-                if fraction_type == "体积分数":
-                    # 转换为质量分数
-                    vol_values = np.array(individual)
-                    mass_values = vol_values  # 直接使用体积分数比例表示质量分数
-                    total_mass = mass_values.sum()
-                    if total_mass == 0:
-                        return (1e6,)
-                    mass_percent = (mass_values / total_mass) * 100
-                else:
-                    total = sum(individual)
-                    if total == 0:
-                        return (1e6,)
-                    mass_percent = np.array(individual) / total * 100
-                
-                # PP约束
-                pp_index = all_features.index("PP")
-                pp_content = mass_percent[pp_index]
-                if pp_content < 50:  # PP含量过低惩罚
-                    return (1e6,)
-                
-                # LOI计算
-                loi_input = mass_percent[:len(models["loi_features"])]
-                loi_scaled = models["loi_scaler"].transform([loi_input])
+                input_values = dict(zip(all_features, individual))
+                loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
+                loi_scaled = models["loi_scaler"].transform(loi_input)
                 loi_pred = models["loi_model"].predict(loi_scaled)[0]
-                loi_error = abs(target_loi - loi_pred)
-                
-                # TS计算
-                ts_input = mass_percent[:len(models["ts_features"])]
-                ts_scaled = models["ts_scaler"].transform([ts_input])
+                ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
+                ts_scaled = models["ts_scaler"].transform(ts_input)
                 ts_pred = models["ts_model"].predict(ts_scaled)[0]
-                ts_error = abs(target_ts - ts_pred)
-                
-                return (loi_error + ts_error,)
-            
+                return abs(target_loi - loi_pred) + abs(target_ts - ts_pred),
+    
             toolbox.register("mate", tools.cxBlend, alpha=0.5)
-            toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
+            toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=5, indpb=0.2)
             toolbox.register("select", tools.selTournament, tournsize=3)
             toolbox.register("evaluate", evaluate)
-            
+    
+            # 遗传算法流程
             population = toolbox.population(n=pop_size)
             algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
-            
-            # 选择10个配方并确保每个配方的总和为100
-            best_individuals = tools.selBest(population, 10)
-            best_values = []
-            for individual in best_individuals:
-                # 确保每个配方的总和为100，并修正负值
-                total = sum(individual)
-                best_values.append([round(max(0, i / total * 100), 2) for i in individual])
     
-            # 输出优化结果
-            result_df = pd.DataFrame(best_values, columns=all_features)
-            
-            # 添加单位列
-            units = [get_unit(fraction_type) for _ in all_features]
-            result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
-            
-            st.write(result_df)
+            # 获取最优解
+            best_individual = tools.selBest(population, 1)[0]
+            st.write(f"优化后的配方：{dict(zip(all_features, best_individual))}")
+
     elif sub_page == "添加剂推荐":
-        st.subheader("🧪 添加剂智能推荐")
-    
-        # 初始化预测模型
+        st.subheader("添加剂推荐")
+
+        # 这里我们可以加载一个推荐器类来处理添加剂推荐
+        # 假设已经定义了一个加载模型并返回结果的函数
         @st.cache_resource
         def load_predictor():
-            return Predictor(
-                scaler_path="models/scaler_fold_1.pkl",
-                svc_path="models/svc_fold_1.pkl"
-            )
+            return Predictor(scaler_path="scaler.joblib", svc_path="svc.joblib")
         
         predictor = load_predictor()
-    
-        # 创建输入表单
-        with st.form("additive_form"):
-            st.markdown("### 基础参数")
-            col_static = st.columns(3)
-            with col_static[0]:
-                add_ratio = st.number_input("添加比例 (%)", 0.0, 100.0, 5.0, step=0.1)
-            with col_static[1]:
-                sn_percent = st.number_input("Sn含量 (%)", 0.0, 100.0, 98.5, step=0.1)
-            with col_static[2]:
-                yijia_percent = st.number_input("一甲胺含量 (%)", 0.0, 100.0, 0.5, step=0.1)
-    
-            st.markdown("### 时序参数（黄度值随时间变化）")
-            
-            # 动态生成时序输入框
-            time_points = [
-                ("3min", 1.2), ("6min", 1.5), ("9min", 1.8),
-                ("12min", 2.0), ("15min", 2.2), ("18min", 2.5),
-                ("21min", 2.8), ("24min", 3.0)
-            ]
-            
-            yellow_values = {}
-            cols = st.columns(4)  # 每行显示4个输入框
-            for idx, (time, default) in enumerate(time_points):
-                with cols[idx % 4]:
-                    yellow_values[time] = st.number_input(
-                        f"{time} 黄度值",
-                        min_value=0.0,
-                        max_value=10.0,
-                        value=default,
-                        step=0.1,
-                        key=f"yellow_{time}"
-                    )
-    
-            submitted = st.form_submit_button("生成推荐方案")
-    
-        if submitted:
-            try:
-                # 构建输入样本（注意顺序与模型一致）
-                sample = np.array([
-                    add_ratio,
-                    sn_percent,
-                    yijia_percent,
-                    yellow_values["3min"],
-                    yellow_values["6min"],
-                    yellow_values["9min"],
-                    yellow_values["12min"],
-                    yellow_values["15min"],
-                    yellow_values["18min"],
-                    yellow_values["21min"],
-                    yellow_values["24min"]
-                ])
-                
-                # 执行预测
-                prediction = predictor.predict_one(sample)
-                
-                # 显示结果
-                st.success("### 推荐结果")
-                
-                # 结果可视化
-                result_data = {
-                    "标准型": 0.3,
-                    "高温稳定型": 0.6,
-                    "高效阻燃型": 0.1
-                }
-                
-                # 使用饼图展示预测概率分布
-                chart_data = pd.DataFrame({
-                    "类型": list(result_data.keys()),
-                    "概率": list(result_data.values())
-                })
-                
-                st.vega_lite_chart(chart_data, {
-                    "mark": {"type": "arc", "innerRadius": 50, "tooltip": True},
-                    "encoding": {
-                        "theta": {"field": "概率", "type": "quantitative"},
-                        "color": {"field": "类型", "type": "nominal"},
-                        "order": {"field": "概率", "type": "quantitative"}
-                    },
-                    "view": {"stroke": None},
-                    "width": 400,
-                    "height": 300
-                })
-                
-                # 显示详细推荐
-                st.markdown(f"""
-                #### 推荐添加剂类型：`{prediction}`
-                **推荐配方建议**：
-                - 主阻燃剂比例：{add_ratio * 0.8:.1f}%
-                - 协同剂比例：{add_ratio * 0.2:.1f}%
-                """)
-            except Exception as e:
-                st.error(f"预测时发生错误：{str(e)}")
+        sample = np.array([input_values[f] for f in models["loi_features"]]).reshape(1, -1)
+        recommended_additives = predictor.predict_one(sample)
+        st.write(f"推荐的添加剂为：{recommended_additives}")
