@@ -50,13 +50,6 @@ def load_models():
         "ts_scaler": ts_data["scaler"],
         "loi_features": pd.read_excel("trainrg3.xlsx").drop(columns="LOI").columns.tolist(),
         "ts_features": pd.read_excel("trainrg3TS.xlsx").drop(columns="TS").columns.tolist(),
-        "density": {  # 材料密度字典 (g/cm³)
-            'PP': 0.9,
-            'APP': 1.2,
-            'FR': 1.8,
-            'PER': 1.3,
-            'MC': 1.4
-        }
     }
 models = load_models()
 
@@ -101,8 +94,7 @@ if page == "性能预测":
         if fraction_type == "体积分数":
             # 转换为质量分数
             vol_values = np.array([input_values[f] for f in features])
-            densities = np.array([models["density"].get(f, 1.0) for f in features])
-            mass_values = vol_values * densities
+            mass_values = vol_values  # 直接使用体积分数比例表示质量分数
             total_mass = mass_values.sum()
             input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate(features)}
             
@@ -163,8 +155,7 @@ elif page == "配方建议":
             if fraction_type == "体积分数":
                 # 转换为质量分数
                 vol_values = np.array(individual)
-                densities = np.array([models["density"].get(f, 1.0) for f in all_features])
-                mass_values = vol_values * densities
+                mass_values = vol_values  # 直接使用体积分数比例表示质量分数
                 total_mass = mass_values.sum()
                 if total_mass == 0:
                     return (1e6,)
