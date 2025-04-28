@@ -98,8 +98,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# 侧边栏导航
-# 侧边栏导航
+
 # 侧边栏导航
 page = st.sidebar.selectbox(
     "🔧 选择功能", 
