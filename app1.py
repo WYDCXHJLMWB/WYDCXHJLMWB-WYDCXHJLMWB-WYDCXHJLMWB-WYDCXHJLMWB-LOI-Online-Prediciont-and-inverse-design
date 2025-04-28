@@ -347,7 +347,6 @@ elif page == "配方建议":
                     yellow_values[time] = st.number_input(
                         f"{time} 黄度值",
                         min_value=0.0,
-                        max_value=10.0,
                         value=default,
                         step=0.1,
                         key=f"yellow_{time}"
