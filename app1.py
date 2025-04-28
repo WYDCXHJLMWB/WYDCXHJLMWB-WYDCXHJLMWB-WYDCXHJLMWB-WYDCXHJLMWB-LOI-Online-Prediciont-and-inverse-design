@@ -36,6 +36,7 @@ st.markdown(
 # 侧边栏导航
 page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "配方建议"])
 fraction_type = st.sidebar.radio("📐 分数类型", ["质量分数", "体积分数"])
+quantity_type = st.sidebar.selectbox("📏 选择单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"])
 
 # 加载模型
 @st.cache_resource
@@ -70,7 +71,7 @@ if page == "性能预测":
     
     for i, feature in enumerate(features):
         with cols[i % 2]:
-            unit = "wt%" if fraction_type == "质量分数" else "vol%"
+            unit = quantity_type.split(' ')[1]  # 根据选择单位设置显示
             input_values[feature] = st.number_input(
                 f"{feature} ({unit})",
                 min_value=0.0,
@@ -177,34 +178,34 @@ elif page == "配方建议":
             # PP约束
             pp_index = all_features.index("PP")
             pp_content = mass_percent[pp_index]
-            if pp_content < 50 or pp_content != max(mass_percent):
+            if pp_content < 50:  # PP含量过低惩罚
                 return (1e6,)
             
-            # LOI预测
-            loi_input = np.array([[mass_percent[all_features.index(f)] for f in models["loi_features"]]])
-            loi_scaled = models["loi_scaler"].transform(loi_input)
+            # LOI计算
+            loi_input = mass_percent[:len(models["loi_features"])]
+            loi_scaled = models["loi_scaler"].transform([loi_input])
             loi_pred = models["loi_model"].predict(loi_scaled)[0]
+            loi_error = abs(target_loi - loi_pred)
             
-            # TS预测
-            ts_input = np.array([[mass_percent[all_features.index(f)] for f in models["ts_features"]]])
-            ts_scaled = models["ts_scaler"].transform(ts_input)
+            # TS计算
+            ts_input = mass_percent[:len(models["ts_features"])]
+            ts_scaled = models["ts_scaler"].transform([ts_input])
             ts_pred = models["ts_model"].predict(ts_scaled)[0]
+            ts_error = abs(target_ts - ts_pred)
             
-            fitness = abs(loi_pred - target_loi) + abs(ts_pred - target_ts)
-            return (fitness,)
+            return (loi_error + ts_error,)
         
-        # 注册遗传算子
-        toolbox.register("evaluate", evaluate)
         toolbox.register("mate", tools.cxBlend, alpha=0.5)
         toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
         toolbox.register("select", tools.selTournament, tournsize=3)
+        toolbox.register("evaluate", evaluate)
         
-        # 初始化种群
         population = toolbox.population(n=pop_size)
+        algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
         
-        # 运行遗传算法
-        result = algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=True)
-        
-        # 获取最佳个体
         best_individual = tools.selBest(population, 1)[0]
-        st.write(f"优化结果: {best_individual}")
+        best_values = [round(i, 2) for i in best_individual]
+
+        # 输出优化结果
+        result_df = pd.DataFrame([best_values], columns=all_features)
+        st.write(result_df)
