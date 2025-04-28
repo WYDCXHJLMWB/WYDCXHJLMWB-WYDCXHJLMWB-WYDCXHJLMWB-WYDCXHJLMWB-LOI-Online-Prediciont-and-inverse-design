@@ -61,13 +61,19 @@ def get_unit(fraction_type):
     elif fraction_type == "体积分数":
         return "vol%"
 
+# 保证PP在首列
+def ensure_pp_first(features):
+    if "PP" in features:
+        features.remove("PP")
+    return ["PP"] + sorted(features)
+
 # 性能预测页面
 if page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
     
     # 动态生成输入框
     input_values = {}
-    features = sorted(set(models["loi_features"] + models["ts_features"]))
+    features = ensure_pp_first(sorted(set(models["loi_features"] + models["ts_features"])))
     cols = st.columns(2)
     
     for i, feature in enumerate(features):
@@ -151,7 +157,7 @@ elif page == "配方建议":
         creator.create("Individual", list, fitness=creator.FitnessMin)
         
         toolbox = base.Toolbox()
-        all_features = list(set(models["loi_features"] + models["ts_features"]))
+        all_features = ensure_pp_first(list(set(models["loi_features"] + models["ts_features"])))
         n_features = len(all_features)
         
         # 生成满足和为100的配方
