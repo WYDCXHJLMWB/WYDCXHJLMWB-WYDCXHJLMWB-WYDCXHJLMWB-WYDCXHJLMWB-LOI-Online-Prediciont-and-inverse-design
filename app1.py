@@ -322,91 +322,91 @@ elif page == "配方建议":
             
             st.write(result_df)
     elif sub_page == "添加剂推荐":
-    st.subheader("添加剂推荐")
-    
-    @st.cache_resource
-    def load_predictor():
-        return Predictor(
-            scaler_path="scaler_fold_1.pkl",
-            svc_path="svc_fold_1.pkl"
-        )
-    
-    # 动态生成输入表单
-    with st.form("additive_form"):
-        col1, col2 = st.columns(2)
+        st.subheader("添加剂推荐")
         
-        # 静态参数
-        with col1:
-            st.markdown("### 基础参数")
-            sn_percent = st.number_input("Sn含量 (%)", 0.0, 100.0, 98.5)
-            add_ratio = st.number_input("添加比例 (%)", 0.0, 100.0, 5.0)
-            yijia_percent = st.number_input("一甲胺含量 (%)", 0.0, 100.0, 0.5)
+        @st.cache_resource
+        def load_predictor():
+            return Predictor(
+                scaler_path="scaler_fold_1.pkl",
+                svc_path="svc_fold_1.pkl"
+            )
         
-        # 时序参数
-        with col2:
-            st.markdown("### 黄度值时序参数")
-            time_points = [3, 6, 9, 12, 15, 18, 21, 24]
-            yellow_values = [
-                st.number_input(
-                    f"{time}min 黄度值", 
-                    min_value=0.0, 
-                    max_value=10.0, 
-                    value=1.2 + 0.3*i,
-                    key=f"yellow_{time}"
-                )
-                for i, time in enumerate(time_points)
-            ]
+        # 动态生成输入表单
+        with st.form("additive_form"):
+            col1, col2 = st.columns(2)
+            
+            # 静态参数
+            with col1:
+                st.markdown("### 基础参数")
+                sn_percent = st.number_input("Sn含量 (%)", 0.0, 100.0, 98.5)
+                add_ratio = st.number_input("添加比例 (%)", 0.0, 100.0, 5.0)
+                yijia_percent = st.number_input("一甲胺含量 (%)", 0.0, 100.0, 0.5)
+            
+            # 时序参数
+            with col2:
+                st.markdown("### 黄度值时序参数")
+                time_points = [3, 6, 9, 12, 15, 18, 21, 24]
+                yellow_values = [
+                    st.number_input(
+                        f"{time}min 黄度值", 
+                        min_value=0.0, 
+                        max_value=10.0, 
+                        value=1.2 + 0.3*i,
+                        key=f"yellow_{time}"
+                    )
+                    for i, time in enumerate(time_points)
+                ]
+            
+            submitted = st.form_submit_button("生成推荐")
         
-        submitted = st.form_submit_button("生成推荐")
-    
-    if submitted:
-        try:
-            # 构建完整输入样本（顺序必须与类定义一致！）
-            sample = [
-                sn_percent,    # 对应 static_cols[0]
-                add_ratio,     # 对应 static_cols[1]
-                yijia_percent, # 对应 static_cols[2]
-                *yellow_values # 展开时序参数
-            ]
-            
-            predictor = load_predictor()
-            result = predictor.predict_one(sample)
-            
-            # 显示结果
-            result_map = {
-                1: {"name": "无"},
-                2: {"name": "氯化石蜡"},
-                3: {"name": "EA12（脂肪酸复合醇酯）"},
-                4: {"name": "EA15（市售液体钙锌稳定剂）"},
-                5: {"name": "EA16（环氧大豆油）"},
-                6: {"name": "G70L（多官能团的脂肪酸复合酯混合物）"},
-                7: {"name": "EA6（亚磷酸酯）"}   
-            }
-            
-            if result not in result_map:
-                raise ValueError("未知预测结果")
-            
-            st.success("### 推荐方案")
-            st.markdown(f"""
-            **推荐类型**: {result_map[result]['name']}
-            - 建议添加量: {result_map[result]['ratio']}
-            - 适配工艺参数:
-              - 加工温度: 180-200℃
-              - 混料时间: 15-20分钟
-            """)
-            
-            # 显示特征验证
-            with st.expander("特征验证详情"):
-                st.write(f"输入特征维度: {len(sample)}（原始特征）")
-                st.write(f"工程特征维度: {predictor.scaler.n_features_in_}（模型期望）")
+        if submitted:
+            try:
+                # 构建完整输入样本（顺序必须与类定义一致！）
+                sample = [
+                    sn_percent,    # 对应 static_cols[0]
+                    add_ratio,     # 对应 static_cols[1]
+                    yijia_percent, # 对应 static_cols[2]
+                    *yellow_values # 展开时序参数
+                ]
                 
-        except Exception as e:
-            st.error(f"""
-            ## 预测失败
-            错误详情: {str(e)}
-            
-            常见原因:
-            1. 输入参数顺序不正确
-            2. 缺少必要的时序参数
-            3. 模型文件版本不匹配
-            """)
+                predictor = load_predictor()
+                result = predictor.predict_one(sample)
+                
+                # 显示结果
+                result_map = {
+                    1: {"name": "无"},
+                    2: {"name": "氯化石蜡"},
+                    3: {"name": "EA12（脂肪酸复合醇酯）"},
+                    4: {"name": "EA15（市售液体钙锌稳定剂）"},
+                    5: {"name": "EA16（环氧大豆油）"},
+                    6: {"name": "G70L（多官能团的脂肪酸复合酯混合物）"},
+                    7: {"name": "EA6（亚磷酸酯）"}   
+                }
+                
+                if result not in result_map:
+                    raise ValueError("未知预测结果")
+                
+                st.success("### 推荐方案")
+                st.markdown(f"""
+                **推荐类型**: {result_map[result]['name']}
+                - 建议添加量: {result_map[result]['ratio']}
+                - 适配工艺参数:
+                  - 加工温度: 180-200℃
+                  - 混料时间: 15-20分钟
+                """)
+                
+                # 显示特征验证
+                with st.expander("特征验证详情"):
+                    st.write(f"输入特征维度: {len(sample)}（原始特征）")
+                    st.write(f"工程特征维度: {predictor.scaler.n_features_in_}（模型期望）")
+                    
+            except Exception as e:
+                st.error(f"""
+                ## 预测失败
+                错误详情: {str(e)}
+                
+                常见原因:
+                1. 输入参数顺序不正确
+                2. 缺少必要的时序参数
+                3. 模型文件版本不匹配
+                """)
