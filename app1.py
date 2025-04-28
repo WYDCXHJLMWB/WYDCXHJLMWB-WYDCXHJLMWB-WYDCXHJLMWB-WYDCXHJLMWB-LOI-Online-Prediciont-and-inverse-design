@@ -53,7 +53,7 @@ def load_models():
 models = load_models()
 
 # 性能预测页面
-elif page == "性能预测":
+if page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
     
     # 动态生成输入框
@@ -127,7 +127,7 @@ elif page == "性能预测":
         with col2:
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
 
-if page == "配方建议":
+elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
     
     # 目标输入
