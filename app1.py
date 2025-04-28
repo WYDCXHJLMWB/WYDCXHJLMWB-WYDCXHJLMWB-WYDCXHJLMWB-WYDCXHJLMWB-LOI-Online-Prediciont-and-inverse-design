@@ -147,7 +147,7 @@ elif page == "配方建议":
 
     if st.button("🔍 开始优化", type="primary"):
         # 初始化遗传算法
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # 目标是最小化误差
         creator.create("Individual", list, fitness=creator.FitnessMin)
         
         toolbox = base.Toolbox()
@@ -193,7 +193,7 @@ elif page == "配方建议":
             ts_error = abs(target_ts - ts_pred)
             
             return (loi_error + ts_error,)
-        
+
         toolbox.register("mate", tools.cxBlend, alpha=0.5)
         toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
         toolbox.register("select", tools.selTournament, tournsize=3)
@@ -202,10 +202,24 @@ elif page == "配方建议":
         population = toolbox.population(n=pop_size)
         algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
         
-        best_individual = tools.selBest(population, 1)[0]
-        best_values = [round(i, 2) for i in best_individual]
+        # 生成10个配方
+        results = []
+        for _ in range(10):
+            best_individual = tools.selBest(population, 1)[0]
+            best_values = [round(i, 2) for i in best_individual]
 
+            # 归一化，确保配方总和为100%
+            total = sum(best_values)
+            if total != 0:
+                best_values = [round(i / total * 100, 2) for i in best_values]
+            
+            # 确保没有负值
+            best_values = [max(0, value) for value in best_values]
+
+            # 添加到结果列表
+            results.append(best_values)
+        
         # 输出优化结果
-        result_df = pd.DataFrame([best_values], columns=all_features)
+        result_df = pd.DataFrame(results, columns=all_features)
         st.write(result_df)
 
