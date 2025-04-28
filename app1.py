@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-from sklearn.preprocessing import StandardScaler
 import base64
 
 # 辅助函数：图片转base64
@@ -52,43 +51,43 @@ df_ts = pd.read_excel("trainrg3TS.xlsx")
 loi_feature_names = df_loi.columns.tolist()
 ts_feature_names = df_ts.columns.tolist()
 
-# 去掉LOI列
+# 移除LOI和TS列，得到特征名称
 if "LOI" in loi_feature_names:
     loi_feature_names.remove("LOI")
+
+if "TS" in ts_feature_names:
+    ts_feature_names.remove("TS")
 
 # 性能预测页面
 if page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
 
-    # LOI特征输入
-    st.write("请输入LOI相关配方特征值：")
-    loi_input_data = {}
-    for feature in loi_feature_names:
-        loi_input_data[feature] = st.number_input(f"请输入 {feature} 的特征值", value=0.0, step=0.1)
+    # 合并LOI和TS输入区域
+    st.write("请输入配方特征值：")
 
-    # TS特征输入
-    st.write("请输入TS相关配方特征值：")
-    ts_input_data = {}
-    for feature in ts_feature_names:
-        ts_input_data[feature] = st.number_input(f"请输入 {feature} 的特征值", value=0.0, step=0.1)
+    # 输入所有特征值（统一输入）
+    input_data = {}
+    for feature in set(loi_feature_names + ts_feature_names):  # 合并LOI和TS的特征
+        input_data[feature] = st.number_input(f"请输入 {feature} 的特征值", value=0.0, step=0.1)
 
     # 性能预测按钮
     if st.button("预测LOI和TS"):
-        # 将LOI和TS的输入数据转换为numpy数组
-        loi_input_array = np.array([list(loi_input_data.values())])
-        ts_input_array = np.array([list(ts_input_data.values())])
+        # 将输入数据转化为数组
+        input_array = np.array([list(input_data.values())])
 
-        # 预测LOI
+        # LOI预测：仅选择LOI相关特征
+        loi_input_array = np.array([list(input_data[feature] for feature in loi_feature_names)])
         if len(loi_input_array[0]) == len(loi_feature_names):
-            # 对LOI进行标准化并预测
+            # 标准化并预测LOI
             loi_input_scaled = loi_scaler.transform(loi_input_array)
             predicted_loi = loi_model.predict(loi_input_scaled)[0]
         else:
             st.error(f"LOI输入特征数量不匹配：期望 {len(loi_feature_names)}，实际输入 {len(loi_input_array[0])}")
 
-        # 预测TS
+        # TS预测：仅选择TS相关特征
+        ts_input_array = np.array([list(input_data[feature] for feature in ts_feature_names)])
         if len(ts_input_array[0]) == len(ts_feature_names):
-            # 对TS进行标准化并预测
+            # 标准化并预测TS
             ts_input_scaled = ts_scaler.transform(ts_input_array)
             predicted_ts = ts_model.predict(ts_input_scaled)[0]
         else:
@@ -96,7 +95,7 @@ if page == "性能预测":
 
         # 显示预测结果
         if len(loi_input_array[0]) == len(loi_feature_names) and len(ts_input_array[0]) == len(ts_feature_names):
-            st.success(f"预测的LOI值为：{predicted_loi:.2f}%")
+            st.success(f"预测的LOI值为：{predicted_loi:.2f} %")
             st.success(f"预测的TS值为：{predicted_ts:.2f} MPa")
 
 # 配方建议页面
