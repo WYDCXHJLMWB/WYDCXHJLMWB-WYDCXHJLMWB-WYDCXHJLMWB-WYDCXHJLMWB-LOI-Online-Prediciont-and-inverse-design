@@ -210,36 +210,71 @@ elif page == "配方建议":
                 individual = [random.uniform(0, 100) for _ in range(n_features)]
                 total = sum(individual)
                 # 保证总和为100，且不含负值
-                return [x * 100.0 / total for x in individual]
-    
-            # 初始化种群
+                return [max(0, x / total * 100) for x in individual]
+            
             toolbox.register("individual", tools.initIterate, creator.Individual, generate_individual)
             toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-    
-            # 目标函数
+            
             def evaluate(individual):
-                input_values = dict(zip(all_features, individual))
-                loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
-                loi_scaled = models["loi_scaler"].transform(loi_input)
+                # 单位转换处理
+                if fraction_type == "体积分数":
+                    # 转换为质量分数
+                    vol_values = np.array(individual)
+                    mass_values = vol_values  # 直接使用体积分数比例表示质量分数
+                    total_mass = mass_values.sum()
+                    if total_mass == 0:
+                        return (1e6,)
+                    mass_percent = (mass_values / total_mass) * 100
+                else:
+                    total = sum(individual)
+                    if total == 0:
+                        return (1e6,)
+                    mass_percent = np.array(individual) / total * 100
+                
+                # PP约束
+                pp_index = all_features.index("PP")
+                pp_content = mass_percent[pp_index]
+                if pp_content < 50:  # PP含量过低惩罚
+                    return (1e6,)
+                
+                # LOI计算
+                loi_input = mass_percent[:len(models["loi_features"])]
+                loi_scaled = models["loi_scaler"].transform([loi_input])
                 loi_pred = models["loi_model"].predict(loi_scaled)[0]
-                ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
-                ts_scaled = models["ts_scaler"].transform(ts_input)
+                loi_error = abs(target_loi - loi_pred)
+                
+                # TS计算
+                ts_input = mass_percent[:len(models["ts_features"])]
+                ts_scaled = models["ts_scaler"].transform([ts_input])
                 ts_pred = models["ts_model"].predict(ts_scaled)[0]
-                return abs(target_loi - loi_pred) + abs(target_ts - ts_pred),
-    
+                ts_error = abs(target_ts - ts_pred)
+                
+                return (loi_error + ts_error,)
+            
             toolbox.register("mate", tools.cxBlend, alpha=0.5)
-            toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=5, indpb=0.2)
+            toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
             toolbox.register("select", tools.selTournament, tournsize=3)
             toolbox.register("evaluate", evaluate)
-    
-            # 遗传算法流程
+            
             population = toolbox.population(n=pop_size)
             algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
+            
+            # 选择10个配方并确保每个配方的总和为100
+            best_individuals = tools.selBest(population, 10)
+            best_values = []
+            for individual in best_individuals:
+                # 确保每个配方的总和为100，并修正负值
+                total = sum(individual)
+                best_values.append([round(max(0, i / total * 100), 2) for i in individual])
     
-            # 获取最优解
-            best_individual = tools.selBest(population, 1)[0]
-            st.write(f"优化后的配方：{dict(zip(all_features, best_individual))}")
-
+            # 输出优化结果
+            result_df = pd.DataFrame(best_values, columns=all_features)
+            
+            # 添加单位列
+            units = [get_unit(fraction_type) for _ in all_features]
+            result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
+            
+            st.write(result_df)
     elif sub_page == "添加剂推荐":
         st.subheader("添加剂推荐")
     
