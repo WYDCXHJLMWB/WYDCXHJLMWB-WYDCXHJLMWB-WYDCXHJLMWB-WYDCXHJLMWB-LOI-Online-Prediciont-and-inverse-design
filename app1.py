@@ -49,8 +49,23 @@ if "LOI" in feature_names:
 # 单位类型处理
 unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True)
 
+# 性能预测页面
+if page == "性能预测":
+    st.subheader("🔮 性能预测：基于配方预测LOI")
+    user_input = {}
+
+    for feature in feature_names:
+        user_input[feature] = st.number_input(f"请输入 {feature} 的值", value=0.0, step=0.1)
+
+    # 性能预测按钮
+    if st.button("预测LOI"):
+        input_data = np.array([list(user_input.values())])
+        input_scaled = scaler.transform(input_data)
+        predicted_loi = model.predict(input_scaled)[0]
+        st.success(f"预测的LOI值为：{predicted_loi:.2f}")
+    
 # 配方建议页面
-if page == "配方建议":
+elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
     target_loi = st.number_input("目标LOI值", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
     
@@ -108,43 +123,3 @@ if page == "配方建议":
             
             # 收集有效配方，确保多样性
             valid_recipes = []
-            unique_recipes = set()  # 用于确保配方不同
-            
-            for ind in hof:
-                if ind.fitness.values[0] < 1000:  # 过滤有效解
-                    total = sum(ind)
-                    recipe = {name: (val/total)*100 for name, val in zip(feature_names, ind)}
-                    
-                    # 生成配方唯一标识
-                    recipe_tuple = tuple(recipe.items())
-                    if recipe_tuple not in unique_recipes:
-                        unique_recipes.add(recipe_tuple)
-                        valid_recipes.append(recipe)
-                if len(valid_recipes) >= 10:
-                    break
-            
-            if not valid_recipes:
-                st.error("无法找到有效配方，请调整目标值或参数")
-            else:
-                st.success(f"✅ 找到 {len(valid_recipes)} 个有效配方！")
-                
-                # 生成结果表格
-                recipe_df = pd.DataFrame(valid_recipes)
-                recipe_df.index = [f"配方 {i+1}" for i in range(len(recipe_df))]
-                
-                # 根据单位类型调整显示
-                unit_label = {
-                    "质量 (g)": "g",
-                    "质量分数 (wt%)": "wt%",
-                    "体积分数 (vol%)": "vol%"
-                }[unit_type]
-                
-                # 单位转换处理：直接使用质量分数作为体积分数
-                if unit_type == "体积分数 (vol%)":
-                    # 体积分数即为质量分数的比例
-                    for name in feature_names:
-                        recipe_df[name] = recipe_df[name]  # 体积分数等于质量分数
-                
-                recipe_df.columns = [f"{name} ({unit_label})" for name in feature_names]
-                
-                st.dataframe(recipe_df)
