@@ -52,8 +52,83 @@ def load_models():
     }
 models = load_models()
 
+# 性能预测页面
+if page == "性能预测":
+    st.subheader("🔮 性能预测：基于配方预测LOI和TS")
+    
+    # 动态生成输入框
+    input_values = {}
+    features = sorted(set(models["loi_features"] + models["ts_features"]))
+    cols = st.columns(2)
+    
+    for i, feature in enumerate(features):
+        with cols[i % 2]:
+            unit = ""
+            # 根据fraction_type自动确定单位
+            if fraction_type == "质量":
+                unit = "g"
+            elif fraction_type == "质量分数":
+                unit = "wt%"
+            elif fraction_type == "体积分数":
+                unit = "vol%"
+            
+            input_values[feature] = st.number_input(
+                f"{feature} ({unit})",
+                min_value=0.0,
+                max_value=100.0,
+                value=50.0 if feature == "PP" else 0.0,
+                step=0.1
+            )
+
+    # 输入验证
+    total = sum(input_values.values())
+    is_only_pp = all(v == 0 for k, v in input_values.items() if k != "PP")
+    
+    with st.expander("✅ 输入验证"):
+        if abs(total - 100.0) > 1e-6:
+            st.error(f"❗ 成分总和必须为100%（当前：{total:.2f}%）")
+        else:
+            st.success("成分总和验证通过")
+            if is_only_pp:
+                st.info("检测到纯PP配方")
+
+    if st.button("🚀 开始预测", type="primary"):
+        if abs(total - 100.0) > 1e-6:
+            st.error("预测中止：成分总和必须为100%")
+            st.stop()
+
+        # 单位转换处理
+        if fraction_type == "体积分数":
+            # 体积分数转化为质量分数
+            vol_values = np.array([input_values[f] for f in features])
+            mass_values = vol_values  # 假设体积分数与质量分数直接相等
+            total_mass = mass_values.sum()
+            input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate(features)}
+        
+        # 如果是纯PP配方，直接进行LOI和TS预测
+        if is_only_pp:
+            loi_pred = 17.5  # 假设PP配方LOI为17.5%
+            ts_pred = 35.0  # 假设PP配方TS为35 MPa
+        else:
+            # LOI预测
+            loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
+            loi_scaled = models["loi_scaler"].transform(loi_input)
+            loi_pred = models["loi_model"].predict(loi_scaled)[0]
+        
+            # TS预测
+            ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
+            ts_scaled = models["ts_scaler"].transform(ts_input)
+            ts_pred = models["ts_model"].predict(ts_scaled)[0]
+        
+        # 显示结果
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
+        with col2:
+            st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
+
 # 配方建议页面
-if page == "配方建议":
+elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
     
     # 目标输入
@@ -72,7 +147,7 @@ if page == "配方建议":
 
     if st.button("🔍 开始优化", type="primary"):
         # 初始化遗传算法
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # 优化目标是最小化误差
+        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
         creator.create("Individual", list, fitness=creator.FitnessMin)
         
         toolbox = base.Toolbox()
@@ -127,17 +202,10 @@ if page == "配方建议":
         population = toolbox.population(n=pop_size)
         algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
         
-        best_individuals = tools.selBest(population, 10)  # 获取前10个最佳个体
-        
+        best_individual = tools.selBest(population, 1)[0]
+        best_values = [round(i, 2) for i in best_individual]
+
         # 输出优化结果
-        result_data = []
-        for best_individual in best_individuals:
-            best_values = [round(i, 2) for i in best_individual]
-            # 确保每个配方的总和为100%
-            total = sum(best_values)
-            if abs(total - 100) > 1e-6:
-                best_values = [val / total * 100 for val in best_values]  # 标准化为100%
-            result_data.append(best_values)
-        
-        result_df = pd.DataFrame(result_data, columns=all_features)
+        result_df = pd.DataFrame([best_values], columns=all_features)
         st.write(result_df)
+请保证这个代码配方建议出10个配方，并且保证其不为负值，并且当选择质量分数和体积分数时，总和为100
