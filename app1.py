@@ -1,4 +1,5 @@
 # 新增 Predictor 类定义
+from sklearn.impute import SimpleImputer
 class Predictor:
     def __init__(self, scaler_path, svc_path):
         self.scaler = joblib.load(scaler_path)
@@ -9,6 +10,7 @@ class Predictor:
             'seq_length', 'max_value', 'mean_value', 'min_value',
             'std_value', 'trend', 'range_value', 'autocorr'
         ]
+        self.imputer = SimpleImputer(strategy="mean")  # 使用均值填充
 
     def _truncate(self, df):
         time_cols = [col for col in df.columns if "min" in col.lower()]
@@ -28,6 +30,9 @@ class Predictor:
         ts_cols = [col for col in df.columns if "min" in col.lower()]
         ts_series = df[ts_cols].iloc[0].dropna()
         
+        # 填充缺失值
+        ts_series = self.imputer.fit_transform(ts_series.values.reshape(-1, 1)).flatten()
+
         eng_features = {
             'seq_length': len(ts_series),
             'max_value': ts_series.max(),
@@ -36,7 +41,7 @@ class Predictor:
             'std_value': ts_series.std(),
             'trend': (ts_series[-1] - ts_series[0])/len(ts_series),
             'range_value': ts_series.max() - ts_series.min(),
-            'autocorr': ts_series.autocorr()
+            'autocorr': ts_series.autocorr() if len(ts_series) > 1 else 0  # 处理只有一个数据点的情况
         }
         
         return {**static_data, **eng_features}
@@ -55,8 +60,9 @@ class Predictor:
             )
         
         X_scaled = self.scaler.transform(feature_df)
+        
+        # 预测
         return self.model.predict(X_scaled)[0]
-
 import streamlit as st
 import pandas as pd
 import numpy as np
