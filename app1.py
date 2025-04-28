@@ -36,7 +36,6 @@ st.markdown(
 # 侧边栏导航
 page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "配方建议"])
 fraction_type = st.sidebar.radio("📐 分数类型", ["质量", "质量分数", "体积分数"])
-quantity_type = st.sidebar.selectbox("📏 选择单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"])
 
 # 加载模型
 @st.cache_resource
@@ -64,7 +63,15 @@ if page == "性能预测":
     
     for i, feature in enumerate(features):
         with cols[i % 2]:
-            unit = quantity_type.split(' ')[1]  # 根据选择单位设置显示
+            unit = ""
+            # 根据fraction_type自动确定单位
+            if fraction_type == "质量":
+                unit = "g"
+            elif fraction_type == "质量分数":
+                unit = "wt%"
+            elif fraction_type == "体积分数":
+                unit = "vol%"
+            
             input_values[feature] = st.number_input(
                 f"{feature} ({unit})",
                 min_value=0.0,
@@ -89,35 +96,31 @@ if page == "性能预测":
         if abs(total - 100.0) > 1e-6:
             st.error("预测中止：成分总和必须为100%")
             st.stop()
-            
+
         # 单位转换处理
         if fraction_type == "体积分数":
-            # 转换为质量分数
+            # 体积分数转化为质量分数
             vol_values = np.array([input_values[f] for f in features])
-            mass_values = vol_values  # 直接使用体积分数比例表示质量分数
+            mass_values = vol_values  # 假设体积分数与质量分数直接相等
             total_mass = mass_values.sum()
             input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate(features)}
-            
-        if is_only_pp:
-            st.success(f"预测LOI值：17.5%")
-            st.success(f"预测TS值：35.0 MPa")
-        else:
-            # LOI预测
-            loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
-            loi_scaled = models["loi_scaler"].transform(loi_input)
-            loi_pred = models["loi_model"].predict(loi_scaled)[0]
-            
-            # TS预测
-            ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
-            ts_scaled = models["ts_scaler"].transform(ts_input)
-            ts_pred = models["ts_model"].predict(ts_scaled)[0]
-            
-            # 显示结果
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
-            with col2:
-                st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
+        
+        # LOI预测
+        loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
+        loi_scaled = models["loi_scaler"].transform(loi_input)
+        loi_pred = models["loi_model"].predict(loi_scaled)[0]
+        
+        # TS预测
+        ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
+        ts_scaled = models["ts_scaler"].transform(ts_input)
+        ts_pred = models["ts_model"].predict(ts_scaled)[0]
+        
+        # 显示结果
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
+        with col2:
+            st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
 
 # 配方建议页面
 elif page == "配方建议":
@@ -194,9 +197,9 @@ elif page == "配方建议":
         population = toolbox.population(n=pop_size)
         algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
         
-        best_individuals = tools.selBest(population, 10)  # 获取10个最佳配方
-        best_values = [list(map(lambda x: round(i, 2), individual)) for individual in best_individuals]
+        best_individual = tools.selBest(population, 1)[0]
+        best_values = [round(i, 2) for i in best_individual]
 
         # 输出优化结果
-        result_df = pd.DataFrame(best_values, columns=all_features)
+        result_df = pd.DataFrame([best_values], columns=all_features)
         st.write(result_df)
