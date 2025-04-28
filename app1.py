@@ -52,6 +52,7 @@ df_ts = pd.read_excel("trainrg3TS.xlsx")
 loi_feature_names = df_loi.columns.tolist()
 ts_feature_names = df_ts.columns.tolist()
 
+# 去掉LOI列
 if "LOI" in loi_feature_names:
     loi_feature_names.remove("LOI")
 
@@ -59,50 +60,44 @@ if "LOI" in loi_feature_names:
 if page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
 
-    # 合并LOI和TS输入区域
-    st.write("请输入配方特征值：")
-
-    # 输入配方特征值
-    input_data = {}
-    for feature in loi_feature_names:  # 假设LOI和TS特征相同
-        input_data[feature] = st.number_input(f"请输入 {feature} 的特征值", value=0.0, step=0.1)
-
-# 性能预测按钮
-if st.button("预测LOI和TS"):
-    # LOI预测输入
-    loi_input = {}
+    # LOI特征输入
+    st.write("请输入LOI相关配方特征值：")
+    loi_input_data = {}
     for feature in loi_feature_names:
-        loi_input[feature] = st.number_input(f"请输入 {feature} 的LOI特征值", value=0.0, step=0.1)
+        loi_input_data[feature] = st.number_input(f"请输入 {feature} 的特征值", value=0.0, step=0.1)
 
-    # TS预测输入
-    ts_input = {}
+    # TS特征输入
+    st.write("请输入TS相关配方特征值：")
+    ts_input_data = {}
     for feature in ts_feature_names:
-        ts_input[feature] = st.number_input(f"请输入 {feature} 的TS特征值", value=0.0, step=0.1)
+        ts_input_data[feature] = st.number_input(f"请输入 {feature} 的特征值", value=0.0, step=0.1)
 
-    # 统一输入数据
-    loi_input_array = np.array([list(loi_input.values())])
-    ts_input_array = np.array([list(ts_input.values())])
+    # 性能预测按钮
+    if st.button("预测LOI和TS"):
+        # 将LOI和TS的输入数据转换为numpy数组
+        loi_input_array = np.array([list(loi_input_data.values())])
+        ts_input_array = np.array([list(ts_input_data.values())])
 
-    # 对LOI进行预测
-    if len(loi_input_array[0]) == len(loi_feature_names):
-        # 对LOI进行标准化并预测
-        loi_input_scaled = loi_scaler.transform(loi_input_array)
-        predicted_loi = loi_model.predict(loi_input_scaled)[0]
-    else:
-        st.error(f"LOI输入特征数量不匹配：期望 {len(loi_feature_names)}，实际输入 {len(loi_input_array[0])}")
+        # 预测LOI
+        if len(loi_input_array[0]) == len(loi_feature_names):
+            # 对LOI进行标准化并预测
+            loi_input_scaled = loi_scaler.transform(loi_input_array)
+            predicted_loi = loi_model.predict(loi_input_scaled)[0]
+        else:
+            st.error(f"LOI输入特征数量不匹配：期望 {len(loi_feature_names)}，实际输入 {len(loi_input_array[0])}")
 
-    # 对TS进行预测
-    if len(ts_input_array[0]) == len(ts_feature_names):
-        # 对TS进行标准化并预测
-        ts_input_scaled = ts_scaler.transform(ts_input_array)
-        predicted_ts = ts_model.predict(ts_input_scaled)[0]
-    else:
-        st.error(f"TS输入特征数量不匹配：期望 {len(ts_feature_names)}，实际输入 {len(ts_input_array[0])}")
+        # 预测TS
+        if len(ts_input_array[0]) == len(ts_feature_names):
+            # 对TS进行标准化并预测
+            ts_input_scaled = ts_scaler.transform(ts_input_array)
+            predicted_ts = ts_model.predict(ts_input_scaled)[0]
+        else:
+            st.error(f"TS输入特征数量不匹配：期望 {len(ts_feature_names)}，实际输入 {len(ts_input_array[0])}")
 
-    # 显示预测结果
-    if len(loi_input_array[0]) == len(loi_feature_names) and len(ts_input_array[0]) == len(ts_feature_names):
-        st.success(f"预测的LOI值为：{predicted_loi:.2f}")
-        st.success(f"预测的TS值为：{predicted_ts:.2f}")
+        # 显示预测结果
+        if len(loi_input_array[0]) == len(loi_feature_names) and len(ts_input_array[0]) == len(ts_feature_names):
+            st.success(f"预测的LOI值为：{predicted_loi:.2f}%")
+            st.success(f"预测的TS值为：{predicted_ts:.2f} MPa")
 
 # 配方建议页面
 elif page == "配方建议":
@@ -193,13 +188,5 @@ elif page == "配方建议":
                 recipe_df = pd.DataFrame(valid_recipes)
                 recipe_df.index = [f"配方 {i+1}" for i in range(len(recipe_df))]
                 
-                # 根据单位类型调整显示
-                unit_label = "质量分数 (wt%)"
-                
-                # 单位转换处理：直接使用质量分数作为体积分数
-                for name in loi_feature_names:
-                    recipe_df[name] = recipe_df[name]
-                
-                recipe_df.columns = [f"{name} ({unit_label})" for name in loi_feature_names]
-                
-                st.dataframe(recipe_df)
+                # 根据实际情况展示建议配方
+                st.write(recipe_df)
