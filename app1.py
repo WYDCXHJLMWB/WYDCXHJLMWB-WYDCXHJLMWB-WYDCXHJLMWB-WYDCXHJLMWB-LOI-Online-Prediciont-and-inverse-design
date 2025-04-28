@@ -190,32 +190,30 @@ elif page == "配方建议":
             loi_input = mass_percent[:len(models["loi_features"])]
             loi_scaled = models["loi_scaler"].transform([loi_input])
             loi_pred = models["loi_model"].predict(loi_scaled)[0]
-            loi_error = abs(target_loi - loi_pred)
+            loi_score = abs(loi_pred - target_loi)
             
             # TS计算
             ts_input = mass_percent[:len(models["ts_features"])]
             ts_scaled = models["ts_scaler"].transform([ts_input])
             ts_pred = models["ts_model"].predict(ts_scaled)[0]
-            ts_error = abs(target_ts - ts_pred)
+            ts_score = abs(ts_pred - target_ts)
             
-            return (loi_error + ts_error,)
-        
+            # 总分
+            return (loi_score + ts_score,)
+
+        # 创建种群
+        population = toolbox.population(n=pop_size)
+
+        # 遗传算法
         toolbox.register("mate", tools.cxBlend, alpha=0.5)
-        toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
+        toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=5, indpb=0.2)
         toolbox.register("select", tools.selTournament, tournsize=3)
         toolbox.register("evaluate", evaluate)
-        
-        population = toolbox.population(n=pop_size)
-        algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
-        
-        # 选择10个配方并确保每个配方的总和为100
-        best_individuals = tools.selBest(population, 10)
-        best_values = []
-        for individual in best_individuals:
-            # 确保每个配方的总和为100，并修正负值
-            total = sum(individual)
-            best_values.append([round(max(0, i / total * 100), 2) for i in individual])
 
-        # 输出优化结果
-        result_df = pd.DataFrame(best_values, columns=all_features)
-        st.write(result_df)
+        algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, 
+                            stats=None, halloffame=None, verbose=True)
+
+        # 获取最优解
+        best_individual = tools.selBest(population, 1)[0]
+        st.write("最优配方建议：")
+        st.write(dict(zip(all_features, best_individual)))
