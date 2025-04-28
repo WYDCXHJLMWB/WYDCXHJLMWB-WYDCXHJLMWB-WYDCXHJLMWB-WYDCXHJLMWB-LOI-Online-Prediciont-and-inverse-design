@@ -146,7 +146,7 @@ if page == "性能预测":
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
 
 elif page == "配方建议":
-    page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "配方建议"])
+    sub_page = st.sidebar.selectbox("🔧 选择功能", ["配方优化", "添加剂推荐"])
     if sub_page == "配方优化":
         st.subheader("🧪 配方建议：根据性能反推配方")
     
@@ -345,29 +345,7 @@ elif page == "配方建议":
                 #### 推荐添加剂类型：`{prediction}`
                 **推荐配方建议**：
                 - 主阻燃剂比例：{add_ratio * 0.8:.1f}%
-                - 协效剂组合：纳米粘土 + 红磷
-                - 加工温度范围：180-200℃
-                
-                **预期性能提升**：
-                ✅ LOI值提升：+{(prediction * 2.5):.1f}%  
-                ✅ 黄度值降低：-{(prediction * 0.3):.1f}单位
+                - 协同剂比例：{add_ratio * 0.2:.1f}%
                 """)
-    
             except Exception as e:
-                st.error(f"预测失败: {str(e)}")
-                st.stop()
-    
-        # 添加输入说明
-        with st.expander("📌 输入指南"):
-            st.markdown("""
-            **参数输入说明**：
-            1. **基础参数**：
-               - 添加比例：添加剂占总配方的百分比
-               - Sn含量：原料中锡元素的纯度百分比
-               - 一甲胺含量：辅助溶剂的含量比例
-            
-            2. **时序参数**：
-               - 按时间顺序输入黄度值测量数据
-               - 每3分钟测量一次，共8个时间点
-               - 典型值范围：1.0-5.0（数值越低越好）
-            """)
+                st.error(f"预测时发生错误：{str(e)}")
