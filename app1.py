@@ -49,74 +49,8 @@ if "LOI" in feature_names:
 # 单位类型处理
 unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True)
 
-# 性能预测页面
-if page == "性能预测":
-    st.subheader("🔬 正向预测：配方 → LOI")
-    
-    with st.form("input_form"):
-        user_input = {}
-        total = 0
-        cols = st.columns(3)
-        for i, name in enumerate(feature_names):
-            unit_label = {
-                "质量 (g)": "g",
-                "质量分数 (wt%)": "wt%",
-                "体积分数 (vol%)": "vol%"
-            }[unit_type]
-            val = cols[i%3].number_input(
-                f"{name} ({unit_label})", 
-                value=0.0, 
-                step=0.1 if "质量" in unit_type else 0.01
-            )
-            user_input[name] = val
-            total += val
-
-        submitted = st.form_submit_button("📊 开始预测")
-
-    if submitted:
-        error_flag = False
-        # 输入验证和单位转换
-        try:
-            if unit_type == "质量 (g)":
-                total_mass = sum(user_input.values())
-                if total_mass <= 0:
-                    st.error("总质量必须大于0")
-                    error_flag = True
-                else:
-                    # 转换为质量分数
-                    user_input = {k: (v/total_mass)*100 for k,v in user_input.items()}
-            elif unit_type == "体积分数 (vol%)":
-                if abs(total - 100) > 1e-3:
-                    st.warning("体积分数总和必须为100%")
-                    error_flag = True
-                else:
-                    # 转换为质量分数
-                    masses = [user_input[name] for name in feature_names]  # 直接使用体积分数作为质量分数
-                    total_mass = sum(masses)
-                    if total_mass <= 0:
-                        st.error("总质量计算错误")
-                        error_flag = True
-                    else:
-                        user_input = {name: (masses[i]/total_mass)*100 for i, name in enumerate(feature_names)}
-            else:  # 质量分数 (wt%)
-                if abs(total - 100) > 1e-3:
-                    st.warning("质量分数总和必须为100%")
-                    error_flag = True
-
-            if not error_flag:
-                # 预测逻辑
-                if all(v==0 for k,v in user_input.items() if k!="PP") and user_input.get("PP",0)==100:
-                    st.metric("极限氧指数 (LOI)", "17.5%")
-                else:
-                    input_array = np.array([list(user_input.values())])
-                    input_scaled = scaler.transform(input_array)
-                    prediction = model.predict(input_scaled)[0]
-                    st.metric("极限氧指数 (LOI)", f"{prediction:.2f}%")
-        except Exception as e:
-            st.error(f"输入处理错误: {str(e)}")
-
 # 配方建议页面
-elif page == "配方建议":
+if page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
     target_loi = st.number_input("目标LOI值", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
     
@@ -172,13 +106,20 @@ elif page == "配方建议":
             algorithms.eaSimple(pop, toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=GEN_NUM, 
                               stats=stats, halloffame=hof, verbose=False)
             
-            # 收集有效配方
+            # 收集有效配方，确保多样性
             valid_recipes = []
+            unique_recipes = set()  # 用于确保配方不同
+            
             for ind in hof:
                 if ind.fitness.values[0] < 1000:  # 过滤有效解
                     total = sum(ind)
                     recipe = {name: (val/total)*100 for name, val in zip(feature_names, ind)}
-                    valid_recipes.append(recipe)
+                    
+                    # 生成配方唯一标识
+                    recipe_tuple = tuple(recipe.items())
+                    if recipe_tuple not in unique_recipes:
+                        unique_recipes.add(recipe_tuple)
+                        valid_recipes.append(recipe)
                 if len(valid_recipes) >= 10:
                     break
             
