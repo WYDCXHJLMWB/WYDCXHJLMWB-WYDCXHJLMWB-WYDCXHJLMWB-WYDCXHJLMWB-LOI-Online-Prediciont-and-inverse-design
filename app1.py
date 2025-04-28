@@ -196,75 +196,15 @@ elif page == "配方建议":
         # 注册遗传算子
         toolbox.register("evaluate", evaluate)
         toolbox.register("mate", tools.cxBlend, alpha=0.5)
-        toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=5, indpb=0.2)
+        toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
         toolbox.register("select", tools.selTournament, tournsize=3)
         
-        # 运行算法
-        pop = toolbox.population(n=pop_size)
-        hof = tools.HallOfFame(10)
-        stats = tools.Statistics(lambda ind: ind.fitness.values)
-        stats.register("avg", np.mean)
-        stats.register("min", np.min)
+        # 初始化种群
+        population = toolbox.population(n=pop_size)
         
-        with st.spinner("🚀 正在优化配方..."):
-            algorithms.eaSimple(pop, toolbox, cxpb=cx_prob, mutpb=mut_prob, 
-                               ngen=n_gen, stats=stats, halloffame=hof, verbose=False)
+        # 运行遗传算法
+        result = algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=True)
         
-        # 处理结果
-        solutions = []
-        for ind in hof:
-            # 单位处理
-            if fraction_type == "体积分数":
-                total_vol = sum(ind)
-                if total_vol == 0:
-                    continue
-                formula = np.array(ind) / total_vol * 100
-                unit = "vol%"
-            else:
-                total_mass = sum(ind)
-                if total_mass == 0:
-                    continue
-                formula = np.array(ind) / total_mass * 100
-                unit = "wt%"
-            
-            # 转换为字典
-            solution = {f: f"{formula[i]:.2f}{unit}" for i, f in enumerate(all_features)}
-            
-            # 预测性能
-            loi_input = np.array([[formula[all_features.index(f)] for f in models["loi_features"]]).reshape(1, -1)
-            ts_input = np.array([[formula[all_features.index(f)] for f in models["ts_features"]]).reshape(1, -1)
-            
-            loi_pred = models["loi_model"].predict(models["loi_scaler"].transform(loi_input))[0]
-            ts_pred = models["ts_model"].predict(models["ts_scaler"].transform(ts_input))[0]
-            
-            solution["LOI"] = f"{loi_pred:.2f}%"
-            solution["TS"] = f"{ts_pred:.2f} MPa"
-            solutions.append(solution)
-        
-        if solutions:
-            df = pd.DataFrame(solutions)
-            ordered_columns = ["PP"] + [f for f in all_features if f != "PP"] + ["LOI", "TS"]
-            st.subheader("🏆 推荐配方列表")
-            st.dataframe(df[ordered_columns].style.format({
-                **{f: "{:.2f}" + ("vol%" if fraction_type == "体积分数" else "wt%") for f in all_features},
-                "LOI": "{:.2f}%",
-                "TS": "{:.2f} MPa"
-            }), height=600)
-            
-            # 下载按钮
-            csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="📥 下载配方数据",
-                data=csv,
-                file_name="recommended_formulas.csv",
-                mime="text/csv"
-            )
-        else:
-            st.warning("⚠️ 未找到满足条件的配方，请尝试：\n"
-                      "1. 调整目标值范围\n"
-                      "2. 增加迭代代数\n"
-                      "3. 扩大种群数量")
-
-# 添加页脚
-st.markdown("---")
-st.markdown("© 2025 上海大学功能高分子课题组 | 版本 1.1 | [联系我们](#)")
+        # 获取最佳个体
+        best_individual = tools.selBest(population, 1)[0]
+        st.write(f"优化结果: {best_individual}")
