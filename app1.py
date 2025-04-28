@@ -105,7 +105,10 @@ class Predictor:
         # 识别时序特征列
         time_cols = [col for col in df.columns if 'min' in str(col).lower()]
         time_data = df[time_cols]
-    
+  # 辅助函数：图片转base64
+def image_to_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()  
 # 页面配置
 image_path = "图片1.png"
 icon_base64 = image_to_base64(image_path)
