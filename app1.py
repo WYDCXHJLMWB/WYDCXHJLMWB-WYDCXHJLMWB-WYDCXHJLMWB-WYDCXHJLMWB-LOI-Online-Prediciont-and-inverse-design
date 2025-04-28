@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import joblib
 import base64
+import random
+from deap import base, creator, tools, algorithms
 
 # 辅助函数：图片转base64
 def image_to_base64(image_path):
@@ -105,8 +107,10 @@ elif page == "配方建议":
     target_ts = st.number_input("目标TS值", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
     
     # 遗传算法配置
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # 目标是最小化
-    creator.create("Individual", list, fitness=creator.FitnessMin)
+    if not hasattr(creator, "FitnessMin"):
+        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # 目标是最小化
+    if not hasattr(creator, "Individual"):
+        creator.create("Individual", list, fitness=creator.FitnessMin)
     
     toolbox = base.Toolbox()
     toolbox.register("attr_float", random.uniform, 0.01, 50)
@@ -137,55 +141,16 @@ elif page == "配方建议":
         # 目标函数：最小化LOI和TS的差距
         return (abs(predicted_loi - target_loi) + abs(predicted_ts - target_ts),)
     
-    # 遗传算法操作配置
     toolbox.register("mate", tools.cxBlend, alpha=0.5)
-    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=5, indpb=0.2)
+    toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
     toolbox.register("select", tools.selTournament, tournsize=3)
     toolbox.register("evaluate", evaluate)
+
+    # 执行遗传算法
+    population = toolbox.population(n=10)
+    result = algorithms.eaSimple(population, toolbox, cxpb=0.7, mutpb=0.2, ngen=10, verbose=False)
     
-    if st.button("生成推荐配方"):
-        with st.spinner("🔍 正在优化配方..."):
-            # 算法参数
-            POP_SIZE = 200  # 增大种群规模
-            GEN_NUM = 100   # 增加进化代数
-            CXPB = 0.7
-            MUTPB = 0.3
-            
-            pop = toolbox.population(n=POP_SIZE)
-            hof = tools.HallOfFame(10)  # 保存前10个最佳个体
-            stats = tools.Statistics(lambda ind: ind.fitness.values)
-            stats.register("avg", np.mean)
-            stats.register("min", np.min)
-            
-            # 进化循环
-            algorithms.eaSimple(pop, toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=GEN_NUM, 
-                              stats=stats, halloffame=hof, verbose=False)
-            
-            # 收集有效配方，确保多样性
-            valid_recipes = []
-            unique_recipes = set()  # 用于确保配方不同
-            
-            for ind in hof:
-                if ind.fitness.values[0] < 1000:  # 过滤有效解
-                    total = sum(ind)
-                    recipe = {name: (val/total)*100 for name, val in zip(loi_feature_names, ind)}
-                    
-                    # 生成配方唯一标识
-                    recipe_tuple = tuple(recipe.items())
-                    if recipe_tuple not in unique_recipes:
-                        unique_recipes.add(recipe_tuple)
-                        valid_recipes.append(recipe)
-                if len(valid_recipes) >= 10:
-                    break
-            
-            if not valid_recipes:
-                st.error("无法找到有效配方，请调整目标值或参数")
-            else:
-                st.success(f"✅ 找到 {len(valid_recipes)} 个有效配方！")
-                
-                # 生成结果表格
-                recipe_df = pd.DataFrame(valid_recipes)
-                recipe_df.index = [f"配方 {i+1}" for i in range(len(recipe_df))]
-                
-                # 根据实际情况展示建议配方
-                st.write(recipe_df)
+    # 输出最优配方
+    best_individual = tools.selBest(population, 1)[0]
+    st.write("最优配方：", best_individual)
+
