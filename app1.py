@@ -1,69 +1,51 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import joblib
-from sklearn.preprocessing import StandardScaler
-from deap import base, creator, tools, algorithms
-import random
-import base64
+# 加载LOI模型和Scaler
+loi_data = joblib.load("model_and_scaler_loi.pkl")
+loi_model = loi_data["model"]
+loi_scaler = loi_data["scaler"]
 
-# 辅助函数：图片转base64
-def image_to_base64(image_path):
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode()
+# 加载TS模型和Scaler
+ts_data = joblib.load("model_and_scaler_ts1.pkl")
+ts_model = loi_data["model"]
+ts_scaler = loi_data["scaler"]
 
-# 页面配置
-image_path = "图片1.png"
-icon_base64 = image_to_base64(image_path)
-st.set_page_config(
-    page_title="聚丙烯LOI模型",
-    layout="wide",
-    page_icon=f"data:image/png;base64,{icon_base64}"
-)
+# 加载训练数据，获取特征名称
+df_loi = pd.read_excel("trainrg3.xlsx")
+df_ts = pd.read_excel("trainrg3ts.xlsx")
 
-# 页面标题样式
-width = 200
-height = int(158 * (width / 507))
-st.markdown(
-    f"""
-    <h1 style="display: flex; align-items: center;">
-        <img src="data:image/png;base64,{icon_base64}" style="width: {width}px; height: {height}px; margin-right: 15px;" />
-        阻燃聚合物复合材料智能设计平台
-    </h1>
-    """, 
-    unsafe_allow_html=True
-)
+loi_feature_names = df_loi.columns.tolist()
+ts_feature_names = df_ts.columns.tolist()
 
-# 侧边栏导航
-page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "配方建议"])
-
-# 加载模型和数据
-data = joblib.load("model_and_scaler_loi.pkl")
-model = data["model"]
-scaler = data["scaler"]
-df = pd.read_excel("trainrg3.xlsx")
-feature_names = df.columns.tolist()
-if "LOI" in feature_names:
-    feature_names.remove("LOI")
-
-# 单位类型处理
-unit_type = st.radio("📏 请选择配方输入单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"], horizontal=True)
+if "LOI" in loi_feature_names:
+    loi_feature_names.remove("LOI")
 
 # 性能预测页面
 if page == "性能预测":
-    st.subheader("🔮 性能预测：基于配方预测LOI")
-    user_input = {}
+    st.subheader("🔮 性能预测：基于配方预测LOI和TS")
 
-    for feature in feature_names:
-        user_input[feature] = st.number_input(f"请输入 {feature} 的值", value=0.0, step=0.1)
-
-    # 性能预测按钮
-    if st.button("预测LOI"):
-        input_data = np.array([list(user_input.values())])
-        input_scaled = scaler.transform(input_data)
-        predicted_loi = model.predict(input_scaled)[0]
-        st.success(f"预测的LOI值为：{predicted_loi:.2f}")
+    # LOI预测输入
+    loi_input = {}
+    for feature in loi_feature_names:
+        loi_input[feature] = st.number_input(f"请输入 {feature} 的LOI特征值", value=0.0, step=0.1)
     
+    # TS预测输入
+    ts_input = {}
+    for feature in ts_feature_names:
+        ts_input[feature] = st.number_input(f"请输入 {feature} 的TS特征值", value=0.0, step=0.1)
+    
+    # 性能预测按钮
+    if st.button("预测LOI和TS"):
+        # LOI预测
+        loi_input_data = np.array([list(loi_input.values())])
+        loi_input_scaled = loi_scaler.transform(loi_input_data)
+        predicted_loi = loi_model.predict(loi_input_scaled)[0]
+
+        # TS预测
+        ts_input_data = np.array([list(ts_input.values())])
+        ts_input_scaled = ts_scaler.transform(ts_input_data)
+        predicted_ts = ts_model.predict(ts_input_scaled)[0]
+
+        st.success(f"预测的LOI值为：{predicted_loi:.2f}")
+        st.success(f"预测的TS值为：{predicted_ts:.2f}")
 # 配方建议页面
 elif page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
