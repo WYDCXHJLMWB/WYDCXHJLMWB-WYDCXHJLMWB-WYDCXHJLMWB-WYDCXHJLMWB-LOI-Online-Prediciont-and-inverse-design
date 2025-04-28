@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import streamlit as st
+import base64  # 添加缺失的base64导入
 
 class Predictor:
     def __init__(self, scaler_path, svc_path):
@@ -11,6 +12,10 @@ class Predictor:
         # 定义静态特征和时序特征的列名（顺序与训练时一致）
         self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
         self.time_series_cols = ["黄度值_3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
+        self.eng_features = [  # 添加eng_features定义
+            'seq_length', 'max_value', 'mean_value', 'min_value',
+            'std_value', 'trend', 'range_value', 'autocorr'
+        ]
 
     def _truncate(self, df):
         """处理时序数据截断（保持原有逻辑）"""
@@ -74,7 +79,9 @@ class Predictor:
         # 标准化 & 预测
         X_scaled = self.scaler.transform(feature_df)
         return self.model.predict(X_scaled)[0]
-    def extract_time_series_features(df, feature_types=None, static_features=None):
+
+    # 修正方法定义（添加self参数）
+    def extract_time_series_features(self, df, feature_types=None, static_features=None):
         """
         提取时序特征并与静态特征合并
         
@@ -105,10 +112,13 @@ class Predictor:
         # 识别时序特征列
         time_cols = [col for col in df.columns if 'min' in str(col).lower()]
         time_data = df[time_cols]
-  # 辅助函数：图片转base64
+        return pd.DataFrame()  # 添加返回值
+
+# 辅助函数：图片转base64
 def image_to_base64(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode()  
+
 # 页面配置
 image_path = "图片1.png"
 icon_base64 = image_to_base64(image_path)
