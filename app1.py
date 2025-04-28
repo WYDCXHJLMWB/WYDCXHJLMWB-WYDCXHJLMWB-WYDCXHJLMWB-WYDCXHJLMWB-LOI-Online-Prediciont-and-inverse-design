@@ -153,4 +153,3 @@ elif page == "配方建议":
     # 输出最优配方
     best_individual = tools.selBest(population, 1)[0]
     st.write("最优配方：", best_individual)
-
