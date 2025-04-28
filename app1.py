@@ -53,7 +53,7 @@ def load_models():
 models = load_models()
 
 # 性能预测页面
-if page == "性能预测":
+elif page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
     
     # 动态生成输入框
@@ -127,8 +127,7 @@ if page == "性能预测":
         with col2:
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
 
-# 配方建议页面
-elif page == "配方建议":
+if page == "配方建议":
     st.subheader("🧪 配方建议：根据性能反推配方")
     
     # 目标输入
@@ -147,15 +146,21 @@ elif page == "配方建议":
 
     if st.button("🔍 开始优化", type="primary"):
         # 初始化遗传算法
-        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # 目标是最小化误差
+        creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
         creator.create("Individual", list, fitness=creator.FitnessMin)
         
         toolbox = base.Toolbox()
         all_features = list(set(models["loi_features"] + models["ts_features"]))
         n_features = len(all_features)
         
-        toolbox.register("attr_float", random.uniform, 0.1, 100)
-        toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=n_features)
+        # 生成满足和为100的配方
+        def generate_individual():
+            # 随机生成一个和为100的配方
+            individual = [random.uniform(0, 100) for _ in range(n_features)]
+            total = sum(individual)
+            return [x / total * 100 for x in individual]
+        
+        toolbox.register("individual", tools.initIterate, creator.Individual, generate_individual)
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
         
         def evaluate(individual):
@@ -193,7 +198,7 @@ elif page == "配方建议":
             ts_error = abs(target_ts - ts_pred)
             
             return (loi_error + ts_error,)
-
+        
         toolbox.register("mate", tools.cxBlend, alpha=0.5)
         toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
         toolbox.register("select", tools.selTournament, tournsize=3)
@@ -202,24 +207,14 @@ elif page == "配方建议":
         population = toolbox.population(n=pop_size)
         algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
         
-        # 生成10个配方
-        results = []
-        for _ in range(10):
-            best_individual = tools.selBest(population, 1)[0]
-            best_values = [round(i, 2) for i in best_individual]
+        # 选择10个配方并确保每个配方的总和为100
+        best_individuals = tools.selBest(population, 10)
+        best_values = []
+        for individual in best_individuals:
+            # 确保每个配方的总和为100
+            total = sum(individual)
+            best_values.append([round(i / total * 100, 2) for i in individual])
 
-            # 归一化，确保配方总和为100%
-            total = sum(best_values)
-            if total != 0:
-                best_values = [round(i / total * 100, 2) for i in best_values]
-            
-            # 确保没有负值
-            best_values = [max(0, value) for value in best_values]
-
-            # 添加到结果列表
-            results.append(best_values)
-        
         # 输出优化结果
-        result_df = pd.DataFrame(results, columns=all_features)
+        result_df = pd.DataFrame(best_values, columns=all_features)
         st.write(result_df)
-
