@@ -4,8 +4,6 @@ import numpy as np
 import joblib
 from sklearn.preprocessing import StandardScaler
 import base64
-import random
-from deap import base, creator, tools, algorithms
 
 # 辅助函数：图片转base64
 def image_to_base64(image_path):
@@ -49,7 +47,7 @@ ts_scaler = ts_data["scaler"]
 
 # 加载训练数据，获取特征名称
 df_loi = pd.read_excel("trainrg3.xlsx")
-df_ts = pd.read_excel("trainrg3TS.xlsx")
+df_ts = pd.read_excel("trainrg3ts.xlsx")
 
 loi_feature_names = df_loi.columns.tolist()
 ts_feature_names = df_ts.columns.tolist()
@@ -61,26 +59,25 @@ if "LOI" in loi_feature_names:
 if page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
 
-    # LOI预测输入
-    loi_input = {}
-    for feature in loi_feature_names:
-        loi_input[feature] = st.number_input(f"请输入 {feature} 的LOI特征值", value=0.0, step=0.1)
-    
-    # TS预测输入
-    ts_input = {}
-    for feature in ts_feature_names:
-        ts_input[feature] = st.number_input(f"请输入 {feature} 的TS特征值", value=0.0, step=0.1)
-    
+    # 合并LOI和TS输入区域
+    st.write("请输入配方特征值：")
+
+    # 输入配方特征值
+    input_data = {}
+    for feature in loi_feature_names:  # 假设LOI和TS特征相同
+        input_data[feature] = st.number_input(f"请输入 {feature} 的特征值", value=0.0, step=0.1)
+
     # 性能预测按钮
     if st.button("预测LOI和TS"):
+        # 输入数据合并
+        input_array = np.array([list(input_data.values())])
+        
         # LOI预测
-        loi_input_data = np.array([list(loi_input.values())])
-        loi_input_scaled = loi_scaler.transform(loi_input_data)
+        loi_input_scaled = loi_scaler.transform(input_array)
         predicted_loi = loi_model.predict(loi_input_scaled)[0]
 
         # TS预测
-        ts_input_data = np.array([list(ts_input.values())])
-        ts_input_scaled = ts_scaler.transform(ts_input_data)
+        ts_input_scaled = ts_scaler.transform(input_array)
         predicted_ts = ts_model.predict(ts_input_scaled)[0]
 
         st.success(f"预测的LOI值为：{predicted_loi:.2f}")
