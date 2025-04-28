@@ -35,7 +35,7 @@ st.markdown(
 
 # 侧边栏导航
 page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "配方建议"])
-fraction_type = st.sidebar.radio("📐 分数类型", ["质量","质量分数", "体积分数"])
+fraction_type = st.sidebar.radio("📐 分数类型", ["质量", "质量分数", "体积分数"])
 quantity_type = st.sidebar.selectbox("📏 选择单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"])
 
 # 加载模型
@@ -194,9 +194,9 @@ elif page == "配方建议":
         population = toolbox.population(n=pop_size)
         algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
         
-        best_individual = tools.selBest(population, 1)[0]
-        best_values = [round(i, 2) for i in best_individual]
+        best_individuals = tools.selBest(population, 10)  # 获取10个最佳配方
+        best_values = [list(map(lambda x: round(i, 2), individual)) for individual in best_individuals]
 
         # 输出优化结果
-        result_df = pd.DataFrame([best_values], columns=all_features)
+        result_df = pd.DataFrame(best_values, columns=all_features)
         st.write(result_df)
