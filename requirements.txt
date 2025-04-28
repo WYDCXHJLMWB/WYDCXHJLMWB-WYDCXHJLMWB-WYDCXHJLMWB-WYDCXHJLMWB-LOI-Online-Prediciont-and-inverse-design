@@ -7,3 +7,4 @@ numpy
 setuptools>=59.5.0
 openpyxl
 deap
+feature_engineering
