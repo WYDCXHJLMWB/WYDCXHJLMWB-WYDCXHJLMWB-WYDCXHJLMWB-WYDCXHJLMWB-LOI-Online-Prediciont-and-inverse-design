@@ -69,46 +69,40 @@ if page == "性能预测":
 
 # 性能预测按钮
 if st.button("预测LOI和TS"):
-    # LOI输入特征选择
-    loi_selected_features = st.multiselect("选择LOI预测的特征", loi_feature_names, default=loi_feature_names)
+    # LOI预测输入
     loi_input = {}
-
-    # 获取选择的特征并输入
-    for feature in loi_selected_features:
+    for feature in loi_feature_names:
         loi_input[feature] = st.number_input(f"请输入 {feature} 的LOI特征值", value=0.0, step=0.1)
 
-    # TS输入特征选择
-    ts_selected_features = st.multiselect("选择TS预测的特征", ts_feature_names, default=ts_feature_names)
+    # TS预测输入
     ts_input = {}
-
-    # 获取选择的特征并输入
-    for feature in ts_selected_features:
+    for feature in ts_feature_names:
         ts_input[feature] = st.number_input(f"请输入 {feature} 的TS特征值", value=0.0, step=0.1)
 
-    # 如果用户选择了特征并点击预测
-    if loi_selected_features and ts_selected_features:
-        # 对LOI进行预测
-        loi_input_array = np.array([list(loi_input.values())])
-        ts_input_array = np.array([list(ts_input.values())])
+    # 统一输入数据
+    loi_input_array = np.array([list(loi_input.values())])
+    ts_input_array = np.array([list(ts_input.values())])
 
-        # 确保输入特征的数量与模型期望的特征数量一致
-        if len(loi_input_array[0]) != len(loi_selected_features):
-            st.error(f"LOI输入特征数量与模型要求的不一致：期望 {len(loi_selected_features)}，实际输入 {len(loi_input_array[0])}")
-        else:
-            # LOI预测
-            loi_input_scaled = loi_scaler.transform(loi_input_array)
-            predicted_loi = loi_model.predict(loi_input_scaled)[0]
+    # 对LOI进行预测
+    if len(loi_input_array[0]) == len(loi_feature_names):
+        # 对LOI进行标准化并预测
+        loi_input_scaled = loi_scaler.transform(loi_input_array)
+        predicted_loi = loi_model.predict(loi_input_scaled)[0]
+    else:
+        st.error(f"LOI输入特征数量不匹配：期望 {len(loi_feature_names)}，实际输入 {len(loi_input_array[0])}")
 
-        # 确保TS输入特征的数量与模型要求的一致
-        if len(ts_input_array[0]) != len(ts_selected_features):
-            st.error(f"TS输入特征数量与模型要求的不一致：期望 {len(ts_selected_features)}，实际输入 {len(ts_input_array[0])}")
-        else:
-            # TS预测
-            ts_input_scaled = ts_scaler.transform(ts_input_array)
-            predicted_ts = ts_model.predict(ts_input_scaled)[0]
+    # 对TS进行预测
+    if len(ts_input_array[0]) == len(ts_feature_names):
+        # 对TS进行标准化并预测
+        ts_input_scaled = ts_scaler.transform(ts_input_array)
+        predicted_ts = ts_model.predict(ts_input_scaled)[0]
+    else:
+        st.error(f"TS输入特征数量不匹配：期望 {len(ts_feature_names)}，实际输入 {len(ts_input_array[0])}")
 
-            st.success(f"预测的LOI值为：{predicted_loi:.2f}")
-            st.success(f"预测的TS值为：{predicted_ts:.2f}")
+    # 显示预测结果
+    if len(loi_input_array[0]) == len(loi_feature_names) and len(ts_input_array[0]) == len(ts_feature_names):
+        st.success(f"预测的LOI值为：{predicted_loi:.2f}")
+        st.success(f"预测的TS值为：{predicted_ts:.2f}")
 
 # 配方建议页面
 elif page == "配方建议":
