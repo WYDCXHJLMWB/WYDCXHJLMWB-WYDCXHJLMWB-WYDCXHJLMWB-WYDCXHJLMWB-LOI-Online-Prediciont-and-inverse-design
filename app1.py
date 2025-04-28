@@ -52,6 +52,15 @@ def load_models():
     }
 models = load_models()
 
+# 获取单位
+def get_unit(fraction_type):
+    if fraction_type == "质量":
+        return "g"
+    elif fraction_type == "质量分数":
+        return "wt%"
+    elif fraction_type == "体积分数":
+        return "vol%"
+
 # 性能预测页面
 if page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
@@ -63,15 +72,7 @@ if page == "性能预测":
     
     for i, feature in enumerate(features):
         with cols[i % 2]:
-            unit = ""
-            # 根据fraction_type自动确定单位
-            if fraction_type == "质量":
-                unit = "g"
-            elif fraction_type == "质量分数":
-                unit = "wt%"
-            elif fraction_type == "体积分数":
-                unit = "vol%"
-            
+            unit = get_unit(fraction_type)
             input_values[feature] = st.number_input(
                 f"{feature} ({unit})",
                 min_value=0.0,
@@ -218,4 +219,9 @@ elif page == "配方建议":
 
         # 输出优化结果
         result_df = pd.DataFrame(best_values, columns=all_features)
+        
+        # 添加单位列
+        units = [get_unit(fraction_type) for _ in all_features]
+        result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
+        
         st.write(result_df)
