@@ -15,7 +15,7 @@ ts_scaler = ts_data["scaler"]
 
 # 加载训练数据，获取特征名称
 df_loi = pd.read_excel("trainrg3.xlsx")
-df_ts = pd.read_excel("trainrg3ts.xlsx")
+df_ts = pd.read_excel("trainrg3TS.xlsx")
 
 loi_feature_names = df_loi.columns.tolist()
 ts_feature_names = df_ts.columns.tolist()
