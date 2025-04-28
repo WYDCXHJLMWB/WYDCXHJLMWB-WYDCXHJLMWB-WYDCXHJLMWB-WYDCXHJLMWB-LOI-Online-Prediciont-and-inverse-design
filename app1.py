@@ -35,7 +35,7 @@ st.markdown(
 
 # 侧边栏导航
 page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "配方建议"])
-fraction_type = st.sidebar.radio("📐 分数类型", ["质量","质量分数", "体积分数"])
+fraction_type = st.sidebar.radio("📐 分数类型", ["质量分数", "体积分数"])
 quantity_type = st.sidebar.selectbox("📏 选择单位", ["质量 (g)", "质量分数 (wt%)", "体积分数 (vol%)"])
 
 # 加载模型
@@ -48,8 +48,8 @@ def load_models():
         "loi_scaler": loi_data["scaler"],
         "ts_model": ts_data["model"],
         "ts_scaler": ts_data["scaler"],
-        "loi_features": pd.read_excel("trainrg3.xlsx").drop(columns="LOI").columns.tolist(),
-        "ts_features": pd.read_excel("trainrg3TS.xlsx").drop(columns="TS").columns.tolist(),
+        "loi_features": pd.read_excel("trainrg3.xlsx").drop(columns="LOI", errors='ignore').columns.tolist(),
+        "ts_features": pd.read_excel("trainrg3TS.xlsx").drop(columns="TS", errors='ignore').columns.tolist(),
     }
 models = load_models()
 
