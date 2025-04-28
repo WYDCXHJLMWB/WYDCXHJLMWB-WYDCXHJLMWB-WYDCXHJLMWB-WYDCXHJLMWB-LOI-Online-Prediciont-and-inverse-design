@@ -92,12 +92,12 @@ if page == "性能预测":
             st.success(f"预测LOI值：17.5%")
             st.success(f"预测TS值：35.0 MPa")
         else:
-            # LOI预测
+            # 按特征名称来选取LOI相关特征
             loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
             loi_scaled = models["loi_scaler"].transform(loi_input)
             loi_pred = models["loi_model"].predict(loi_scaled)[0]
             
-            # TS预测
+            # 按特征名称来选取TS相关特征
             ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
             ts_scaled = models["ts_scaler"].transform(ts_input)
             ts_pred = models["ts_model"].predict(ts_scaled)[0]
