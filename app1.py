@@ -33,6 +33,9 @@ class Predictor:
         # 填充缺失值
         ts_series = self.imputer.fit_transform(ts_series.values.reshape(-1, 1)).flatten()
 
+        # 确保 ts_series 是 pandas.Series 类型
+        ts_series = pd.Series(ts_series)
+
         eng_features = {
             'seq_length': len(ts_series),
             'max_value': ts_series.max(),
@@ -41,7 +44,8 @@ class Predictor:
             'std_value': ts_series.std(),
             'trend': (ts_series[-1] - ts_series[0])/len(ts_series),
             'range_value': ts_series.max() - ts_series.min(),
-            'autocorr': ts_series.autocorr() if len(ts_series) > 1 else 0  # 处理只有一个数据点的情况
+            # 添加 autocorr 检查，只有当序列长度大于 1 时才进行自相关计算
+            'autocorr': ts_series.autocorr() if len(ts_series) > 1 else 0
         }
         
         return {**static_data, **eng_features}
