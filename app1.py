@@ -276,7 +276,9 @@ elif page == "配方建议":
                 ts_scaled = models["ts_scaler"].transform([ts_input])
                 ts_pred = models["ts_model"].predict(ts_scaled)[0]
                 ts_error = abs(target_ts - ts_pred)
-                
+                total = sum(mass_percent)
+                if abs(total - 100) > 1e-6:
+                    return (1e6,)
                 return (loi_error + ts_error,)
             
             toolbox.register("mate", tools.cxBlend, alpha=0.5)
@@ -312,9 +314,9 @@ elif page == "配方建议":
                 scaler_path="scaler_fold_1.pkl",
                 svc_path="svc_fold_1.pkl"
             )
-        
+    
         predictor = load_predictor()  # 注意这里修正了拼写错误
-
+    
         # 创建输入表单
         with st.form("additive_form"):
             st.markdown("### 基础参数")
@@ -325,15 +327,15 @@ elif page == "配方建议":
                 sn_percent = st.number_input("Sn含量 (%)", 0.0, 100.0, 98.5, step=0.1)
             with col_static[2]:
                 yijia_percent = st.number_input("一甲胺含量 (%)", 0.0, 100.0, 0.5, step=0.1)
-
+    
             st.markdown("### 时序参数（黄度值随时间变化）")
-            
+    
             time_points = [
                 ("3min", 1.2), ("6min", 1.5), ("9min", 1.8),
                 ("12min", 2.0), ("15min", 2.2), ("18min", 2.5),
                 ("21min", 2.8), ("24min", 3.0)
             ]
-            
+    
             yellow_values = {}
             cols = st.columns(4)
             for idx, (time, default) in enumerate(time_points):
@@ -346,9 +348,9 @@ elif page == "配方建议":
                         step=0.1,
                         key=f"yellow_{time}"
                     )
-
+    
             submitted = st.form_submit_button("生成推荐方案")
-
+    
             if submitted:
                 try:
                     # 构建输入样本（顺序与类定义一致）
@@ -365,18 +367,18 @@ elif page == "配方建议":
                         yellow_values["21min"],
                         yellow_values["24min"]
                     ]
-                    
+    
                     prediction = predictor.predict_one(sample)
-                    
+    
                     # 结果映射表
                     result_map = {
-                        1: {"name": "无", "process": "常规工艺参数"},
-                        2: {"name": "氯化石蜡", "process": "加工温度：160-180℃"},
-                        3: {"name": "EA12（脂肪酸复合醇酯）", "process": "混料时间：20-25分钟"},
-                        4: {"name": "EA15（市售液体钙锌稳定剂）", "process": "双螺杆转速：300-350rpm"},
-                        5: {"name": "EA16（环氧大豆油）", "process": "模头温度：190-210℃"},
-                        6: {"name": "G70L（多官能团的脂肪酸复合酯混合物）", "process": "冷却水温度：25-30℃"},
-                        7: {"name": "EA6（亚磷酸酯）", "process": "喂料速率：15-20kg/h"}
+                        1: {"name": "无"},
+                        2: {"name": "氯化石蜡"},
+                        3: {"name": "EA12（脂肪酸复合醇酯）"},
+                        4: {"name": "EA15（市售液体钙锌稳定剂）"},
+                        5: {"name": "EA16（环氧大豆油）"},
+                        6: {"name": "G70L（多官能团的脂肪酸复合酯混合物）"},
+                        7: {"name": "EA6（亚磷酸酯）"}
                     }
     
                     st.success("### 推荐结果")
@@ -385,13 +387,9 @@ elif page == "配方建议":
                         st.metric("推荐添加剂类型", result_map[prediction]["name"])
                     with col2:
                         st.markdown(f"""
-                        **推荐工艺参数**:
-                        - {result_map[prediction]["process"]}
-                        - 添加比例范围：{add_ratio*0.8:.1f}% ~ {add_ratio*1.2:.1f}%
+                        **推荐添加剂**: {result_map[prediction]["name"]}
                         """)
                     
-                    # 添加工艺参数示意图
-                    st.image("process_flow.png", caption="推荐工艺流程图", use_column_width=True)
-    
                 except Exception as e:
                     st.error(f"预测时发生错误：{str(e)}")
+
