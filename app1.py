@@ -99,38 +99,31 @@ st.markdown(
 )
 
 
-# 侧边栏导航
+# 侧边栏主导航
 page = st.sidebar.selectbox(
-    "🔧 选择功能", 
+    "🔧 主功能选择",
     ["性能预测", "配方建议"],
-    key="main_page_selector"  # 添加唯一key
+    key="main_nav"
 )
 
-sub_page = None  
-fraction_type = None  
-
-# 处理子页面选择（仅在配方建议时）
+# 子功能选择（仅在配方建议时显示）
+sub_page = None
 if page == "配方建议":
     sub_page = st.sidebar.selectbox(
-        "🔧 选择子功能",  # 修改文字避免重复
-        ["", "配方优化", "添加剂推荐"],
-        key="sub_page_selector"  # 添加唯一key
+        "🔧 子功能选择",
+        ["配方优化", "添加剂推荐"],
+        key="sub_nav"
     )
 
-# 判断是否显示单位类型选择
-show_unit_selection = False
-if page == "性能预测":
-    show_unit_selection = True
-elif page == "配方建议" and sub_page == "配方优化":
-    show_unit_selection = True
-
-# 显示单位类型选择
-if show_unit_selection:
+# 单位类型选择（动态显示）
+if page == "性能预测" or (page == "配方建议" and sub_page == "配方优化"):
     fraction_type = st.sidebar.radio(
-        "📐 单位类型", 
+        "📐 单位类型",
         ["质量", "质量分数", "体积分数"],
-        key="unit_type_selector"  # 添加唯一key
+        key="unit_type"
     )
+else:
+    fraction_type = None
 
 # 加载模型
 @st.cache_resource
