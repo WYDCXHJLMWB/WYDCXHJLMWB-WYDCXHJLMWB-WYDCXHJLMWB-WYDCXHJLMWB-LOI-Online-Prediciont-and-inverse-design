@@ -351,47 +351,47 @@ elif page == "配方建议":
 
             if submitted:
                 try:
-                # 构建输入样本（顺序与类定义一致）
-                sample = [
-                    sn_percent,    # 对应 static_cols[0]
-                    add_ratio,     # 对应 static_cols[1]
-                    yijia_percent, # 对应 static_cols[2]
-                    yellow_values["3min"],
-                    yellow_values["6min"],
-                    yellow_values["9min"],
-                    yellow_values["12min"],
-                    yellow_values["15min"],
-                    yellow_values["18min"],
-                    yellow_values["21min"],
-                    yellow_values["24min"]
-                ]
-                
-                prediction = predictor.predict_one(sample)
-                
-                # 结果映射表
-                result_map = {
-                    1: {"name": "无", "process": "常规工艺参数"},
-                    2: {"name": "氯化石蜡", "process": "加工温度：160-180℃"},
-                    3: {"name": "EA12（脂肪酸复合醇酯）", "process": "混料时间：20-25分钟"},
-                    4: {"name": "EA15（市售液体钙锌稳定剂）", "process": "双螺杆转速：300-350rpm"},
-                    5: {"name": "EA16（环氧大豆油）", "process": "模头温度：190-210℃"},
-                    6: {"name": "G70L（多官能团的脂肪酸复合酯混合物）", "process": "冷却水温度：25-30℃"},
-                    7: {"name": "EA6（亚磷酸酯）", "process": "喂料速率：15-20kg/h"}
-                }
-
-                st.success("### 推荐结果")
-                col1, col2 = st.columns([1, 2])
-                with col1:
-                    st.metric("推荐添加剂类型", result_map[prediction]["name"])
-                with col2:
-                    st.markdown(f"""
-                    **推荐工艺参数**:
-                    - {result_map[prediction]["process"]}
-                    - 添加比例范围：{add_ratio*0.8:.1f}% ~ {add_ratio*1.2:.1f}%
-                    """)
-                
-                # 添加工艺参数示意图
-                st.image("process_flow.png", caption="推荐工艺流程图", use_column_width=True)
-
-            except Exception as e:
-                st.error(f"预测时发生错误：{str(e)}")
+                    # 构建输入样本（顺序与类定义一致）
+                    sample = [
+                        sn_percent,    # 对应 static_cols[0]
+                        add_ratio,     # 对应 static_cols[1]
+                        yijia_percent, # 对应 static_cols[2]
+                        yellow_values["3min"],
+                        yellow_values["6min"],
+                        yellow_values["9min"],
+                        yellow_values["12min"],
+                        yellow_values["15min"],
+                        yellow_values["18min"],
+                        yellow_values["21min"],
+                        yellow_values["24min"]
+                    ]
+                    
+                    prediction = predictor.predict_one(sample)
+                    
+                    # 结果映射表
+                    result_map = {
+                        1: {"name": "无", "process": "常规工艺参数"},
+                        2: {"name": "氯化石蜡", "process": "加工温度：160-180℃"},
+                        3: {"name": "EA12（脂肪酸复合醇酯）", "process": "混料时间：20-25分钟"},
+                        4: {"name": "EA15（市售液体钙锌稳定剂）", "process": "双螺杆转速：300-350rpm"},
+                        5: {"name": "EA16（环氧大豆油）", "process": "模头温度：190-210℃"},
+                        6: {"name": "G70L（多官能团的脂肪酸复合酯混合物）", "process": "冷却水温度：25-30℃"},
+                        7: {"name": "EA6（亚磷酸酯）", "process": "喂料速率：15-20kg/h"}
+                    }
+    
+                    st.success("### 推荐结果")
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        st.metric("推荐添加剂类型", result_map[prediction]["name"])
+                    with col2:
+                        st.markdown(f"""
+                        **推荐工艺参数**:
+                        - {result_map[prediction]["process"]}
+                        - 添加比例范围：{add_ratio*0.8:.1f}% ~ {add_ratio*1.2:.1f}%
+                        """)
+                    
+                    # 添加工艺参数示意图
+                    st.image("process_flow.png", caption="推荐工艺流程图", use_column_width=True)
+    
+                except Exception as e:
+                    st.error(f"预测时发生错误：{str(e)}")
