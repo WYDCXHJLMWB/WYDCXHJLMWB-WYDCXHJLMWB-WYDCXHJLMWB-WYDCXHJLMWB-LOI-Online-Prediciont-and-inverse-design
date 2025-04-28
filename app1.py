@@ -154,7 +154,7 @@ if page == "配方建议":
             with col1:
                 st.markdown("### 基础参数")
                 sn_percent = st.number_input("Sn含量 (%)", 0.0, 100.0, 98.5)
-                add_ratio = st.number_input("添加比例 (%)", 0.0, 100.0, 5.0)
+                add_ratio = st.number_input("添加比例 (%)", 0.0, 100.0, 5.0)  # 恢复 ratio 参数
                 yijia_percent = st.number_input("一甲胺含量 (%)", 0.0, 100.0, 0.5)
             
             # 时序参数
@@ -179,7 +179,7 @@ if page == "配方建议":
                 # 构建完整输入样本（顺序必须与类定义一致！）
                 sample = [
                     sn_percent,    # 对应 static_cols[0]
-                    add_ratio,     # 对应 static_cols[1]
+                    add_ratio,     # 对应 static_cols[1] 恢复 ratio 参数
                     yijia_percent, # 对应 static_cols[2]
                     *yellow_values # 展开时序参数
                 ]
