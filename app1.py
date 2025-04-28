@@ -208,4 +208,4 @@ elif page == "配方建议":
         # 输出优化结果
         result_df = pd.DataFrame([best_values], columns=all_features)
         st.write(result_df)
-请保证这个代码配方建议出10个配方，并且保证其不为负值，并且当选择质量分数和体积分数时，总和为100
+
