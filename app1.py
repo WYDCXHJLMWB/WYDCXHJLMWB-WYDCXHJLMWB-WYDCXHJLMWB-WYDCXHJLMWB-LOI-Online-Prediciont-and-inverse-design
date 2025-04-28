@@ -158,7 +158,8 @@ elif page == "配方建议":
             # 随机生成一个和为100的配方
             individual = [random.uniform(0, 100) for _ in range(n_features)]
             total = sum(individual)
-            return [x / total * 100 for x in individual]
+            # 保证总和为100，且不含负值
+            return [max(0, x / total * 100) for x in individual]
         
         toolbox.register("individual", tools.initIterate, creator.Individual, generate_individual)
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
@@ -211,9 +212,9 @@ elif page == "配方建议":
         best_individuals = tools.selBest(population, 10)
         best_values = []
         for individual in best_individuals:
-            # 确保每个配方的总和为100
+            # 确保每个配方的总和为100，并修正负值
             total = sum(individual)
-            best_values.append([round(i / total * 100, 2) for i in individual])
+            best_values.append([round(max(0, i / total * 100), 2) for i in individual])
 
         # 输出优化结果
         result_df = pd.DataFrame(best_values, columns=all_features)
