@@ -123,3 +123,43 @@ elif page == "配方建议":
             
             # 收集有效配方，确保多样性
             valid_recipes = []
+            unique_recipes = set()  # 用于确保配方不同
+            
+            for ind in hof:
+                if ind.fitness.values[0] < 1000:  # 过滤有效解
+                    total = sum(ind)
+                    recipe = {name: (val/total)*100 for name, val in zip(feature_names, ind)}
+                    
+                    # 生成配方唯一标识
+                    recipe_tuple = tuple(recipe.items())
+                    if recipe_tuple not in unique_recipes:
+                        unique_recipes.add(recipe_tuple)
+                        valid_recipes.append(recipe)
+                if len(valid_recipes) >= 10:
+                    break
+            
+            if not valid_recipes:
+                st.error("无法找到有效配方，请调整目标值或参数")
+            else:
+                st.success(f"✅ 找到 {len(valid_recipes)} 个有效配方！")
+                
+                # 生成结果表格
+                recipe_df = pd.DataFrame(valid_recipes)
+                recipe_df.index = [f"配方 {i+1}" for i in range(len(recipe_df))]
+                
+                # 根据单位类型调整显示
+                unit_label = {
+                    "质量 (g)": "g",
+                    "质量分数 (wt%)": "wt%",
+                    "体积分数 (vol%)": "vol%"
+                }[unit_type]
+                
+                # 单位转换处理：直接使用质量分数作为体积分数
+                if unit_type == "体积分数 (vol%)":
+                    # 体积分数即为质量分数的比例
+                    for name in feature_names:
+                        recipe_df[name] = recipe_df[name]  # 体积分数等于质量分数
+                
+                recipe_df.columns = [f"{name} ({unit_label})" for name in feature_names]
+                
+                st.dataframe(recipe_df)
