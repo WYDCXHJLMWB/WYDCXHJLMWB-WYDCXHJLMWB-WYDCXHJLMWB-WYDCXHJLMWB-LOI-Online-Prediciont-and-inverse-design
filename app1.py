@@ -47,8 +47,15 @@ def load_models():
         "loi_scaler": loi_data["scaler"],
         "ts_model": ts_data["model"],
         "ts_scaler": ts_data["scaler"],
-        "loi_features": [f for f in pd.read_excel("trainrg3.xlsx").columns if f != "LOI"],
-        "ts_features": [f for f in pd.read_excel("trainrg3TS.xlsx").columns if f != "TS"]
+        "loi_features": pd.read_excel("trainrg3.xlsx").drop(columns="LOI").columns.tolist(),
+        "ts_features": pd.read_excel("trainrg3TS.xlsx").drop(columns="TS").columns.tolist(),
+        "density": {  # 材料密度字典 (g/cm³)
+            'PP': 0.9,
+            'APP': 1.2,
+            'FR': 1.8,
+            'PER': 1.3,
+            'MC': 1.4
+        }
     }
 models = load_models()
 
@@ -63,8 +70,9 @@ if page == "性能预测":
     
     for i, feature in enumerate(features):
         with cols[i % 2]:
+            unit = "wt%" if fraction_type == "质量分数" else "vol%"
             input_values[feature] = st.number_input(
-                f"{feature} ({fraction_type})",
+                f"{feature} ({unit})",
                 min_value=0.0,
                 max_value=100.0,
                 value=50.0 if feature == "PP" else 0.0,
@@ -88,16 +96,25 @@ if page == "性能预测":
             st.error("预测中止：成分总和必须为100%")
             st.stop()
             
+        # 单位转换处理
+        if fraction_type == "体积分数":
+            # 转换为质量分数
+            vol_values = np.array([input_values[f] for f in features])
+            densities = np.array([models["density"].get(f, 1.0) for f in features])
+            mass_values = vol_values * densities
+            total_mass = mass_values.sum()
+            input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate(features)}
+            
         if is_only_pp:
             st.success(f"预测LOI值：17.5%")
             st.success(f"预测TS值：35.0 MPa")
         else:
-            # 按特征名称来选取LOI相关特征
+            # LOI预测
             loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
             loi_scaled = models["loi_scaler"].transform(loi_input)
             loi_pred = models["loi_model"].predict(loi_scaled)[0]
             
-            # 按特征名称来选取TS相关特征
+            # TS预测
             ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
             ts_scaled = models["ts_scaler"].transform(ts_input)
             ts_pred = models["ts_model"].predict(ts_scaled)[0]
@@ -133,34 +150,46 @@ elif page == "配方建议":
         creator.create("Individual", list, fitness=creator.FitnessMin)
         
         toolbox = base.Toolbox()
-        n_features = len(models["loi_features"])
+        all_features = list(set(models["loi_features"] + models["ts_features"]))
+        n_features = len(all_features)
+        
         toolbox.register("attr_float", random.uniform, 0.1, 100)
         toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_float, n=n_features)
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
         
         def evaluate(individual):
-            # 归一化处理
-            total = sum(individual)
-            if total == 0:
-                return (1e6,)
-            normalized = [x/total*100 for x in individual]
+            # 单位转换处理
+            if fraction_type == "体积分数":
+                # 转换为质量分数
+                vol_values = np.array(individual)
+                densities = np.array([models["density"].get(f, 1.0) for f in all_features])
+                mass_values = vol_values * densities
+                total_mass = mass_values.sum()
+                if total_mass == 0:
+                    return (1e6,)
+                mass_percent = (mass_values / total_mass) * 100
+            else:
+                total = sum(individual)
+                if total == 0:
+                    return (1e6,)
+                mass_percent = np.array(individual) / total * 100
             
             # PP约束
-            pp_index = models["loi_features"].index("PP")
-            pp_content = normalized[pp_index]
-            if pp_content < 50 or pp_content != max(normalized):
+            pp_index = all_features.index("PP")
+            pp_content = mass_percent[pp_index]
+            if pp_content < 50 or pp_content != max(mass_percent):
                 return (1e6,)
             
             # LOI预测
-            loi_input = np.array([normalized])
+            loi_input = np.array([[mass_percent[all_features.index(f)] for f in models["loi_features"]]])
             loi_scaled = models["loi_scaler"].transform(loi_input)
             loi_pred = models["loi_model"].predict(loi_scaled)[0]
             
             # TS预测
-            ts_scaled = models["ts_scaler"].transform(loi_input)
+            ts_input = np.array([[mass_percent[all_features.index(f)] for f in models["ts_features"]]])
+            ts_scaled = models["ts_scaler"].transform(ts_input)
             ts_pred = models["ts_model"].predict(ts_scaled)[0]
             
-            # 适应度计算
             fitness = abs(loi_pred - target_loi) + abs(ts_pred - target_ts)
             return (fitness,)
         
@@ -184,31 +213,45 @@ elif page == "配方建议":
         # 处理结果
         solutions = []
         for ind in hof:
-            total = sum(ind)
-            if total == 0:
-                continue
-            normalized = [x/total*100 for x in ind]
-            if abs(sum(normalized) - 100) > 1e-6:
-                continue
+            # 单位处理
+            if fraction_type == "体积分数":
+                total_vol = sum(ind)
+                if total_vol == 0:
+                    continue
+                formula = np.array(ind) / total_vol * 100
+                unit = "vol%"
+            else:
+                total_mass = sum(ind)
+                if total_mass == 0:
+                    continue
+                formula = np.array(ind) / total_mass * 100
+                unit = "wt%"
             
             # 转换为字典
-            solution = {name: f"{val:.2f}" for name, val in zip(models["loi_features"], normalized)}
-            solution["LOI"] = f"{evaluate(ind)[0]/2 + target_loi:.2f}"
-            solution["TS"] = f"{target_ts - evaluate(ind)[0]/2:.2f}"
+            solution = {f: f"{formula[i]:.2f}{unit}" for i, f in enumerate(all_features)}
+            
+            # 预测性能
+            loi_input = np.array([[formula[all_features.index(f)] for f in models["loi_features"]]).reshape(1, -1)
+            ts_input = np.array([[formula[all_features.index(f)] for f in models["ts_features"]]).reshape(1, -1)
+            
+            loi_pred = models["loi_model"].predict(models["loi_scaler"].transform(loi_input))[0]
+            ts_pred = models["ts_model"].predict(models["ts_scaler"].transform(ts_input))[0]
+            
+            solution["LOI"] = f"{loi_pred:.2f}%"
+            solution["TS"] = f"{ts_pred:.2f} MPa"
             solutions.append(solution)
         
         if solutions:
             df = pd.DataFrame(solutions)
-            df = df[["PP"] + [c for c in df.columns if c not in ["PP", "LOI", "TS"]] + ["LOI", "TS"]]
-            
+            ordered_columns = ["PP"] + [f for f in all_features if f != "PP"] + ["LOI", "TS"]
             st.subheader("🏆 推荐配方列表")
-            st.dataframe(df.style.format({
-                **{col: "{:.2f}%" for col in models["loi_features"]},
+            st.dataframe(df[ordered_columns].style.format({
+                **{f: "{:.2f}" + ("vol%" if fraction_type == "体积分数" else "wt%") for f in all_features},
                 "LOI": "{:.2f}%",
                 "TS": "{:.2f} MPa"
             }), height=600)
             
-            # 添加下载按钮
+            # 下载按钮
             csv = df.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 下载配方数据",
