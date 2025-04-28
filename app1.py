@@ -1,3 +1,34 @@
+class Predictor:
+    def __init__(self, scaler_path, svc_path):
+        self.scaler = joblib.load(scaler_path)
+        self.model = joblib.load(svc_path)
+        self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
+        self.time_series_cols = ["黄度值_3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
+
+    def _truncate(self, df):
+        time_cols = [col for col in df.columns if "min" in col.lower()]
+        time_cols_ordered = [col for col in df.columns if col in time_cols]
+        if time_cols_ordered:
+            row = df.iloc[0][time_cols_ordered]
+            if row.notna().any():
+                max_idx = row.idxmax()
+                max_pos = time_cols_ordered.index(max_idx)
+                for col in time_cols_ordered[max_pos + 1:]:
+                    df.at[df.index[0], col] = np.nan
+        return df
+
+    def predict_one(self, sample):
+        all_cols = self.static_cols + self.time_series_cols
+        df = pd.DataFrame([sample], columns=all_cols)
+        df = self._truncate(df)
+        static_data = {}
+        for feat in self.static_cols:
+            matching = [col for col in df.columns if feat in col]
+            if matching:
+                static_data[feat] = df.at[0, matching[0]]
+        static_df = pd.DataFrame([static_data])
+        X_transformed = self.scaler.transform(static_df.values)
+        return self.model.predict(X_transformed)[0]
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -211,14 +242,66 @@ elif page == "配方建议":
 
     elif sub_page == "添加剂推荐":
         st.subheader("添加剂推荐")
-
-        # 这里我们可以加载一个推荐器类来处理添加剂推荐
-        # 假设已经定义了一个加载模型并返回结果的函数
+    
+        # 修改后的推荐逻辑
         @st.cache_resource
         def load_predictor():
-            return Predictor(scaler_path="scaler.joblib", svc_path="svc.joblib")
+            return Predictor(
+                scaler_path="scaler_fold_1.pkl",  # 确保文件路径正确
+                svc_path="svc_fold_1.pkl"
+            )
         
-        predictor = load_predictor()
-        sample = np.array([input_values[f] for f in models["loi_features"]]).reshape(1, -1)
-        recommended_additives = predictor.predict_one(sample)
-        st.write(f"推荐的添加剂为：{recommended_additives}")
+        # 添加输入界面
+        with st.form("additive_form"):
+            col1, col2 = st.columns(2)
+            
+            # 静态参数输入
+            with col1:
+                st.markdown("### 基础参数")
+                add_ratio = st.number_input("添加比例 (%)", 0.0, 100.0, 5.0, step=0.1)
+                sn_percent = st.number_input("Sn含量 (%)", 0.0, 100.0, 98.5, step=0.1)
+                yijia_percent = st.number_input("一甲胺含量 (%)", 0.0, 100.0, 0.5, step=0.1)
+            
+            # 时序参数输入
+            with col2:
+                st.markdown("### 时序参数")
+                yellow_values = [
+                    st.number_input(f"黄度值_{time}min", 0.0, 10.0, 1.2 + i*0.3, key=f"yellow_{time}")
+                    for i, time in enumerate([3, 6, 9, 12, 15, 18, 21, 24])
+                ]
+            
+            submitted = st.form_submit_button("生成推荐")
+    
+        if submitted:
+            try:
+                # 构建输入样本（注意顺序与类定义一致）
+                sample = [
+                    add_ratio,
+                    sn_percent,
+                    yijia_percent,
+                    *yellow_values  # 展开时序参数
+                ]
+                
+                predictor = load_predictor()
+                result = predictor.predict_one(sample)
+                
+                # 显示结果
+                st.success("## 推荐结果")
+                result_map = {
+                    0: {"类型": "标准型APP", "用量": "15-20%"},
+                    1: {"类型": "纳米复合阻燃剂", "用量": "10-15%"},
+                    2: {"类型": "膨胀型阻燃剂", "用量": "20-25%"}
+                }
+                
+                if result in result_map:
+                    rec = result_map[result]
+                    st.markdown(f"""
+                    - **推荐类型**: `{rec['类型']}`
+                    - **建议添加量**: {rec['用量']}
+                    - **适配工艺**: 注塑成型（温度 180-200℃）
+                    """)
+                else:
+                    st.warning("未找到匹配的推荐类型")
+    
+            except Exception as e:
+                st.error(f"预测失败: {str(e)}")
