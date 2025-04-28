@@ -205,7 +205,7 @@ if page == "性能预测":
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
 
 elif page == "配方建议":
-    sub_page = st.sidebar.selectbox("🔧 选择功能", ["配方优化", "添加剂推荐"])
+    sub_page = st.sidebar.selectbox("🔧 选择功能", ["","配方优化", "添加剂推荐"])
     if sub_page == "配方优化":
         st.subheader("🧪 配方建议：根据性能反推配方")
     
