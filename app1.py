@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import joblib
 import streamlit as st
-from feature_engineering import extract_time_series_features
 
 class Predictor:
     def __init__(self, scaler_path, svc_path):
@@ -75,7 +74,38 @@ class Predictor:
         # 标准化 & 预测
         X_scaled = self.scaler.transform(feature_df)
         return self.model.predict(X_scaled)[0]
-
+    def extract_time_series_features(df, feature_types=None, static_features=None):
+        """
+        提取时序特征并与静态特征合并
+        
+        参数:
+        df: DataFrame, 原始数据
+        feature_types: list, 要提取的时序特征类型列表，默认为['seq_length', 'max_value', 'mean_value']
+        static_features: list, 静态特征的列名列表
+        
+        可用的特征类型:
+        - seq_length: 序列长度（非NaN值的数量）
+        - max_value: 最大值
+        - mean_value: 均值
+        - min_value: 最小值
+        - std_value: 标准差
+        - trend: 趋势（线性回归斜率）
+        - range_value: 数值范围（最大值-最小值）
+        - kurtosis: 峰度
+        - skewness: 偏度
+        - autocorr: 一阶自相关系数
+        
+        返回:
+        DataFrame: 合并后的特征数据框
+        time_data: 原始时序数据
+        """
+        if feature_types is None:
+            feature_types = ['seq_length', 'max_value', 'mean_value']
+        
+        # 识别时序特征列
+        time_cols = [col for col in df.columns if 'min' in str(col).lower()]
+        time_data = df[time_cols]
+    
 # 页面配置
 image_path = "图片1.png"
 icon_base64 = image_to_base64(image_path)
