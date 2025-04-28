@@ -1,11 +1,3 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import joblib
-import base64
-import random
-from deap import base, creator, tools, algorithms
-
 # 新增 Predictor 类定义
 class Predictor:
     def __init__(self, scaler_path, svc_path):
@@ -65,6 +57,14 @@ class Predictor:
         X_scaled = self.scaler.transform(feature_df)
         return self.model.predict(X_scaled)[0]
 
+import streamlit as st
+import pandas as pd
+import numpy as np
+import joblib
+import base64
+import random
+from deap import base, creator, tools, algorithms
+
 # 辅助函数：图片转base64
 def image_to_base64(image_path):
     with open(image_path, "rb") as image_file:
@@ -113,18 +113,19 @@ models = load_models()
 
 # 获取单位
 def get_unit(fraction_type):
-    units = {
-        "质量": "g",
-        "质量分数": "wt%",
-        "体积分数": "vol%"
-    }
-    return units.get(fraction_type, "")
+    if fraction_type == "质量":
+        return "g"
+    elif fraction_type == "质量分数":
+        return "wt%"
+    elif fraction_type == "体积分数":
+        return "vol%"
 
 # 保证PP在首列
 def ensure_pp_first(features):
     if "PP" in features:
         features.remove("PP")
     return ["PP"] + sorted(features)
+
 # 性能预测页面
 if page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
