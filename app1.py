@@ -2,6 +2,40 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+from sklearn.preprocessing import StandardScaler
+import base64
+import random
+from deap import base, creator, tools, algorithms
+
+# 辅助函数：图片转base64
+def image_to_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()
+
+# 页面配置
+image_path = "图片1.png"
+icon_base64 = image_to_base64(image_path)
+st.set_page_config(
+    page_title="聚丙烯LOI和TS模型",
+    layout="wide",
+    page_icon=f"data:image/png;base64,{icon_base64}"
+)
+
+# 页面标题样式
+width = 200
+height = int(158 * (width / 507))
+st.markdown(
+    f"""
+    <h1 style="display: flex; align-items: center;">
+        <img src="data:image/png;base64,{icon_base64}" style="width: {width}px; height: {height}px; margin-right: 15px;" />
+        阻燃聚合物复合材料智能设计平台
+    </h1>
+    """, 
+    unsafe_allow_html=True
+)
+
+# 侧边栏导航
+page = st.sidebar.selectbox("🔧 选择功能", ["性能预测", "配方建议"])
 
 # 加载LOI模型和Scaler
 loi_data = joblib.load("model_and_scaler_loi.pkl")
@@ -24,32 +58,33 @@ if "LOI" in loi_feature_names:
     loi_feature_names.remove("LOI")
 
 # 性能预测页面
-st.subheader("🔮 性能预测：基于配方预测LOI和TS")
+if page == "性能预测":
+    st.subheader("🔮 性能预测：基于配方预测LOI和TS")
 
-# LOI预测输入
-loi_input = {}
-for feature in loi_feature_names:
-    loi_input[feature] = st.number_input(f"请输入 {feature} 的LOI特征值", value=0.0, step=0.1)
+    # LOI预测输入
+    loi_input = {}
+    for feature in loi_feature_names:
+        loi_input[feature] = st.number_input(f"请输入 {feature} 的LOI特征值", value=0.0, step=0.1)
+    
+    # TS预测输入
+    ts_input = {}
+    for feature in ts_feature_names:
+        ts_input[feature] = st.number_input(f"请输入 {feature} 的TS特征值", value=0.0, step=0.1)
+    
+    # 性能预测按钮
+    if st.button("预测LOI和TS"):
+        # LOI预测
+        loi_input_data = np.array([list(loi_input.values())])
+        loi_input_scaled = loi_scaler.transform(loi_input_data)
+        predicted_loi = loi_model.predict(loi_input_scaled)[0]
 
-# TS预测输入
-ts_input = {}
-for feature in ts_feature_names:
-    ts_input[feature] = st.number_input(f"请输入 {feature} 的TS特征值", value=0.0, step=0.1)
+        # TS预测
+        ts_input_data = np.array([list(ts_input.values())])
+        ts_input_scaled = ts_scaler.transform(ts_input_data)
+        predicted_ts = ts_model.predict(ts_input_scaled)[0]
 
-# 性能预测按钮
-if st.button("预测LOI和TS"):
-    # LOI预测
-    loi_input_data = np.array([list(loi_input.values())])
-    loi_input_scaled = loi_scaler.transform(loi_input_data)
-    predicted_loi = loi_model.predict(loi_input_scaled)[0]
-
-    # TS预测
-    ts_input_data = np.array([list(ts_input.values())])
-    ts_input_scaled = ts_scaler.transform(ts_input_data)
-    predicted_ts = ts_model.predict(ts_input_scaled)[0]
-
-    st.success(f"预测的LOI值为：{predicted_loi:.2f}")
-    st.success(f"预测的TS值为：{predicted_ts:.2f}")
+        st.success(f"预测的LOI值为：{predicted_loi:.2f}")
+        st.success(f"预测的TS值为：{predicted_ts:.2f}")
 
 # 配方建议页面
 elif page == "配方建议":
@@ -58,7 +93,7 @@ elif page == "配方建议":
     target_ts = st.number_input("目标TS值", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
     
     # 遗传算法配置
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # 目标是最小化
     creator.create("Individual", list, fitness=creator.FitnessMin)
     
     toolbox = base.Toolbox()
@@ -141,17 +176,11 @@ elif page == "配方建议":
                 recipe_df.index = [f"配方 {i+1}" for i in range(len(recipe_df))]
                 
                 # 根据单位类型调整显示
-                unit_label = {
-                    "质量 (g)": "g",
-                    "质量分数 (wt%)": "wt%",
-                    "体积分数 (vol%)": "vol%"
-                }[unit_type]
+                unit_label = "质量分数 (wt%)"
                 
                 # 单位转换处理：直接使用质量分数作为体积分数
-                if unit_type == "体积分数 (vol%)":
-                    # 体积分数即为质量分数的比例
-                    for name in loi_feature_names:
-                        recipe_df[name] = recipe_df[name]  # 体积分数等于质量分数
+                for name in loi_feature_names:
+                    recipe_df[name] = recipe_df[name]
                 
                 recipe_df.columns = [f"{name} ({unit_label})" for name in loi_feature_names]
                 
