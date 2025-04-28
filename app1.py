@@ -105,15 +105,20 @@ if page == "性能预测":
             total_mass = mass_values.sum()
             input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate(features)}
         
-        # LOI预测
-        loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
-        loi_scaled = models["loi_scaler"].transform(loi_input)
-        loi_pred = models["loi_model"].predict(loi_scaled)[0]
+        # 如果是纯PP配方，直接进行LOI和TS预测
+        if is_only_pp:
+            loi_pred = 17.5  # 假设PP配方LOI为17.5%
+            ts_pred = 35.0  # 假设PP配方TS为35 MPa
+        else:
+            # LOI预测
+            loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
+            loi_scaled = models["loi_scaler"].transform(loi_input)
+            loi_pred = models["loi_model"].predict(loi_scaled)[0]
         
-        # TS预测
-        ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
-        ts_scaled = models["ts_scaler"].transform(ts_input)
-        ts_pred = models["ts_model"].predict(ts_scaled)[0]
+            # TS预测
+            ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
+            ts_scaled = models["ts_scaler"].transform(ts_input)
+            ts_pred = models["ts_model"].predict(ts_scaled)[0]
         
         # 显示结果
         col1, col2 = st.columns(2)
