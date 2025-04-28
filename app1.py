@@ -92,16 +92,27 @@ if page == "性能预测":
     is_only_pp = all(v == 0 for k, v in input_values.items() if k != "PP")
     
     with st.expander("✅ 输入验证"):
-        if abs(total - 100.0) > 1e-6:
-            st.error(f"❗ 成分总和必须为100%（当前：{total:.2f}%）")
+        if fraction_type == "体积分数":
+            if abs(total - 100.0) > 1e-6:
+                st.error(f"❗ 体积分数的总和必须为100%（当前：{total:.2f}%）")
+            else:
+                st.success("体积分数总和验证通过")
+        elif fraction_type == "质量分数":
+            if abs(total - 100.0) > 1e-6:
+                st.error(f"❗ 质量分数的总和必须为100%（当前：{total:.2f}%）")
+            else:
+                st.success("质量分数总和验证通过")
         else:
             st.success("成分总和验证通过")
             if is_only_pp:
                 st.info("检测到纯PP配方")
 
     if st.button("🚀 开始预测", type="primary"):
-        if abs(total - 100.0) > 1e-6:
-            st.error("预测中止：成分总和必须为100%")
+        if fraction_type == "体积分数" and abs(total - 100.0) > 1e-6:
+            st.error("预测中止：体积分数的总和必须为100%")
+            st.stop()
+        elif fraction_type == "质量分数" and abs(total - 100.0) > 1e-6:
+            st.error("预测中止：质量分数的总和必须为100%")
             st.stop()
 
         # 单位转换处理
