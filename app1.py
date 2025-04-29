@@ -35,13 +35,14 @@ class Predictor:
                     df.at[df.index[0], col] = np.nan
         return df
     
-    def _get_slope(row):
+    def _get_slope(self, row):
         x = np.arange(len(row))
         y = row.values
         mask = ~np.isnan(y)
         if sum(mask) >= 2:
             return stats.linregress(x[mask], y[mask])[0]
         return np.nan
+
     
     def _extract_time_series_features(self, df):
         """修复后的时序特征提取"""
