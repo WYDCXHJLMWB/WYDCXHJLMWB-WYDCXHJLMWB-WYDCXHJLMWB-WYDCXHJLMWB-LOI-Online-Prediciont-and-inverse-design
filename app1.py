@@ -8,145 +8,70 @@ import joblib
 
 class Predictor:
     def __init__(self, scaler_path, svc_path):
-        """
-        初始化预测器
-        :param scaler_path: 标准化器文件路径
-        :param svc_path: 分类模型文件路径
-        """
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
         
-        # 定义特征列（顺序必须与训练时完全一致）
+        # 必须与训练时完全一致的静态特征顺序
         self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
+        
+        # 必须与训练时完全一致的时序特征顺序
         self.time_series_cols = [
             "黄度值_3min", "6min", "9min", "12min",
             "15min", "18min", "21min", "24min"
         ]
         
-        # 特征工程配置（明确指定需要的特征类型）
+        # 特征工程配置（必须与训练时一致）
         self.eng_features = [
             'seq_length', 'max_value', 'mean_value', 'min_value',
             'std_value', 'trend', 'range_value', 'autocorr'
         ]
         self.imputer = SimpleImputer(strategy="mean")
 
-    def _truncate(self, df):
-        """时间序列截断处理（保留有效数据）"""
-        ts_series = df[self.time_series_cols].iloc[0]
-        if ts_series.notna().any():
-            last_valid_idx = ts_series.last_valid_index()
-            if last_valid_idx:
-                truncate_pos = self.time_series_cols.index(last_valid_idx) + 1
-                for col in self.time_series_cols[truncate_pos:]:
-                    df[col] = np.nan
-        return df
-
-    def _get_slope(self, row):
-        """计算时序趋势的斜率"""
-        x = np.arange(len(row))
-        y = row.values
-        mask = ~np.isnan(y)
-        if sum(mask) >= 2:
-            return stats.linregress(x[mask], y[mask])[0]
-        return np.nan
-
-    def _calc_autocorr(self, row):
-        """计算一阶自相关系数"""
-        values = row.dropna().values
-        if len(values) > 1:
-            mean = np.mean(values)
-            numerator = sum((values[:-1] - mean) * (values[1:] - mean))
-            denominator = sum((values - mean) ** 2)
-            return numerator / denominator if denominator != 0 else np.nan
-        return np.nan
-
     def _extract_time_series_features(self, df):
-        """核心特征提取方法（修复关键调用）"""
+        """修复后的特征提取方法"""
         # 提取时序数据并填充缺失值
         time_data = df[self.time_series_cols]
         filled_data = self.imputer.fit_transform(time_data)
         time_data_filled = pd.DataFrame(filled_data, columns=self.time_series_cols)
         
-        # 特征计算逻辑
+        # 计算特征
         features = pd.DataFrame()
-        
-        # 定义特征计算规则
-        feature_calculators = {
-            'seq_length': lambda x: x.notna().sum(axis=1),
-            'max_value': lambda x: x.max(axis=1),
-            'mean_value': lambda x: x.mean(axis=1),
-            'min_value': lambda x: x.min(axis=1),
-            'std_value': lambda x: x.std(axis=1),
-            'range_value': lambda x: x.max(axis=1) - x.min(axis=1),
-            'trend': lambda x: x.apply(self._get_slope, axis=1),
-            'autocorr': lambda x: x.apply(self._calc_autocorr, axis=1)
-        }
-        
-        # 按配置提取特征
-        for feat in self.eng_features:
-            if feat in feature_calculators:
-                features[feat] = feature_calculators[feat](time_data_filled)
-            else:
-                warnings.warn(f"未实现的特征类型: {feat}")
+        features['seq_length'] = time_data_filled.notna().sum(axis=1)
+        features['max_value'] = time_data_filled.max(axis=1)
+        features['mean_value'] = time_data_filled.mean(axis=1)
+        features['min_value'] = time_data_filled.min(axis=1)
+        features['std_value'] = time_data_filled.std(axis=1)
+        features['range_value'] = features['max_value'] - features['min_value']
+        features['trend'] = time_data_filled.apply(self._get_slope, axis=1)
+        features['autocorr'] = time_data_filled.apply(self._calc_autocorr, axis=1)
         
         return features
 
     def predict_one(self, sample):
-        """预测入口方法（已修复错误调用）"""
         try:
-            # 1. 构建输入数据
+            # 构建输入数据（严格保持顺序）
             input_df = pd.DataFrame(
                 [sample], 
                 columns=self.static_cols + self.time_series_cols
             )
             
-            # 2. 预处理时间序列
+            # 预处理
             processed_df = self._truncate(input_df)
             
-            # 3. 提取静态特征
-            static_df = processed_df[self.static_cols]
+            # 提取特征
+            static_df = processed_df[self.static_cols].reset_index(drop=True)
+            ts_features = self._extract_time_series_features(processed_df).reset_index(drop=True)
             
-            # 4. 提取时序特征（关键修复：调用类方法）
-            ts_features = self._extract_time_series_features(processed_df)
-            
-            # 5. 合并特征
+            # 合并特征（关键：保持训练时的列顺序）
             combined = pd.concat([static_df, ts_features], axis=1)
+            combined = combined[self.scaler.feature_names_in_]  # 强制对齐顺序
             
-            # 6. 维度验证
-            if combined.shape[1] != self.scaler.n_features_in_:
-                expected = self.scaler.feature_names_in_.tolist()
-                actual = combined.columns.tolist()
-                raise ValueError(
-                    f"特征维度不匹配！\n"
-                    f"预期特征数: {len(expected)}\n"
-                    f"实际特征数: {len(actual)}\n"
-                    f"缺失特征: {list(set(expected) - set(actual))}\n"
-                    f"多余特征: {list(set(actual) - set(expected))}"
-                )
-            
-            # 7. 标准化与预测
+            # 标准化与预测
             X_scaled = self.scaler.transform(combined)
             return int(self.model.predict(X_scaled)[0])
         except Exception as e:
-            print(f"预测失败: {str(e)}")
+            print(f"预测错误详情: {str(e)}")
             return -1
-
-# 测试代码
-if __name__ == "__main__":
-    # 初始化预测器（替换为实际路径）
-    predictor = Predictor("scaler_fold_1.pkl", "svc_fold_1.pkl")
-    
-    # 正确顺序的测试样本
-    test_sample = [
-        98.5,  # 产品质量指标_Sn%
-        5.0,   # 添加比例
-        0.5,   # 一甲%
-        1.2, 1.5, 1.8, 2.0, 2.2, 2.5, 2.8, 3.0  # 时间序列数据
-    ]
-    
-    # 执行预测
-    result = predictor.predict_one(test_sample)
-    print(f"预测结果: {result}")
 import streamlit as st
 import pandas as pd
 import numpy as np
