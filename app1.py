@@ -1,4 +1,3 @@
-# predictor.py
 import pandas as pd
 import numpy as np
 from sklearn.impute import SimpleImputer
@@ -11,7 +10,6 @@ class Predictor:
         :param scaler_path: 标准化器文件路径
         :param svc_path: 分类模型文件路径
         """
-        # 加载预处理和模型文件
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
         
@@ -22,7 +20,7 @@ class Predictor:
             "15min", "18min", "21min", "24min"
         ]
         
-        # 特征工程配置
+        # 时间序列特征工程配置
         self.eng_features = [
             'seq_length', 'max_value', 'mean_value', 'min_value',
             'std_value', 'trend', 'range_value', 'autocorr'
@@ -31,41 +29,30 @@ class Predictor:
 
     def _truncate(self, df):
         """
-        时间序列截断处理
-        :param df: 输入DataFrame
-        :return: 处理后的DataFrame
+        时间序列截断处理：保留最后一个有效值之后的数据为NaN
         """
-        # 按预定义顺序处理时间序列列
         ts_series = df[self.time_series_cols].iloc[0]
-        
         if ts_series.notna().any():
-            # 找到最后一个有效值的索引
             last_valid_idx = ts_series.last_valid_index()
             if last_valid_idx:
-                # 计算截断位置
                 truncate_pos = self.time_series_cols.index(last_valid_idx) + 1
-                # 将后续值设为NaN
                 for col in self.time_series_cols[truncate_pos:]:
                     df[col] = np.nan
         return df
 
     def _extract_time_series_features(self, df):
         """
-        从时间序列数据提取工程特征
-        :param df: 包含时间序列的DataFrame
-        :return: 特征DataFrame, None（保持接口兼容）
+        从时间序列数据提取统计特征
         """
-        # 提取时序数据
         ts_series = df[self.time_series_cols].iloc[0].dropna()
-        
         if ts_series.empty:
             raise ValueError("时间序列数据全为空，无法提取特征")
         
-        # 填充缺失值
+        # 填充缺失值（即使截断后也可能存在中间NaN）
         ts_filled = self.imputer.fit_transform(ts_series.values.reshape(-1, 1)).flatten()
         ts_series = pd.Series(ts_filled, index=ts_series.index)
         
-        # 计算统计特征
+        # 计算特征
         features = {
             'seq_length': len(ts_series),
             'max_value': ts_series.max(),
@@ -76,77 +63,64 @@ class Predictor:
             'range_value': ts_series.max() - ts_series.min(),
             'autocorr': ts_series.autocorr() if len(ts_series) > 1 else 0
         }
-        return pd.DataFrame([features]), None
+        return pd.DataFrame([features])
 
     def predict_one(self, sample):
         """
-        单样本预测接口
-        :param sample: 输入样本列表，顺序为 static_cols + time_series_cols
-        :return: 预测结果（整数）
+        单样本预测入口
+        :param sample: 输入样本列表，顺序必须为 static_cols + time_series_cols
         """
         try:
-            # 构造输入DataFrame（严格保持列顺序）
-            input_df = pd.DataFrame(
-                [sample],
-                columns=self.static_cols + self.time_series_cols
-            )
+            # 1. 构造输入 DataFrame
+            df = pd.DataFrame([sample], columns=self.static_cols + self.time_series_cols)
             
-            # 预处理：时间序列截断
-            processed_df = self._truncate(input_df)
+            # 2. 时间序列截断预处理
+            df = self._truncate(df)
             
-            # 提取静态特征
-            static_data = {col: processed_df[col].iloc[0] for col in self.static_cols}
+            # 3. 提取静态特征
+            static_data = {col: df[col].iloc[0] for col in self.static_cols}
             static_df = pd.DataFrame([static_data])
             
-            # 提取时序特征
-            eng_df, _ = self._extract_time_series_features(processed_df)
+            # 4. 提取时序特征（关键修复点：调用类内部方法）
+            eng_df = self._extract_time_series_features(df)  # ✅ 正确调用
             
-            # 合并特征（注意顺序！）
+            # 5. 合并特征（确保顺序与训练一致）
             combined = pd.concat([static_df, eng_df], axis=1)
             
-            # 维度验证（关键检查点）
+            # 6. 维度验证（防止特征丢失或多余）
             if combined.shape[1] != self.scaler.n_features_in_:
-                expected_features = self.scaler.feature_names_in_.tolist()
-                actual_features = combined.columns.tolist()
-                missing = list(set(expected_features) - set(actual_features))
-                extra = list(set(actual_features) - set(expected_features))
+                expected = self.scaler.feature_names_in_.tolist()
+                actual = combined.columns.tolist()
                 raise ValueError(
-                    f"特征维度不匹配！\n"
-                    f"预期特征数：{self.scaler.n_features_in_}\n"
-                    f"实际特征数：{combined.shape[1]}\n"
-                    f"缺失特征：{missing}\n"
-                    f"多余特征：{extra}"
+                    f"特征维度不匹配！预期: {len(expected)}，实际: {len(actual)}\n"
+                    f"缺失的特征: {list(set(expected) - set(actual))}\n"
+                    f"多余的特征: {list(set(actual) - set(expected))}"
                 )
             
-            # 标准化和预测
+            # 7. 标准化和预测
             X_scaled = self.scaler.transform(combined)
             return int(self.model.predict(X_scaled)[0])
-            
         except Exception as e:
-            print(f"预测失败：{str(e)}")
-            return -1  # 返回错误代码
+            print(f"预测失败，错误详情: {str(e)}")
+            return -1
 
-# 示例用法
+# ------------------------------
+# 测试代码
 if __name__ == "__main__":
-    # 初始化预测器（需替换实际路径）
-    predictor = Predictor(
-        scaler_path="scaler_fold_1.pkl",
-        svc_path="svc_fold_1.pkl"
-    )
+    # 初始化预测器（替换为实际路径）
+    predictor = Predictor("scaler_fold_1.pkl", "svc_fold_1.pkl")
     
-    # 测试样本（顺序必须严格匹配！）
+    # 测试样本（严格按顺序）
     test_sample = [
         98.5,   # 产品质量指标_Sn%
         5.0,    # 添加比例
         0.5,    # 一甲%
-        # 时间序列部分（黄度值）
-        1.2, 1.5, 1.8, 2.0,  # 3min,6min,9min,12min
-        2.2, 2.5, 2.8, 3.0    # 15min,18min,21min,24min
+        1.2, 1.5, 1.8, 2.0, 2.2, 2.5, 2.8, 3.0  # 时间序列部分
     ]
     
     # 执行预测
     result = predictor.predict_one(test_sample)
-    print(f"预测结果：{result}")
+    print(f"预测结果: {result}")
 import streamlit as st
 import pandas as pd
 import numpy as np
