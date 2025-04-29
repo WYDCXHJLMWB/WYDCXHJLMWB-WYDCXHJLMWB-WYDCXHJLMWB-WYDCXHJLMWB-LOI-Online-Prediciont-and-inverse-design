@@ -24,53 +24,60 @@ class Predictor:
                 for col in time_cols_ordered[max_pos + 1:]:
                     df.at[df.index[0], col] = np.nan
         return df
+    def _extract_time_series_features(self, df, feature_types):
+        """从时间序列数据中提取统计特征"""
+        ts_cols = [col for col in df.columns if "min" in col.lower()]
+        ts_series = df[ts_cols].iloc[0].dropna()
+        
+        # 处理缺失值
+        ts_series = self.imputer.fit_transform(ts_series.values.reshape(-1, 1)).flatten()
+        ts_series = pd.Series(ts_series)
 
+        features = {}
+        if 'seq_length' in feature_types:
+            features['seq_length'] = len(ts_series)
+        if 'max_value' in feature_types:
+            features['max_value'] = ts_series.max()
+        if 'mean_value' in feature_types:
+            features['mean_value'] = ts_series.mean()
+        if 'min_value' in feature_types:
+            features['min_value'] = ts_series.min()
+        if 'std_value' in feature_types:
+            features['std_value'] = ts_series.std()
+        if 'trend' in feature_types:
+            features['trend'] = (ts_series[-1] - ts_series[0])/len(ts_series) if len(ts_series) > 0 else 0
+        if 'range_value' in feature_types:
+            features['range_value'] = ts_series.max() - ts_series.min()
+        if 'autocorr' in feature_types:
+            features['autocorr'] = ts_series.autocorr() if len(ts_series) > 1 else 0
+
+        return pd.DataFrame([features]), None  # 返回与代码匹配的格式
     def predict_one(self, sample):
-        """
-        处理单条数据进行预测。
-        参数:
-            sample: numpy 数组，形状为 (n_features,) ，要求顺序：
-              添加比例, 产品质量指标_Sn%, 一甲%, 黄度值_3min, 黄度值_15min, 黄度值_18min, 黄度值_21min, 黄度值_24min
-        返回:
-            预测结果
-        """
         # 构造完整 DataFrame
         all_cols = self.static_cols + self.time_series_cols
-        # print("all_cols: ", all_cols)
-
         df = pd.DataFrame([sample], columns=all_cols)
-
+    
         # 进行 truncate 预处理
         df = self._truncate(df)
-
-        # 提取静态特征：从每个静态特征搜索匹配（按训练时取第一个匹配）
+    
+        # 提取静态特征
         static_data = {}
         for feat in self.static_cols:
             matching = [col for col in df.columns if feat in col]
             if matching:
                 static_data[feat] = df.at[0, matching[0]]
         static_df = pd.DataFrame([static_data])
-
-        # 提取时序数据（即含 "min" 字段的列）
-        ts_cols = [col for col in df.columns if "min" in col.lower()]
-        ts_df = df[ts_cols]
-
+    
+        # 提取时序特征
         eng_features = ['seq_length', 'max_value', 'mean_value', 'min_value',
                         'std_value', 'trend', 'range_value', 'autocorr']
-
-        eng_df, _ = extract_time_series_features(df, feature_types=eng_features)
-
-        # print(eng_df)
-
-
-        # 合并静态特征和工程特征
-        # combined = pd.concat([static_df, eng_df], axis=1)
-        combined = eng_df
-
-        print(combined)
-
-        # 标准化处理（注意 scaler 训练时的特征顺序要与此处一致）
-        X_transformed = self.scaler.transform(combined.values)
+        eng_df, _ = self._extract_time_series_features(df, eng_features)  # ✅ 使用类内部方法
+    
+        # 合并特征（确保顺序与训练时一致）
+        combined = pd.concat([static_df, eng_df], axis=1)
+    
+        # 标准化和预测
+        X_transformed = self.scaler.transform(combined)
         pred = self.model.predict(X_transformed)
         return pred[0]
 import streamlit as st
