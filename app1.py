@@ -187,20 +187,20 @@ if page == "首页":
     """)
     
     st.markdown("""
-    ## 引用
+    ## **引用**
     Weibin, Ma; Ling, Li; Yu, Zhang et al. Active learning-based generative design of halogen-free flame-retardant polymeric composites. Journal of Materials Informatics
     """)    
     
     st.markdown("""
-    ## 致谢\n
-    #贡献者：\n
-    #团队：\n
+    ## **致谢**\n
+    *贡献者*：\n
+    *团队*：\n
     上海大学功能高分子组\n
-    #开发者：\n
+    *开发者*：\n
     马维宾博士生\n
-    #监制：\n
+    *监制*：\n
     丁鹏教授\n
-    #基金支持：\n
+    *基金支持*：\n
     云南省科技重点计划项目 （202302AB080022）、苏州市重点技术研究项目 （SYG2024017）
     """)
 
