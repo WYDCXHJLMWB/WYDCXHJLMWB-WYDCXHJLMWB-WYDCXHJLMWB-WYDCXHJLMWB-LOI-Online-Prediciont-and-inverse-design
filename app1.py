@@ -192,6 +192,7 @@ import streamlit as st
 import numpy as np
 
 # 性能预测页面
+# 性能预测页面
 if page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
     
@@ -296,6 +297,7 @@ if page == "性能预测":
             st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
         with col2:
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
+)
 
 
 
