@@ -378,7 +378,7 @@ elif page == "配方建议":
             best_values = []
             for individual in best_individuals:
                 total = sum(individual)
-                best_values.append([round(max(0, i / total * 100, 2) for i in individual])  # 修正括号闭合
+               best_values.append([round(max(0, i / total * 100), 2) for i in individual])  # 修正括号闭合
             
             result_df = pd.DataFrame(best_values, columns=all_features)
             units = [get_unit(fraction_type) for _ in all_features]
