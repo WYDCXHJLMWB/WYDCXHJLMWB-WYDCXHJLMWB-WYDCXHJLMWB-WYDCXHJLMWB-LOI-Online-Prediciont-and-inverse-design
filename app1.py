@@ -193,6 +193,7 @@ import numpy as np
 
 # 性能预测页面
 # 性能预测页面
+# 性能预测页面
 if page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
     
@@ -275,7 +276,7 @@ if page == "性能预测":
                 total_mass = mass_values.sum()
                 input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate(["matrix"] + selected_flame_retardants + selected_additives)}
             
-            # 确保所有模型特征都在 input_values 中
+            # 确保所有模型特征都在 input_values 中，特别是 PP 特征
             for feature in models["loi_features"]:
                 if feature not in input_values:
                     st.error(f"❗ 缺少特征：{feature}")
@@ -297,6 +298,7 @@ if page == "性能预测":
             st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
         with col2:
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
+
 
 
 
