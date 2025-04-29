@@ -178,7 +178,7 @@ if page == "首页":
     本平台基于先进的人工智能和材料科学技术，致力于提供聚丙烯（PP）等聚合物复合材料的性能预测与配方优化建议。
     通过本平台，用户可以进行材料性能预测（如LOI和TS预测），并根据性能目标优化配方，推荐适合的助剂。
     """)
-
+    st.markdown("<hr>", unsafe_allow_html=True)  # 添加水平分隔线
     # 功能概览
     st.markdown("""
     ## 功能概览
@@ -186,7 +186,7 @@ if page == "首页":
     2. **配方建议**：根据目标性能，优化材料配方。
     3. **添加剂推荐**：根据黄度值等时序数据，智能推荐最佳添加剂。
     """)
-
+    st.markdown("<hr>", unsafe_allow_html=True)  # 添加水平分隔线
     # 引用部分
     st.markdown("""
     ## **引用**
@@ -209,14 +209,6 @@ if page == "首页":
 
     # 添加分隔线和背景色
     st.markdown("<hr>", unsafe_allow_html=True)  # 添加水平分隔线
-    st.markdown(
-        """
-        <footer style="text-align: center; background-color: #f4f4f4; padding: 10px;">
-            <p>© 2025 阻燃聚合物复合材料智能设计平台</p>
-            <p>开发者: 马维宾</p>
-        </footer>
-        """, unsafe_allow_html=True
-    )
 
 
 # 性能预测页面
