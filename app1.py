@@ -51,19 +51,20 @@ class Predictor:
         return {**static_data, **eng_features}
 
     def predict_one(self, sample):
-        full_cols = self.static_cols + self.time_series_cols
-        df = pd.DataFrame([sample], columns=full_cols)
-        df = self._truncate(df)
-        
-        features = self._extract_features(df)
+        # ... 其他代码不变 ...
+
         feature_df = pd.DataFrame([features])[self.static_cols + self.eng_features]
+        
+        # 添加调试信息
+        print("生成的特征列:", feature_df.columns.tolist())
+        print("生成的特征维度:", feature_df.shape[1])
+        print("Scaler预期的特征维度:", self.scaler.n_features_in_)
         
         if feature_df.shape[1] != self.scaler.n_features_in_:
             raise ValueError(
-                f"特征维度不匹配！当前：{feature_df.shape[1]}，需要：{self.scaler.n_features_in_}"
+                f"特征维度不匹配！当前：{feature_df.shape[1]}，需要：{self.scaler.n_features_in_}。"
+                f"当前特征列：{feature_df.columns.tolist()}"
             )
-        
-        X_scaled = self.scaler.transform(feature_df)
         
         # 预测
         return self.model.predict(X_scaled)[0]
