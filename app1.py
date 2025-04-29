@@ -5,85 +5,69 @@ import joblib
 
 class Predictor:
     def __init__(self, scaler_path, svc_path):
-        """初始化预测器，加载预处理和模型文件"""
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
-        
-        # 定义特征列（顺序必须与训练时完全一致）
-        self.static_features = ["产品质量指标_Sn%", "添加比例", "一甲%"]
-        self.ts_features = ["黄度值_3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
-        
-        # 时间序列特征工程配置
-        self.eng_feature_names = [
-            'seq_length', 'max_value', 'mean_value', 'min_value',
-            'std_value', 'trend', 'range_value', 'autocorr'
-        ]
-        self.imputer = SimpleImputer(strategy="mean")  # 缺失值填充器
+        self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
+        self.time_series_cols = ["黄度值_3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
+        self.imputer = SimpleImputer(strategy="mean")
 
-    def _preprocess_ts(self, df):
-        """时间序列截断处理：保留最大值前的数据，之后置为NaN"""
-        ts_data = df[self.ts_features].iloc[0]
+    def _truncate(self, df):
+        ts_data = df[self.time_series_cols].iloc[0]
         if ts_data.notna().any():
             last_valid_idx = ts_data.last_valid_index()
             if last_valid_idx:
-                truncate_pos = self.ts_features.index(last_valid_idx) + 1
-                for col in self.ts_features[truncate_pos:]:
+                truncate_pos = self.time_series_cols.index(last_valid_idx) + 1
+                for col in self.time_series_cols[truncate_pos:]:
                     df[col] = np.nan
         return df
 
-    def _extract_features(self, df):
-        """特征提取主逻辑：合并静态特征+时序统计特征"""
-        # 静态特征直接提取
-        static_data = {col: df[col].iloc[0] for col in self.static_features}
+    def _extract_time_series_features(self, df):
+        ts_series = df[self.time_series_cols].iloc[0].dropna()
+        if ts_series.empty:
+            raise ValueError("时间序列数据全为空，无法提取特征")
         
-        # 时序特征工程
-        ts_series = df[self.ts_features].iloc[0].dropna()
-        if len(ts_series) == 0:
-            raise ValueError("时间序列数据全为NaN，无法提取特征")
-            
-        # 缺失值填充
         ts_filled = self.imputer.fit_transform(ts_series.values.reshape(-1, 1)).flatten()
         ts_series = pd.Series(ts_filled, index=ts_series.index)
         
-        # 计算统计特征
-        eng_features = {
+        features = {
             'seq_length': len(ts_series),
             'max_value': ts_series.max(),
             'mean_value': ts_series.mean(),
             'min_value': ts_series.min(),
             'std_value': ts_series.std(),
-            'trend': (ts_series.iloc[-1] - ts_series.iloc[0]) / len(ts_series) if len(ts_series) > 0 else 0,
+            'trend': (ts_series.iloc[-1] - ts_series.iloc[0]) / len(ts_series),
             'range_value': ts_series.max() - ts_series.min(),
             'autocorr': ts_series.autocorr() if len(ts_series) > 1 else 0
         }
-        
-        return {**static_data, **eng_features}
+        return pd.DataFrame([features]), None
 
     def predict_one(self, sample):
-        """单样本预测入口"""
-        # 构建输入DataFrame（确保列顺序正确）
-        input_df = pd.DataFrame([sample], columns=self.static_features + self.ts_features)
-        
-        # 预处理：时间序列截断
-        processed_df = self._preprocess_ts(input_df)
-        
-        # 特征提取
-        features = self._extract_features(processed_df)
-        feature_df = pd.DataFrame([features])[self.static_features + self.eng_feature_names]
-        
-        # 维度验证（关键检查点）
-        if feature_df.shape[1] != self.scaler.n_features_in_:
-            missing = set(self.scaler.feature_names_in_) - set(feature_df.columns)
-            extra = set(feature_df.columns) - set(self.scaler.feature_names_in_)
-            raise ValueError(
-                f"特征维度不匹配！预期: {self.scaler.n_features_in_}, 实际: {feature_df.shape[1]}\n"
-                f"缺失特征: {missing}\n"
-                f"多余特征: {extra}"
-            )
+        try:
+            # 构造输入数据
+            df = pd.DataFrame([sample], columns=self.static_cols + self.time_series_cols)
             
-        # 标准化 & 预测
-        X_scaled = self.scaler.transform(feature_df)
-        return self.model.predict(X_scaled)[0]
+            # 预处理
+            df = self._truncate(df)
+            
+            # 提取特征
+            static_data = {col: df[col].iloc[0] for col in self.static_cols}
+            eng_df, _ = self._extract_time_series_features(df)
+            combined = pd.concat([pd.DataFrame([static_data]), eng_df], axis=1)
+            
+            # 维度验证
+            if combined.shape[1] != self.scaler.n_features_in_:
+                raise ValueError(
+                    f"特征维度不匹配！当前：{combined.shape[1]}，预期：{self.scaler.n_features_in_}\n"
+                    f"当前特征：{combined.columns.tolist()}\n"
+                    f"预期特征：{self.scaler.feature_names_in_.tolist()}"
+                )
+            
+            # 预测
+            X_scaled = self.scaler.transform(combined)
+            return self.model.predict(X_scaled)[0]
+        except Exception as e:
+            print(f"预测失败，错误堆栈：{str(e)}")
+            return -1  # 明确返回错误代码
 import streamlit as st
 import pandas as pd
 import numpy as np
