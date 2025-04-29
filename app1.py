@@ -215,23 +215,39 @@ if page == "性能预测":
     # 显示分类选择：基体、阻燃剂和助剂的下拉菜单
     st.subheader("请选择配方中的基体、阻燃剂和助剂")
     
-    # 基体选择
-    selected_matrix = st.selectbox("选择基体", matrix_materials)
+    # 基体选择：单选
+    selected_matrix = st.selectbox("选择基体", matrix_materials, index=0)  # 默认选中第一个基体
     
     # 阻燃剂和助剂的多选菜单
     selected_flame_retardants = st.multiselect("选择阻燃剂", flame_retardants, default=["ZS"])
     selected_additives = st.multiselect("选择助剂", additives, default=["wollastonite"])
     
-    # 输入各材料的质量分数
+    # 输入各材料的分数
     input_values = {}
-    input_values["PP"] = st.number_input(f"选择 {selected_matrix} 的质量分数 (%)", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
     
-    # 为每个选择的阻燃剂和助剂输入质量分数
+    # 更新单位类型
+    if fraction_type == "质量":
+        unit_matrix = "g"
+        unit_flame_retardant = "g"
+        unit_additive = "g"
+    elif fraction_type == "质量分数":
+        unit_matrix = "wt%"
+        unit_flame_retardant = "wt%"
+        unit_additive = "wt%"
+    elif fraction_type == "体积分数":
+        unit_matrix = "vol%"
+        unit_flame_retardant = "vol%"
+        unit_additive = "vol%"
+    
+    # 基体的输入框，显示相应单位
+    input_values[selected_matrix] = st.number_input(f"选择 {selected_matrix} 的质量分数 ({unit_matrix})", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
+    
+    # 为每个选择的阻燃剂和助剂输入框，显示相应单位
     for fr in selected_flame_retardants:
-        input_values[fr] = st.number_input(f"选择 {fr} 的质量分数 (%)", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
+        input_values[fr] = st.number_input(f"选择 {fr} 的质量分数 ({unit_flame_retardant})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
     
     for ad in selected_additives:
-        input_values[ad] = st.number_input(f"选择 {ad} 的质量分数 (%)", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
+        input_values[ad] = st.number_input(f"选择 {ad} 的质量分数 ({unit_additive})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
     
     # 输入验证
     total = sum(input_values.values())
@@ -269,10 +285,10 @@ if page == "性能预测":
             # 单位转换处理
             if fraction_type == "体积分数":
                 # 体积分数转化为质量分数
-                vol_values = np.array([input_values[f] for f in ["matrix"] + selected_flame_retardants + selected_additives])
+                vol_values = np.array([input_values[f] for f in [selected_matrix] + selected_flame_retardants + selected_additives])
                 mass_values = vol_values  # 假设体积分数与质量分数直接相等
                 total_mass = mass_values.sum()
-                input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate(["matrix"] + selected_flame_retardants + selected_additives)}
+                input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate([selected_matrix] + selected_flame_retardants + selected_additives)}
             
             # **确保所有模型特征都在 input_values 中，特别是 PP 特征**
             for feature in models["loi_features"]:
@@ -287,6 +303,11 @@ if page == "性能预测":
             loi_scaled = models["loi_scaler"].transform(loi_input)
             loi_pred = models["loi_model"].predict(loi_scaled)[0]
         
+            # **确保所有ts_features也在input_values中**
+            for feature in models["ts_features"]:
+                if feature not in input_values:
+                    input_values[feature] = 0.0  # 默认值为0
+
             # TS预测
             ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
             ts_scaled = models["ts_scaler"].transform(ts_input)
