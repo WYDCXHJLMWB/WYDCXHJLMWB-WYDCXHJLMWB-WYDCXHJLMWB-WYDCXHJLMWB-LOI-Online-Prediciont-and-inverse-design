@@ -51,7 +51,13 @@ class Predictor:
         features['autocorr'] = time_data_filled.apply(self._calc_autocorr, axis=1)
         return features
 
-    # ...（其他方法保持不变）
+    def _get_slope(row):
+        x = np.arange(len(row))
+        y = row.values
+        mask = ~np.isnan(y)
+        if sum(mask) >= 2:
+            return stats.linregress(x[mask], y[mask])[0]
+        return np.nan
 
     def predict_one(self, sample):
         full_cols = self.static_cols + self.time_series_cols
