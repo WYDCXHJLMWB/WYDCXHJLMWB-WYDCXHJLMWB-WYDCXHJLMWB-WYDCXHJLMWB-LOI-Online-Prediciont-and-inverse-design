@@ -144,15 +144,6 @@ if page == "配方建议":
         key="sub_nav"
     )
 
-# 单位类型选择（动态显示）
-if page == "配方建议" and sub_page == "配方优化":
-    fraction_type = st.sidebar.radio(
-        "📐 单位类型",
-        ["质量", "质量分数", "体积分数"],
-        key="unit_type"
-    )
-else:
-    fraction_type = None
 
 # 加载模型
 @st.cache_resource
@@ -320,6 +311,10 @@ if page == "性能预测":
 elif page == "配方建议":
     sub_page = st.sidebar.selectbox("🔧 选择功能", ["","配方优化", "添加剂推荐"])
     if sub_page == "配方优化":
+        fraction_type = st.sidebar.radio(
+        "📐 单位类型",
+        ["质量", "质量分数", "体积分数"],
+        key="unit_type")
         st.subheader("🧪 配方建议：根据性能反推配方")
     
         # 目标输入
