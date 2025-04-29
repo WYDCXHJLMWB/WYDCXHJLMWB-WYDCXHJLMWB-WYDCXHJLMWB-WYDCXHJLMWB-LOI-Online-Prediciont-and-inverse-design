@@ -240,14 +240,14 @@ if page == "性能预测":
         unit_additive = "vol%"
     
     # 基体的输入框，显示相应单位
-    input_values[selected_matrix] = st.number_input(f"选择 {selected_matrix} 的质量分数 ({unit_matrix})", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
+    input_values[selected_matrix] = st.number_input(f"选择 {selected_matrix} ({unit_matrix})", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
     
     # 为每个选择的阻燃剂和助剂输入框，显示相应单位
     for fr in selected_flame_retardants:
-        input_values[fr] = st.number_input(f"选择 {fr} 的质量分数 ({unit_flame_retardant})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
+        input_values[fr] = st.number_input(f"选择 {fr}({unit_flame_retardant})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
     
     for ad in selected_additives:
-        input_values[ad] = st.number_input(f"选择 {ad} 的质量分数 ({unit_additive})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
+        input_values[ad] = st.number_input(f"选择 {ad}  ({unit_additive})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
     
     # 输入验证
     total = sum(input_values.values())
@@ -294,9 +294,6 @@ if page == "性能预测":
             for feature in models["loi_features"]:
                 if feature not in input_values:
                     input_values[feature] = 0.0  # 默认值为0
-            
-            # 调试输出：检查input_values
-            st.write("🔍 更新后的输入特征: ", input_values)
 
             # LOI预测
             loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
