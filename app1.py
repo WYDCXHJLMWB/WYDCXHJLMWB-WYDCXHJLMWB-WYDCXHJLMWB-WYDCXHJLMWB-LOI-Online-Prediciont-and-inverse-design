@@ -129,7 +129,7 @@ class Predictor:
 # 使用示例
 if __name__ == "__main__":
     # 初始化预测器
-    predictor = Predictor("scaler.pkl", "model.pkl")
+    predictor = Predictor("scaler_fold_1.pkl", "svc_fold_1.pkl")
     
     # 测试样本
     test_sample = [
