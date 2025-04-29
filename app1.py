@@ -321,7 +321,7 @@ elif page == "配方建议":
         with col1:
             target_loi = st.number_input("目标LOI值（%）", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
         with col2:
-            target_ts = st.number_input("目标TS值（MPa）", min_value=10, max_value=100.0, value=50.0, step=0.1)
+            target_ts = st.number_input("目标TS值（MPa）", min_value=10.0, max_value=100.0, value=50.0, step=0.1)
         
         # 遗传算法参数
         with st.expander("⚙️ 算法参数设置"):
