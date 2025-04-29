@@ -47,23 +47,23 @@ class Predictor:
         
         return features
 
-      def predict_one(self, sample):
-            full_cols = self.static_cols + self.time_series_cols
-            df = pd.DataFrame([sample], columns=full_cols)
-            df = self._truncate(df)
-            
-            features = self._extract_features(df)
-            feature_df = pd.DataFrame([features])[self.static_cols + self.eng_features]
-            
-            if feature_df.shape[1] != self.scaler.n_features_in_:
-                raise ValueError(
-                    f"特征维度不匹配！当前：{feature_df.shape[1]}，需要：{self.scaler.n_features_in_}"
-                )
-            
-            X_scaled = self.scaler.transform(feature_df)
-            
-            # 预测
-            return self.model.predict(X_scaled)[0]
+    def predict_one(self, sample):
+        full_cols = self.static_cols + self.time_series_cols
+        df = pd.DataFrame([sample], columns=full_cols)
+        df = self._truncate(df)
+        
+        features = self._extract_features(df)
+        feature_df = pd.DataFrame([features])[self.static_cols + self.eng_features]
+        
+        if feature_df.shape[1] != self.scaler.n_features_in_:
+            raise ValueError(
+                f"特征维度不匹配！当前：{feature_df.shape[1]}，需要：{self.scaler.n_features_in_}"
+            )
+        
+        X_scaled = self.scaler.transform(feature_df)
+        
+        # 预测
+        return self.model.predict(X_scaled)[0]
 import streamlit as st
 import pandas as pd
 import numpy as np
