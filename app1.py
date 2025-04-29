@@ -209,9 +209,9 @@ if page == "性能预测":
         "SiO2", "其他"
     ]
     
-    # 用户选择的单位类型
-    fraction_type = st.selectbox("选择输入的单位", ["质量", "质量分数", "体积分数"])
-    
+    # 侧边栏选择单位类型
+    fraction_type = st.sidebar.selectbox("选择输入的单位", ["质量", "质量分数", "体积分数"])
+
     # 显示分类选择：基体、阻燃剂和助剂的下拉菜单
     st.subheader("请选择配方中的基体、阻燃剂和助剂")
     
@@ -274,16 +274,13 @@ if page == "性能预测":
                 total_mass = mass_values.sum()
                 input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate(["matrix"] + selected_flame_retardants + selected_additives)}
             
-            # **检查模型特征**
-            st.write("🔍 调试: LOI 特征检查")
-            st.write("模型 LOI 特征: ", models["loi_features"])
-            st.write("当前输入特征: ", list(input_values.keys()))
-
-            # 确保所有模型特征都在 input_values 中，特别是 PP 特征
-            missing_features = [feature for feature in models["loi_features"] if feature not in input_values]
-            if missing_features:
-                st.error(f"❗ 缺少特征：{', '.join(missing_features)}")
-                st.stop()
+            # **确保所有模型特征都在 input_values 中，特别是 PP 特征**
+            for feature in models["loi_features"]:
+                if feature not in input_values:
+                    input_values[feature] = 0.0  # 默认值为0
+            
+            # 调试输出：检查input_values
+            st.write("🔍 更新后的输入特征: ", input_values)
 
             # LOI预测
             loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
