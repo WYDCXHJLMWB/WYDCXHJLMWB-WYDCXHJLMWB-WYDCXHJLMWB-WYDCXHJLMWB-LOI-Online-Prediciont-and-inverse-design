@@ -174,11 +174,9 @@ def ensure_pp_first(features):
 # 首页
 if page == "首页":
     st.markdown("""
-    **阻燃聚合物复合材料智能设计平台**
     本平台基于先进的人工智能和材料科学技术，致力于提供聚丙烯（PP）等聚合物复合材料的性能预测与配方优化建议。
     通过本平台，用户可以进行材料性能预测（如LOI和TS预测），并根据性能目标优化配方，推荐适合的助剂。
-    """, 
-    unsafe_allow_html=True)
+    """)
     st.markdown("<hr>", unsafe_allow_html=True)  # 添加水平分隔线
     # 功能概览
     st.markdown("""
@@ -448,6 +446,7 @@ def add_footer():
     <footer style="text-align: center;">
         <p>© 2025 阻燃聚合物复合材料智能设计平台</p>
         <p>开发者: 马维宾</p>
+        <p>平台性质声明：本平台为科研协作网络服务平台，所有内容仅供学术研究、技术验证等非营利性科研活动使用，严禁用于任何商业用途。</p>
     </footer>
     """, unsafe_allow_html=True)
 
