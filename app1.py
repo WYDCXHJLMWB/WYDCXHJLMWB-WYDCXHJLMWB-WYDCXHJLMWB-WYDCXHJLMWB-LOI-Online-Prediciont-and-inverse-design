@@ -193,8 +193,7 @@ if page == "性能预测":
         "PP",  "PA","PC/ABS","POM","PBT","PVC","其他"
     ]
     flame_retardants = [
-       "AHP","ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol","DOPO", "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides","Mg(OH)2", "TCA", "MPP", "PAPP",
-    ,"其他"]
+       "AHP","ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol","DOPO", "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides","Mg(OH)2", "TCA", "MPP", "PAPP","其他"]
     additives = [
         "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S",  "silane coupling agent",  "antioxidant", "SiO2","其他"
     ]
