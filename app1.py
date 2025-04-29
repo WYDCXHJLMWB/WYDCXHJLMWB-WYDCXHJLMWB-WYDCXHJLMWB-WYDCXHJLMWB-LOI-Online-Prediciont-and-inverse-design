@@ -1,3 +1,4 @@
+# predictor.py
 import pandas as pd
 import numpy as np
 from sklearn.impute import SimpleImputer
@@ -5,69 +6,147 @@ import joblib
 
 class Predictor:
     def __init__(self, scaler_path, svc_path):
+        """
+        初始化预测器
+        :param scaler_path: 标准化器文件路径
+        :param svc_path: 分类模型文件路径
+        """
+        # 加载预处理和模型文件
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
+        
+        # 定义特征列（顺序必须与训练时完全一致）
         self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
-        self.time_series_cols = ["黄度值_3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
-        self.imputer = SimpleImputer(strategy="mean")
+        self.time_series_cols = [
+            "黄度值_3min", "6min", "9min", "12min",
+            "15min", "18min", "21min", "24min"
+        ]
+        
+        # 特征工程配置
+        self.eng_features = [
+            'seq_length', 'max_value', 'mean_value', 'min_value',
+            'std_value', 'trend', 'range_value', 'autocorr'
+        ]
+        self.imputer = SimpleImputer(strategy="mean")  # 缺失值填充器
 
     def _truncate(self, df):
-        ts_data = df[self.time_series_cols].iloc[0]
-        if ts_data.notna().any():
-            last_valid_idx = ts_data.last_valid_index()
+        """
+        时间序列截断处理
+        :param df: 输入DataFrame
+        :return: 处理后的DataFrame
+        """
+        # 按预定义顺序处理时间序列列
+        ts_series = df[self.time_series_cols].iloc[0]
+        
+        if ts_series.notna().any():
+            # 找到最后一个有效值的索引
+            last_valid_idx = ts_series.last_valid_index()
             if last_valid_idx:
+                # 计算截断位置
                 truncate_pos = self.time_series_cols.index(last_valid_idx) + 1
+                # 将后续值设为NaN
                 for col in self.time_series_cols[truncate_pos:]:
                     df[col] = np.nan
         return df
 
     def _extract_time_series_features(self, df):
+        """
+        从时间序列数据提取工程特征
+        :param df: 包含时间序列的DataFrame
+        :return: 特征DataFrame, None（保持接口兼容）
+        """
+        # 提取时序数据
         ts_series = df[self.time_series_cols].iloc[0].dropna()
+        
         if ts_series.empty:
             raise ValueError("时间序列数据全为空，无法提取特征")
         
+        # 填充缺失值
         ts_filled = self.imputer.fit_transform(ts_series.values.reshape(-1, 1)).flatten()
         ts_series = pd.Series(ts_filled, index=ts_series.index)
         
+        # 计算统计特征
         features = {
             'seq_length': len(ts_series),
             'max_value': ts_series.max(),
             'mean_value': ts_series.mean(),
             'min_value': ts_series.min(),
             'std_value': ts_series.std(),
-            'trend': (ts_series.iloc[-1] - ts_series.iloc[0]) / len(ts_series),
+            'trend': (ts_series.iloc[-1] - ts_series.iloc[0]) / len(ts_series) if len(ts_series) > 0 else 0,
             'range_value': ts_series.max() - ts_series.min(),
             'autocorr': ts_series.autocorr() if len(ts_series) > 1 else 0
         }
         return pd.DataFrame([features]), None
 
     def predict_one(self, sample):
+        """
+        单样本预测接口
+        :param sample: 输入样本列表，顺序为 static_cols + time_series_cols
+        :return: 预测结果（整数）
+        """
         try:
-            # 构造输入数据
-            df = pd.DataFrame([sample], columns=self.static_cols + self.time_series_cols)
+            # 构造输入DataFrame（严格保持列顺序）
+            input_df = pd.DataFrame(
+                [sample],
+                columns=self.static_cols + self.time_series_cols
+            )
             
-            # 预处理
-            df = self._truncate(df)
+            # 预处理：时间序列截断
+            processed_df = self._truncate(input_df)
             
-            # 提取特征
-            static_data = {col: df[col].iloc[0] for col in self.static_cols}
-            eng_df, _ = self._extract_time_series_features(df)
-            combined = pd.concat([pd.DataFrame([static_data]), eng_df], axis=1)
+            # 提取静态特征
+            static_data = {col: processed_df[col].iloc[0] for col in self.static_cols}
+            static_df = pd.DataFrame([static_data])
             
-            # 维度验证
+            # 提取时序特征
+            eng_df, _ = self._extract_time_series_features(processed_df)
+            
+            # 合并特征（注意顺序！）
+            combined = pd.concat([static_df, eng_df], axis=1)
+            
+            # 维度验证（关键检查点）
             if combined.shape[1] != self.scaler.n_features_in_:
+                expected_features = self.scaler.feature_names_in_.tolist()
+                actual_features = combined.columns.tolist()
+                missing = list(set(expected_features) - set(actual_features))
+                extra = list(set(actual_features) - set(expected_features))
                 raise ValueError(
-                    f"特征维度不匹配！当前：{combined.shape[1]}，预期：{self.scaler.n_features_in_}\n"
-                    f"当前特征：{combined.columns.tolist()}\n"
-                    f"预期特征：{self.scaler.feature_names_in_.tolist()}"
+                    f"特征维度不匹配！\n"
+                    f"预期特征数：{self.scaler.n_features_in_}\n"
+                    f"实际特征数：{combined.shape[1]}\n"
+                    f"缺失特征：{missing}\n"
+                    f"多余特征：{extra}"
                 )
             
-            # 预测
+            # 标准化和预测
             X_scaled = self.scaler.transform(combined)
-            return self.model.predict(X_scaled)[0]
+            return int(self.model.predict(X_scaled)[0])
+            
         except Exception as e:
-            print(f"预测失败，错误堆栈：{str(e)}")
-            return -1  # 明确返回错误代码
+            print(f"预测失败：{str(e)}")
+            return -1  # 返回错误代码
+
+# 示例用法
+if __name__ == "__main__":
+    # 初始化预测器（需替换实际路径）
+    predictor = Predictor(
+        scaler_path="scaler_fold_1.pkl",
+        svc_path="svc_fold_1.pkl"
+    )
+    
+    # 测试样本（顺序必须严格匹配！）
+    test_sample = [
+        98.5,   # 产品质量指标_Sn%
+        5.0,    # 添加比例
+        0.5,    # 一甲%
+        # 时间序列部分（黄度值）
+        1.2, 1.5, 1.8, 2.0,  # 3min,6min,9min,12min
+        2.2, 2.5, 2.8, 3.0    # 15min,18min,21min,24min
+    ]
+    
+    # 执行预测
+    result = predictor.predict_one(test_sample)
+    print(f"预测结果：{result}")
 import streamlit as st
 import pandas as pd
 import numpy as np
