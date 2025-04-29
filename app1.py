@@ -11,29 +11,27 @@ class Predictor:
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
         
-        # 必须与训练时完全一致的静态特征顺序
+        # 特征列配置
         self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
-        
-        # 必须与训练时完全一致的时序特征顺序
         self.time_series_cols = [
             "黄度值_3min", "6min", "9min", "12min",
             "15min", "18min", "21min", "24min"
         ]
-        
-        # 特征工程配置（必须与训练时一致）
         self.eng_features = [
             'seq_length', 'max_value', 'mean_value', 'min_value',
             'std_value', 'trend', 'range_value', 'autocorr'
         ]
         self.imputer = SimpleImputer(strategy="mean")
 
+    def _truncate(self, df):
+        """确保输入数据列顺序正确"""
+        return df[self.static_cols + self.time_series_cols]
+
     def _extract_time_series_features(self, df):
-        """修复后的特征提取方法"""
-        # 提取时序数据并填充缺失值
+        """修复后的时序特征提取"""
         time_data = df[self.time_series_cols]
-        time_data_filled = time_data.fillna(method='ffill', axis=1)  # 使用前向填充填充缺失值
+        time_data_filled = time_data.ffill(axis=1)  # ✅ 沿时间轴填充
         
-        # 计算特征
         features = pd.DataFrame()
         features['seq_length'] = time_data_filled.notna().sum(axis=1)
         features['max_value'] = time_data_filled.max(axis=1)
@@ -43,38 +41,26 @@ class Predictor:
         features['range_value'] = features['max_value'] - features['min_value']
         features['trend'] = time_data_filled.apply(self._get_slope, axis=1)
         features['autocorr'] = time_data_filled.apply(self._calc_autocorr, axis=1)
-        
         return features
 
-
-    def _get_slope(self, row):
-        """计算时间序列的斜率（趋势）"""
-        x = np.arange(len(row))
-        y = row.values
-        slope, _ = np.polyfit(x, y, 1)
-        return slope
-
-    def _calc_autocorr(self, row):
-        """计算时间序列的自相关"""
-        return np.corrcoef(row[:-1], row[1:])[0, 1] if len(row) > 1 else 0
+    # ...（其他方法保持不变）
 
     def predict_one(self, sample):
         full_cols = self.static_cols + self.time_series_cols
         df = pd.DataFrame([sample], columns=full_cols)
-        df = self._truncate(df)  # Ensure the dataframe is correctly truncated, add _truncate method if needed.
+        df = self._truncate(df)  # ✅ 调用已定义的方法
         
-        # 提取特征
-        features = self._extract_time_series_features(df)
-        feature_df = pd.DataFrame([features])[self.static_cols + self.eng_features]
+        # 特征合并
+        static_features = df[self.static_cols]
+        time_features = self._extract_time_series_features(df)
+        feature_df = pd.concat([static_features, time_features], axis=1)
+        feature_df = feature_df[self.static_cols + self.eng_features]  # ✅ 确保列顺序
         
+        # 验证维度
         if feature_df.shape[1] != self.scaler.n_features_in_:
-            raise ValueError(
-                f"特征维度不匹配！当前：{feature_df.shape[1]}，需要：{self.scaler.n_features_in_}"
-            )
+            raise ValueError(f"特征维度不匹配！当前：{feature_df.shape[1]}，需要：{self.scaler.n_features_in_}")
         
         X_scaled = self.scaler.transform(feature_df)
-        
-        # 预测
         return self.model.predict(X_scaled)[0]
 
 import streamlit as st
