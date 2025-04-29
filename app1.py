@@ -43,7 +43,7 @@ class Predictor:
         if sum(mask) >= 2:
             return stats.linregress(x[mask], y[mask])[0]
         return np.nan
-    def _calc_autocorr(row):
+    def _calc_autocorr(self, row):
         """计算一阶自相关系数"""
         # 去除NaN值
         values = row.dropna().values
@@ -57,6 +57,7 @@ class Predictor:
             if denominator != 0:
                 return numerator / denominator
         return np.nan
+
 
     
     def _extract_time_series_features(self, df):
