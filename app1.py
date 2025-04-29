@@ -184,18 +184,25 @@ def ensure_pp_first(features):
         features.remove("PP")
     return ["PP"] + sorted(features)
 
+import streamlit as st
+import numpy as np
+
 # 性能预测页面
 if page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
     
     # 定义分类的材料
     matrix_materials = [
-        "PP",  "PA","PC/ABS","POM","PBT","PVC","其他"
+        "PP", "PA", "PC/ABS", "POM", "PBT", "PVC", "其他"
     ]
     flame_retardants = [
-       "AHP","ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol","DOPO", "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides","Mg(OH)2", "TCA", "MPP", "PAPP","其他"]
+        "AHP", "ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol", "DOPO", 
+        "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides", 
+        "Mg(OH)2", "TCA", "MPP", "PAPP", "其他"
+    ]
     additives = [
-        "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S",  "silane coupling agent",  "antioxidant", "SiO2","其他"
+        "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S", "silane coupling agent", "antioxidant", 
+        "SiO2", "其他"
     ]
     
     # 用户选择的单位类型
@@ -204,16 +211,23 @@ if page == "性能预测":
     # 显示分类选择：基体、阻燃剂和助剂的下拉菜单
     st.subheader("请选择配方中的基体、阻燃剂和助剂")
     
-    # 基体、阻燃剂和助剂的下拉菜单
+    # 基体选择
     selected_matrix = st.selectbox("选择基体", matrix_materials)
-    selected_flame_retardant = st.selectbox("选择阻燃剂", flame_retardants)
-    selected_additive = st.selectbox("选择助剂", additives)
     
-    # 输入其他材料的数量（假设按质量分数）
+    # 阻燃剂和助剂的多选菜单
+    selected_flame_retardants = st.multiselect("选择阻燃剂", flame_retardants, default=["ZS"])
+    selected_additives = st.multiselect("选择助剂", additives, default=["wollastonite"])
+    
+    # 输入各材料的质量分数
     input_values = {}
     input_values["matrix"] = st.number_input(f"选择 {selected_matrix} 的质量分数 (%)", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
-    input_values["flame_retardant"] = st.number_input(f"选择 {selected_flame_retardant} 的质量分数 (%)", min_value=0.0, max_value=100.0, value=20.0, step=0.1)
-    input_values["additive"] = st.number_input(f"选择 {selected_additive} 的质量分数 (%)", min_value=0.0, max_value=100.0, value=30.0, step=0.1)
+    
+    # 为每个选择的阻燃剂和助剂输入质量分数
+    for fr in selected_flame_retardants:
+        input_values[fr] = st.number_input(f"选择 {fr} 的质量分数 (%)", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
+    
+    for ad in selected_additives:
+        input_values[ad] = st.number_input(f"选择 {ad} 的质量分数 (%)", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
     
     # 输入验证
     total = sum(input_values.values())
@@ -251,10 +265,10 @@ if page == "性能预测":
             # 单位转换处理
             if fraction_type == "体积分数":
                 # 体积分数转化为质量分数
-                vol_values = np.array([input_values[f] for f in ["matrix", "flame_retardant", "additive"]])
+                vol_values = np.array([input_values[f] for f in ["matrix"] + selected_flame_retardants + selected_additives])
                 mass_values = vol_values  # 假设体积分数与质量分数直接相等
                 total_mass = mass_values.sum()
-                input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate(["matrix", "flame_retardant", "additive"])}
+                input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate(["matrix"] + selected_flame_retardants + selected_additives)}
             
             # LOI预测
             loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
@@ -272,6 +286,7 @@ if page == "性能预测":
             st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
         with col2:
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
+
 
 
 elif page == "配方建议":
