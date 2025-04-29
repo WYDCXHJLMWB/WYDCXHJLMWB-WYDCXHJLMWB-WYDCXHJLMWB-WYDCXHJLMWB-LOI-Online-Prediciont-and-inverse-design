@@ -224,7 +224,7 @@ if page == "性能预测":
     
     # 输入各材料的质量分数
     input_values = {}
-    input_values["matrix"] = st.number_input(f"选择 {selected_matrix} 的质量分数 (%)", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
+    input_values["PP"] = st.number_input(f"选择 {selected_matrix} 的质量分数 (%)", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
     
     # 为每个选择的阻燃剂和助剂输入质量分数
     for fr in selected_flame_retardants:
