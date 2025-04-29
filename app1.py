@@ -24,8 +24,16 @@ class Predictor:
         self.imputer = SimpleImputer(strategy="mean")
 
     def _truncate(self, df):
-        """确保输入数据列顺序正确"""
-        return df[self.static_cols + self.time_series_cols]
+        time_cols = [col for col in df.columns if "min" in col.lower()]
+        time_cols_ordered = [col for col in df.columns if col in time_cols]
+        if time_cols_ordered:
+            row = df.iloc[0][time_cols_ordered]
+            if row.notna().any():
+                max_idx = row.idxmax()
+                max_pos = time_cols_ordered.index(max_idx)
+                for col in time_cols_ordered[max_pos + 1:]:
+                    df.at[df.index[0], col] = np.nan
+        return df
 
     def _extract_time_series_features(self, df):
         """修复后的时序特征提取"""
