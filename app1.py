@@ -192,8 +192,6 @@ import streamlit as st
 import numpy as np
 
 # 性能预测页面
-# 性能预测页面
-# 性能预测页面
 if page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
     
@@ -276,11 +274,16 @@ if page == "性能预测":
                 total_mass = mass_values.sum()
                 input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate(["matrix"] + selected_flame_retardants + selected_additives)}
             
+            # **检查模型特征**
+            st.write("🔍 调试: LOI 特征检查")
+            st.write("模型 LOI 特征: ", models["loi_features"])
+            st.write("当前输入特征: ", list(input_values.keys()))
+
             # 确保所有模型特征都在 input_values 中，特别是 PP 特征
-            for feature in models["loi_features"]:
-                if feature not in input_values:
-                    st.error(f"❗ 缺少特征：{feature}")
-                    st.stop()
+            missing_features = [feature for feature in models["loi_features"] if feature not in input_values]
+            if missing_features:
+                st.error(f"❗ 缺少特征：{', '.join(missing_features)}")
+                st.stop()
 
             # LOI预测
             loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
@@ -298,11 +301,6 @@ if page == "性能预测":
             st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
         with col2:
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
-
-
-
-
-
 
 elif page == "配方建议":
     sub_page = st.sidebar.selectbox("🔧 选择功能", ["","配方优化", "添加剂推荐"])
