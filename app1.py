@@ -31,8 +31,7 @@ class Predictor:
         """修复后的特征提取方法"""
         # 提取时序数据并填充缺失值
         time_data = df[self.time_series_cols]
-        filled_data = self.imputer.fit_transform(time_data)
-        time_data_filled = pd.DataFrame(filled_data, columns=self.time_series_cols)
+        time_data_filled = time_data.fillna(method='ffill', axis=1)  # 使用前向填充填充缺失值
         
         # 计算特征
         features = pd.DataFrame()
@@ -46,6 +45,7 @@ class Predictor:
         features['autocorr'] = time_data_filled.apply(self._calc_autocorr, axis=1)
         
         return features
+
 
     def _get_slope(self, row):
         """计算时间序列的斜率（趋势）"""
