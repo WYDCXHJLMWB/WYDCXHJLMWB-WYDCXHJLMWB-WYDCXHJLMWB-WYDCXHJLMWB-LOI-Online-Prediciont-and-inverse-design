@@ -131,7 +131,7 @@ st.markdown(
 # 侧边栏主导航
 page = st.sidebar.selectbox(
     "🔧 主功能选择",
-    ["性能预测", "配方建议"],
+    ["首页","性能预测", "配方建议"],
     key="main_nav"
 )
 
@@ -181,9 +181,52 @@ import numpy as np
 # 性能预测页面
 import streamlit as st
 import numpy as np
+if page == "首页":
+    st.subheader("阻燃聚合物复合材料智能设计平台")
+    st.markdown("""
+    本平台基于先进的人工智能和材料科学技术，致力于提供聚丙烯（PP）等聚合物复合材料的性能预测与配方优化建议。
+    通过本平台，用户可以进行材料性能预测（如LOI和TS预测），并根据性能目标优化配方，推荐适合的助剂。
+    """)
 
+    st.markdown("""
+    ## 功能概览
+    1. **性能预测**：通过输入材料配方，预测聚合物复合材料的LOI和TS性能。
+    2. **配方建议**：根据目标性能，优化材料配方。
+    3. **添加剂推荐**：根据黄度值等时序数据，智能推荐最佳添加剂。
+    """)
+    
+    st.markdown("""
+    ## 引用
+    Weibin, Ma; Ling, Li; Yu, Zhang et al. Active learning-based generative design of halogen-free flame-retardant polymeric composites. Journal of Materials Informatics
+    """)    
+    
+    st.markdown("""
+    ## 致谢
+    贡献者：
+    团队：上海大学功能高分子组
+    开发者：
+    马维宾博士生
+    李瑞杰硕士生
+    监制：
+    丁鹏教授
+    基金支持：
+    云南省科技重点计划项目 （202302AB080022）、苏州市重点技术研究项目 （SYG2024017）
+    """)
+
+# **开发者信息和版权声明**（添加到底部）
+def add_footer():
+    st.markdown("""
+    <hr>
+    <footer style="text-align: center;">
+        <p>© 2025 阻燃聚合物复合材料智能设计平台</p>
+        <p>开发者: 马维宾, 李瑞杰
+    </footer>
+    """, unsafe_allow_html=True)
+
+# 在每个页面底部调用开发者信息
+add_footer()
 # 性能预测页面
-if page == "性能预测":
+elif page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
     
     # 定义分类的材料
