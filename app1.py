@@ -188,22 +188,34 @@ def ensure_pp_first(features):
 if page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
     
-    # 动态生成输入框
-    input_values = {}
-    features = ensure_pp_first(sorted(set(models["loi_features"] + models["ts_features"])))
-    cols = st.columns(2)
+    # 定义分类的材料
+    matrix_materials = [
+        "PP",  "PA","PC/ABS","POM","PBT","PVC","其他"
+    ]
+    flame_retardants = [
+       "AHP"，"ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol","DOPO", "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides"，"Mg(OH)2", "TCA", "MPP", "PAPP",
+    ,"其他"]
+    additives = [
+        "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S",  "silane coupling agent",  "antioxidant"， "SiO2","其他"
+    ]
     
-    for i, feature in enumerate(features):
-        with cols[i % 2]:
-            unit = get_unit(fraction_type)
-            input_values[feature] = st.number_input(
-                f"{feature} ({unit})",
-                min_value=0.0,
-                max_value=100.0,
-                value=50.0 if feature == "PP" else 0.0,
-                step=0.1
-            )
-
+    # 用户选择的单位类型
+    fraction_type = st.selectbox("选择输入的单位", ["质量", "质量分数", "体积分数"])
+    
+    # 显示分类选择：基体、阻燃剂和助剂的下拉菜单
+    st.subheader("请选择配方中的基体、阻燃剂和助剂")
+    
+    # 基体、阻燃剂和助剂的下拉菜单
+    selected_matrix = st.selectbox("选择基体", matrix_materials)
+    selected_flame_retardant = st.selectbox("选择阻燃剂", flame_retardants)
+    selected_additive = st.selectbox("选择助剂", additives)
+    
+    # 输入其他材料的数量（假设按质量分数）
+    input_values = {}
+    input_values["matrix"] = st.number_input(f"选择 {selected_matrix} 的质量分数 (%)", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
+    input_values["flame_retardant"] = st.number_input(f"选择 {selected_flame_retardant} 的质量分数 (%)", min_value=0.0, max_value=100.0, value=20.0, step=0.1)
+    input_values["additive"] = st.number_input(f"选择 {selected_additive} 的质量分数 (%)", min_value=0.0, max_value=100.0, value=30.0, step=0.1)
+    
     # 输入验证
     total = sum(input_values.values())
     is_only_pp = all(v == 0 for k, v in input_values.items() if k != "PP")
@@ -232,19 +244,19 @@ if page == "性能预测":
             st.error("预测中止：质量分数的总和必须为100%")
             st.stop()
 
-        # 单位转换处理
-        if fraction_type == "体积分数":
-            # 体积分数转化为质量分数
-            vol_values = np.array([input_values[f] for f in features])
-            mass_values = vol_values  # 假设体积分数与质量分数直接相等
-            total_mass = mass_values.sum()
-            input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate(features)}
-        
         # 如果是纯PP配方，直接进行LOI和TS预测
         if is_only_pp:
             loi_pred = 17.5  # 假设PP配方LOI为17.5%
             ts_pred = 35.0  # 假设PP配方TS为35 MPa
         else:
+            # 单位转换处理
+            if fraction_type == "体积分数":
+                # 体积分数转化为质量分数
+                vol_values = np.array([input_values[f] for f in ["matrix", "flame_retardant", "additive"]])
+                mass_values = vol_values  # 假设体积分数与质量分数直接相等
+                total_mass = mass_values.sum()
+                input_values = {f: (mass_values[i]/total_mass)*100 for i, f in enumerate(["matrix", "flame_retardant", "additive"])}
+            
             # LOI预测
             loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
             loi_scaled = models["loi_scaler"].transform(loi_input)
@@ -261,6 +273,7 @@ if page == "性能预测":
             st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
         with col2:
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
+
 
 elif page == "配方建议":
     sub_page = st.sidebar.selectbox("🔧 选择功能", ["","配方优化", "添加剂推荐"])
