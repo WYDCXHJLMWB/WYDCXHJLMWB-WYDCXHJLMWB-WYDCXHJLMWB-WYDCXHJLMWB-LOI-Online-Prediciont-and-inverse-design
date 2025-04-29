@@ -34,7 +34,15 @@ class Predictor:
                 for col in time_cols_ordered[max_pos + 1:]:
                     df.at[df.index[0], col] = np.nan
         return df
-
+    
+    def _get_slope(row):
+        x = np.arange(len(row))
+        y = row.values
+        mask = ~np.isnan(y)
+        if sum(mask) >= 2:
+            return stats.linregress(x[mask], y[mask])[0]
+        return np.nan
+    
     def _extract_time_series_features(self, df):
         """修复后的时序特征提取"""
         time_data = df[self.time_series_cols]
@@ -50,14 +58,6 @@ class Predictor:
         features['trend'] = time_data_filled.apply(self._get_slope, axis=1)
         features['autocorr'] = time_data_filled.apply(self._calc_autocorr, axis=1)
         return features
-
-    def _get_slope(row):
-        x = np.arange(len(row))
-        y = row.values
-        mask = ~np.isnan(y)
-        if sum(mask) >= 2:
-            return stats.linregress(x[mask], y[mask])[0]
-        return np.nan
 
     def predict_one(self, sample):
         full_cols = self.static_cols + self.time_series_cols
