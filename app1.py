@@ -145,7 +145,7 @@ if page == "配方建议":
     )
 
 # 单位类型选择（动态显示）
-if page == "性能预测" or (page == "配方建议" and sub_page == "配方优化"):
+if page == "配方建议" and sub_page == "配方优化"):
     fraction_type = st.sidebar.radio(
         "📐 单位类型",
         ["质量", "质量分数", "体积分数"],
@@ -419,7 +419,7 @@ elif page == "配方建议":
             
             st.write(result_df)
     elif sub_page == "添加剂推荐":
-        st.subheader("🧪 添加剂智能推荐")
+        st.subheader("🧪 PVC添加剂智能推荐")
 
         @st.cache_resource
         def load_predictor():
