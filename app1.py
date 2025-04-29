@@ -58,8 +58,6 @@ class Predictor:
                 return numerator / denominator
         return np.nan
 
-
-    
     def _extract_time_series_features(self, df):
         """修复后的时序特征提取"""
         time_data = df[self.time_series_cols]
@@ -367,17 +365,16 @@ elif page == "配方建议":
             st.write(result_df)
     elif sub_page == "添加剂推荐":
         st.subheader("🧪 添加剂智能推荐")
-    
+
         @st.cache_resource
         def load_predictor():
             return Predictor(
                 scaler_path="scaler_fold_1.pkl",
                 svc_path="svc_fold_1.pkl"
             )
-    
-        predictor = load_predictor()  # 注意这里修正了拼写错误
-    
-        # 创建输入表单
+
+        predictor = load_predictor()
+
         with st.form("additive_form"):
             st.markdown("### 基础参数")
             col_static = st.columns(3)
@@ -387,15 +384,15 @@ elif page == "配方建议":
                 sn_percent = st.number_input("Sn含量 (%)", 0.0, 100.0, 98.5, step=0.1)
             with col_static[2]:
                 yijia_percent = st.number_input("一甲胺含量 (%)", 0.0, 100.0, 0.5, step=0.1)
-    
+
             st.markdown("### 时序参数（黄度值随时间变化）")
-    
+
             time_points = [
                 ("3min", 1.2), ("6min", 1.5), ("9min", 1.8),
                 ("12min", 2.0), ("15min", 2.2), ("18min", 2.5),
                 ("21min", 2.8), ("24min", 3.0)
             ]
-    
+
             yellow_values = {}
             cols = st.columns(4)
             for idx, (time, default) in enumerate(time_points):
@@ -407,9 +404,9 @@ elif page == "配方建议":
                         step=0.1,
                         key=f"yellow_{time}"
                     )
-    
+
             submitted = st.form_submit_button("生成推荐方案")
-    
+
             if submitted:
                 try:
                     # 构建输入样本（顺序与类定义一致）
@@ -426,9 +423,9 @@ elif page == "配方建议":
                         yellow_values["21min"],
                         yellow_values["24min"]
                     ]
-    
+
                     prediction = predictor.predict_one(sample)
-    
+
                     # 结果映射表
                     result_map = {
                         1: {"name": "无"},
@@ -439,7 +436,8 @@ elif page == "配方建议":
                         6: {"name": "G70L（多官能团的脂肪酸复合酯混合物）"},
                         7: {"name": "EA6（亚磷酸酯）"}
                     }
-    
+
+                    # 显示推荐结果
                     st.success("### 推荐结果")
                     col1, col2 = st.columns([1, 2])
                     with col1:
@@ -448,7 +446,6 @@ elif page == "配方建议":
                         st.markdown(f"""
                         **推荐添加剂**: {result_map[prediction]["name"]}
                         """)
-                    
+
                 except Exception as e:
                     st.error(f"预测时发生错误：{str(e)}")
-
