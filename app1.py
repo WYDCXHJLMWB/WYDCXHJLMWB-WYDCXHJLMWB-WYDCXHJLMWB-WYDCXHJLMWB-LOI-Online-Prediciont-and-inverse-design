@@ -297,7 +297,7 @@ if page == "性能预测":
             st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
         with col2:
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
-)
+
 
 
 
