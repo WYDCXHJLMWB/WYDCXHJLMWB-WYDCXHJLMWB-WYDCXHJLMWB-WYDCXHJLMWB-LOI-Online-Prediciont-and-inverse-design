@@ -47,31 +47,23 @@ class Predictor:
         
         return features
 
-    def predict_one(self, sample):
-        try:
-            # 构建输入数据（严格保持顺序）
-            input_df = pd.DataFrame(
-                [sample], 
-                columns=self.static_cols + self.time_series_cols
+  def predict_one(self, sample):
+        full_cols = self.static_cols + self.time_series_cols
+        df = pd.DataFrame([sample], columns=full_cols)
+        df = self._truncate(df)
+        
+        features = self._extract_features(df)
+        feature_df = pd.DataFrame([features])[self.static_cols + self.eng_features]
+        
+        if feature_df.shape[1] != self.scaler.n_features_in_:
+            raise ValueError(
+                f"特征维度不匹配！当前：{feature_df.shape[1]}，需要：{self.scaler.n_features_in_}"
             )
-            
-            # 预处理
-            processed_df = self._truncate(input_df)
-            
-            # 提取特征
-            static_df = processed_df[self.static_cols].reset_index(drop=True)
-            ts_features = self._extract_time_series_features(processed_df).reset_index(drop=True)
-            
-            # 合并特征（关键：保持训练时的列顺序）
-            combined = pd.concat([static_df, ts_features], axis=1)
-            combined = combined[self.scaler.feature_names_in_]  # 强制对齐顺序
-            
-            # 标准化与预测
-            X_scaled = self.scaler.transform(combined)
-            return int(self.model.predict(X_scaled)[0])
-        except Exception as e:
-            print(f"预测错误详情: {str(e)}")
-            return -1
+        
+        X_scaled = self.scaler.transform(feature_df)
+        
+        # 预测
+        return self.model.predict(X_scaled)[0]
 import streamlit as st
 import pandas as pd
 import numpy as np
