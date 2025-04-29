@@ -47,12 +47,24 @@ class Predictor:
         
         return features
 
+    def _get_slope(self, row):
+        """计算时间序列的斜率（趋势）"""
+        x = np.arange(len(row))
+        y = row.values
+        slope, _ = np.polyfit(x, y, 1)
+        return slope
+
+    def _calc_autocorr(self, row):
+        """计算时间序列的自相关"""
+        return np.corrcoef(row[:-1], row[1:])[0, 1] if len(row) > 1 else 0
+
     def predict_one(self, sample):
         full_cols = self.static_cols + self.time_series_cols
         df = pd.DataFrame([sample], columns=full_cols)
-        df = self._truncate(df)
+        df = self._truncate(df)  # Ensure the dataframe is correctly truncated, add _truncate method if needed.
         
-        features = self._extract_features(df)
+        # 提取特征
+        features = self._extract_time_series_features(df)
         feature_df = pd.DataFrame([features])[self.static_cols + self.eng_features]
         
         if feature_df.shape[1] != self.scaler.n_features_in_:
@@ -64,6 +76,7 @@ class Predictor:
         
         # 预测
         return self.model.predict(X_scaled)[0]
+
 import streamlit as st
 import pandas as pd
 import numpy as np
