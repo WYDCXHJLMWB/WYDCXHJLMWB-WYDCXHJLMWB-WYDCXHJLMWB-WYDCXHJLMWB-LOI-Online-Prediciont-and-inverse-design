@@ -439,7 +439,7 @@ def add_footer():
     <hr>
     <footer style="text-align: center;">
         <p>© 2025 阻燃聚合物复合材料智能设计平台</p>
-        <p>开发者: 马维宾, </p>
+        <p>开发者: 马维宾</p>
     </footer>
     """, unsafe_allow_html=True)
 
