@@ -479,6 +479,11 @@ elif page == "配方建议":
                     7: "EA6（亚磷酸酯）"
                 }
                 
+                # ============== 修改开始 ==============
+                # 动态确定添加量和显示名称
+                additive_amount = 0.0 if prediction == 1 else add_ratio
+                additive_name = result_map[prediction]
+    
                 # 构建完整配方表
                 formula_data = [
                     ["PVC份数", 100.00],
@@ -486,21 +491,31 @@ elif page == "配方建议":
                     ["外滑剂70S份数", 0.35],
                     ["MBS份数", 5.00],
                     ["316A份数", 0.20],
-                    ["稳定剂份数", 1.00],
-                    [f"{result_map[prediction]}含量（wt%）", add_ratio]
+                    ["稳定剂份数", 1.00]
                 ]
                 
+                # 根据预测结果动态添加条目
+                if prediction != 1:
+                    formula_data.append([f"{additive_name}含量（wt%）", additive_amount])
+                else:
+                    formula_data.append([additive_name, additive_amount])
+                # ============== 修改结束 ==============
+    
                 # 创建格式化表格
                 df = pd.DataFrame(formula_data, columns=["材料名称", "含量"])
-                styled_df = df.style.format({"份数": "{:.2f}"})\
+                styled_df = df.style.format({"含量": "{:.2f}"})\
                                   .hide(axis="index")\
                                   .set_properties(**{'text-align': 'left'})
                 
                 # 双列布局展示
                 col1, col2 = st.columns([1, 2])
                 with col1:
-                    st.success(f"**推荐添加剂类型**  \n{result_map[prediction]}")
-                    st.metric("建议添加量", f"{add_ratio:.2f}%")
+                    # ============== 修改开始 ==============
+                    st.success(f"**推荐添加剂类型**  \n{additive_name}")
+                    st.metric("建议添加量", 
+                             f"{additive_amount:.2f}%",
+                             delta="无添加" if prediction == 1 else None)
+                    # ============== 修改结束 ==============
                     
                 with col2:
                     st.markdown("**完整配方表（基于PVC 100份）**")
@@ -509,17 +524,17 @@ elif page == "配方建议":
                                 height=280,
                                 column_config={
                                     "材料名称": "材料名称",
-                                    "份数": st.column_config.NumberColumn(
-                                        "份数",
+                                    "含量": st.column_config.NumberColumn(
+                                        "含量",
                                         format="%.2f"
                                     )
                                 })
-
+                
+    
                 
             except Exception as e:
                 st.error(f"预测过程中发生错误：{str(e)}")
                 st.stop()
-
 # 添加页脚
 def add_footer():
     st.markdown("""
