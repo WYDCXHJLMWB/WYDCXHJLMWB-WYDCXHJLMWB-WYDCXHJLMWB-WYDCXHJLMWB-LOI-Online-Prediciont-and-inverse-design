@@ -406,13 +406,13 @@ elif page == "配方建议":
                                           step=0.1)
             with col_static[1]:
                 sn_percent = st.number_input("Sn含量 (%)", 
-                                           min_value=9.0, 
+                                           min_value=0.0, 
                                            max_value=19.0,
                                            value=14.0,
                                            step=0.1,
-                                           help="锡含量范围9%~19%")
+                                           help="锡含量范围0%~19%")
             with col_static[2]:
-                yijia_percent = st.number_input("一甲胺含量 (%)",
+                yijia_percent = st.number_input("一甲含量 (%)",
                                                min_value=15.1,
                                                max_value=32.0,
                                                value=23.55,
