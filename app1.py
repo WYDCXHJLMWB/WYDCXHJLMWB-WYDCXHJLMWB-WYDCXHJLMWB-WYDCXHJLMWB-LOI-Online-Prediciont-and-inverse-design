@@ -399,31 +399,68 @@ elif page == "配方建议":
             st.markdown("### 基础参数")
             col_static = st.columns(3)
             with col_static[0]:
-                add_ratio = st.number_input("添加比例 (%)", 0.0, 100.0, 5.0, step=0.1)
+                add_ratio = st.number_input("添加比例 (%)", 
+                                          min_value=0.0,
+                                          max_value=100.0,
+                                          value=5.0,
+                                          step=0.1)
             with col_static[1]:
-                sn_percent = st.number_input("Sn含量 (%)", 0.0, 100.0, 98.5, step=0.1)
+                sn_percent = st.number_input("Sn含量 (%)", 
+                                           min_value=9.0, 
+                                           max_value=19.0,
+                                           value=14.0,
+                                           step=0.1,
+                                           help="锡含量范围9%~19%")
             with col_static[2]:
-                yijia_percent = st.number_input("一甲胺含量 (%)", 0.0, 100.0, 0.5, step=0.1)
+                yijia_percent = st.number_input("一甲胺含量 (%)",
+                                               min_value=15.1,
+                                               max_value=32.0,
+                                               value=23.55,
+                                               step=0.1,
+                                               help="一甲胺含量范围15.1%~32%")
             
             st.markdown("### 时序参数（黄度值随时间变化）")
             time_points = [
-                ("3min", 1.2), ("6min", 1.5), ("9min", 1.8),
-                ("12min", 2.0), ("15min", 2.2), ("18min", 2.5),
-                ("21min", 2.8), ("24min", 3.0)
+                ("3min", 15.0), ("6min", 16.0), ("9min", 17.0),
+                ("12min", 18.0), ("15min", 19.0), ("18min", 20.0),
+                ("21min", 21.0), ("24min", 22.0)
             ]
             yellow_values = {}
+            prev_value = 5.0  # 初始最小值
             cols = st.columns(4)
+            
             for idx, (time, default) in enumerate(time_points):
                 with cols[idx % 4]:
-                    yellow_values[time] = st.number_input(
-                        f"{time} 黄度值",
-                        min_value=0.0,
-                        value=default,
-                        step=0.1,
-                        key=f"yellow_{time}"
-                    )
-            
-            if st.form_submit_button("生成推荐方案"):
+                    if time == "3min":
+                        current = st.number_input(
+                            f"{time} 黄度值", 
+                            min_value=5.0,
+                            max_value=25.0,
+                            value=default,
+                            step=0.1,
+                            key=f"yellow_{time}"
+                        )
+                    else:
+                        current = st.number_input(
+                            f"{time} 黄度值",
+                            min_value=prev_value,
+                            value=default,
+                            step=0.1,
+                            key=f"yellow_{time}"
+                        )
+                    yellow_values[time] = current
+                    prev_value = current
+    
+            submit_btn = st.form_submit_button("生成推荐方案")
+    
+        if submit_btn:
+            # 时序数据验证
+            time_sequence = [yellow_values[t] for t, _ in time_points]
+            if any(time_sequence[i] > time_sequence[i+1] for i in range(len(time_sequence)-1)):
+                st.error("错误：黄度值必须随时间递增！请检查输入数据")
+                st.stop()
+                
+            try:
                 sample = [
                     sn_percent, add_ratio, yijia_percent,
                     yellow_values["3min"], yellow_values["6min"],
@@ -433,11 +470,55 @@ elif page == "配方建议":
                 ]
                 prediction = predictor.predict_one(sample)
                 result_map = {
-                    1: "无推荐添加剂", 2: "氯化石蜡", 3: "EA12（脂肪酸复合醇酯）",
-                    4: "EA15（市售液体钙锌稳定剂）", 5: "EA16（环氧大豆油）",
-                    6: "G70L（多官能团的脂肪酸复合酯混合物）", 7: "EA6（亚磷酸酯）"
+                    1: "无推荐添加剂", 
+                    2: "氯化石蜡", 
+                    3: "EA12（脂肪酸复合醇酯）",
+                    4: "EA15（市售液体钙锌稳定剂）", 
+                    5: "EA16（环氧大豆油）",
+                    6: "G70L（多官能团的脂肪酸复合酯混合物）", 
+                    7: "EA6（亚磷酸酯）"
                 }
-                st.success(f"### 推荐添加剂: {result_map[prediction]}")
+                
+                # 构建完整配方表
+                formula_data = [
+                    ["PVC份数", 100.00],
+                    ["加工助剂ACR份数", 1.00],
+                    ["外滑剂70S份数", 0.35],
+                    ["MBS份数", 5.00],
+                    ["316A份数", 0.20],
+                    ["稳定剂份数", 1.00],
+                    [f"{result_map[prediction]}含量（wt%）", add_ratio]
+                ]
+                
+                # 创建格式化表格
+                df = pd.DataFrame(formula_data, columns=["材料名称", "含量"])
+                styled_df = df.style.format({"份数": "{:.2f}"})\
+                                  .hide(axis="index")\
+                                  .set_properties(**{'text-align': 'left'})
+                
+                # 双列布局展示
+                col1, col2 = st.columns([1, 2])
+                with col1:
+                    st.success(f"**推荐添加剂类型**  \n{result_map[prediction]}")
+                    st.metric("建议添加量", f"{add_ratio:.2f}%")
+                    
+                with col2:
+                    st.markdown("**完整配方表（基于PVC 100份）**")
+                    st.dataframe(styled_df,
+                                use_container_width=True,
+                                height=280,
+                                column_config={
+                                    "材料名称": "材料名称",
+                                    "份数": st.column_config.NumberColumn(
+                                        "份数",
+                                        format="%.2f"
+                                    )
+                                })
+
+                
+            except Exception as e:
+                st.error(f"预测过程中发生错误：{str(e)}")
+                st.stop()
 
 # 添加页脚
 def add_footer():
