@@ -267,23 +267,23 @@ elif page == "性能预测":
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
 
 # 配方建议页面
-elif page == "配方建议":
-    if sub_page == "配方优化":
-        # ...（保持原有配方优化代码）...
-    
-    elif sub_page == "添加剂推荐":
-        st.subheader("🧪 PVC添加剂智能推荐")
-        predictor = Predictor("scaler_fold_1.pkl", "svc_fold_1.pkl")
+    elif page == "配方建议":
+        if sub_page == "配方优化":
+            # ...（保持原有配方优化代码）...
         
-        with st.form("additive_form"):
-            # ...（保持原有表单代码）...
-        
-        if submit_btn:
-            try:
-                # ...（保持原有预测处理代码）...
-            except Exception as e:
-                st.error(f"预测错误：{str(e)}")
-                st.stop()
+        elif sub_page == "添加剂推荐":
+            st.subheader("🧪 PVC添加剂智能推荐")
+            predictor = Predictor("scaler_fold_1.pkl", "svc_fold_1.pkl")
+            
+            with st.form("additive_form"):
+                # ...（保持原有表单代码）...
+            
+            if submit_btn:
+                try:
+                    # ...（保持原有预测处理代码）...
+                except Exception as e:
+                    st.error(f"预测错误：{str(e)}")
+                    st.stop()
 
 # 页脚
 def add_footer():
