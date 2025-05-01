@@ -480,6 +480,10 @@ elif page == "配方建议":
                 
                 # 进行预测
                 prediction = predictor.predict_one(sample)
+                
+                # 输出模型预测的原始结果，帮助进一步调试
+                st.write("模型原始预测结果：", prediction)
+                
                 st.success(f"推荐的添加剂种类预测为：{prediction}")
 
 
