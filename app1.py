@@ -460,6 +460,13 @@ elif page == "配方建议":
             if any(time_sequence[i] > time_sequence[i+1] for i in range(len(time_sequence)-1)):
                 st.error("错误：黄度值应随时间单调增加")
             else:
+                # 打印输入的特征以调试
+                st.write("输入特征：")
+                st.write(f"添加比例：{add_ratio}")
+                st.write(f"锡含量：{sn_percent}")
+                st.write(f"一甲含量：{yijia_percent}")
+                st.write("黄度值：", yellow_values)
+                
                 # 生成预测样本
                 sample = {
                     "产品质量指标_Sn%": sn_percent,
@@ -468,9 +475,13 @@ elif page == "配方建议":
                     **yellow_values  # 黄度值时序数据
                 }
                 
+                # 检查传递给预测器的样本
+                st.write("传递给预测器的样本：", sample)
+                
                 # 进行预测
                 prediction = predictor.predict_one(sample)
                 st.success(f"推荐的添加剂种类预测为：{prediction}")
+
 
 # 添加页脚
 def add_footer():
