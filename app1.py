@@ -6,6 +6,7 @@ from scipy.stats import kurtosis, skew
 from sklearn.impute import SimpleImputer
 import joblib
 
+
 class Predictor:
     def __init__(self, scaler_path, svc_path):
         self.scaler = joblib.load(scaler_path)
@@ -23,6 +24,55 @@ class Predictor:
         ]
         self.imputer = SimpleImputer(strategy="mean")
 
+    def _truncate(self, df):
+        time_cols = [col for col in df.columns if "min" in col.lower()]
+        time_cols_ordered = [col for col in df.columns if col in time_cols]
+        if time_cols_ordered:
+            row = df.iloc[0][time_cols_ordered]
+            if row.notna().any():
+                max_idx = row.idxmax()
+                max_pos = time_cols_ordered.index(max_idx)
+                for col in time_cols_ordered[max_pos + 1:]:
+                    df.at[df.index[0], col] = np.nan
+        return df
+    
+    def _get_slope(self, row, col=None):
+        # col 是可选的，将被忽略
+        x = np.arange(len(row))
+        y = row.values
+        mask = ~np.isnan(y)
+        if sum(mask) >= 2:
+            return stats.linregress(x[mask], y[mask])[0]
+        return np.nan
+
+    def _calc_autocorr(self, row):
+        """计算一阶自相关系数"""
+        values = row.dropna().values
+        if len(values) > 1:
+            n = len(values)
+            mean = np.mean(values)
+            numerator = sum((values[:-1] - mean) * (values[1:] - mean))
+            denominator = sum((values - mean) ** 2)
+            if denominator != 0:
+                return numerator / denominator
+        return np.nan
+
+    def _extract_time_series_features(self, df):
+        """修复后的时序特征提取"""
+        time_data = df[self.time_series_cols]
+        time_data_filled = time_data.ffill(axis=1)
+        
+        features = pd.DataFrame()
+        features['seq_length'] = time_data_filled.notna().sum(axis=1)
+        features['max_value'] = time_data_filled.max(axis=1)
+        features['mean_value'] = time_data_filled.mean(axis=1)
+        features['min_value'] = time_data_filled.min(axis=1)
+        features['std_value'] = time_data_filled.std(axis=1)
+        features['range_value'] = features['max_value'] - features['min_value']
+        features['trend'] = time_data_filled.apply(self._get_slope, axis=1)
+        features['autocorr'] = time_data_filled.apply(self._calc_autocorr, axis=1)
+        return features
+
     def predict_one(self, sample):
         full_cols = self.static_cols + self.time_series_cols
         df = pd.DataFrame([sample], columns=full_cols)
@@ -33,10 +83,6 @@ class Predictor:
         time_features = self._extract_time_series_features(df)
         feature_df = pd.concat([static_features, time_features], axis=1)
         feature_df = feature_df[self.static_cols + self.eng_features]
-        
-        # 新增缺失值填充步骤
-        feature_df_imputed = self.imputer.transform(feature_df)
-        feature_df = pd.DataFrame(feature_df_imputed, columns=feature_df.columns)
         
         # 验证维度
         if feature_df.shape[1] != self.scaler.n_features_in_:
