@@ -29,28 +29,107 @@ class Predictor:
         if self.scaler.n_features_in_ != len(self.expected_features):
             raise ValueError(f"Scaler特征数不匹配！当前：{self.scaler.n_features_in_}，需要：{len(self.expected_features)}")
 
-   def _truncate(self, df):
-    """改进后的截断逻辑：基于变化率阈值"""
-    time_cols = sorted(  # 修复括号闭合问题
-        [col for col in df.columns if "min" in col],
-        key=lambda x: int(x.split('_')[-1].replace('min',''))
-    )  # 补全这个括号
-    
-    values = df[time_cols].iloc[0].values
-    threshold = 0.3
-    
-    truncate_pos = len(values)
-    for i in range(1, len(values)):
-        if pd.isna(values[i]) or pd.isna(values[i-1]):
-            continue
-        rate = abs(values[i] - values[i-1]) / (values[i-1] + 1e-6)
-        if rate < threshold:
-            truncate_pos = i
-            break
-    
-    for col in time_cols[truncate_pos:]:
-        df[col] = np.nan
-    return df
+class Predictor:
+    def __init__(self, scaler_path, svc_path):
+        self.scaler = joblib.load(scaler_path)
+        self.model = joblib.load(svc_path)
+        
+        # 明确特征顺序（必须与训练时完全一致）
+        self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
+        self.time_series_cols = [
+            "黄度值_3min", "6min", "9min", "12min",
+            "15min", "18min", "21min", "24min"
+        ]
+        self.eng_features = [
+            'seq_length', 'max_value', 'mean_value', 'min_value',
+            'std_value', 'trend', 'range_value', 'autocorr'
+        ]
+        # 定义完整特征顺序
+        self.expected_features = self.static_cols + self.eng_features
+        
+        # 验证scaler维度
+        if self.scaler.n_features_in_ != len(self.expected_features):
+            raise ValueError(f"Scaler特征数不匹配！当前：{self.scaler.n_features_in_}，需要：{len(self.expected_features)}")
+
+    def _truncate(self, df):  # 修正缩进
+        """改进后的截断逻辑：基于变化率阈值"""
+        time_cols = sorted(
+            [col for col in df.columns if "min" in col],
+            key=lambda x: int(x.split('_')[-1].replace('min',''))
+        )
+        
+        values = df[time_cols].iloc[0].values
+        threshold = 0.3
+        
+        truncate_pos = len(values)
+        for i in range(1, len(values)):
+            if pd.isna(values[i]) or pd.isna(values[i-1]):
+                continue
+            rate = abs(values[i] - values[i-1]) / (values[i-1] + 1e-6)
+            if rate < threshold:
+                truncate_pos = i
+                break
+        
+        for col in time_cols[truncate_pos:]:
+            df[col] = np.nan
+        return df
+
+    def _get_slope(self, row):
+        x = np.arange(len(row))
+        y = row.values
+        mask = ~np.isnan(y)
+        if sum(mask) >= 2:
+            return stats.linregress(x[mask], y[mask])[0]
+        return 0.0  # 默认值修改
+
+    def _calc_autocorr(self, row):
+        values = row.dropna().values
+        if len(values) > 1:
+            return np.corrcoef(values[:-1], values[1:])[0, 1]
+        return 0.0  # 默认值修改
+
+    def _extract_time_series_features(self, df):
+        time_data = df[self.time_series_cols]
+        time_data_filled = time_data.ffill(axis=1).bfill(axis=1)
+        
+        features = pd.DataFrame()
+        features['seq_length'] = time_data_filled.notna().sum(axis=1)
+        features['max_value'] = time_data_filled.max(axis=1)
+        features['mean_value'] = time_data_filled.mean(axis=1)
+        features['min_value'] = time_data_filled.min(axis=1)
+        features['std_value'] = time_data_filled.std(axis=1)
+        features['range_value'] = features['max_value'] - features['min_value']
+        features['trend'] = time_data_filled.apply(self._get_slope, axis=1)
+        features['autocorr'] = time_data_filled.apply(self._calc_autocorr, axis=1)
+        return features.fillna(0)
+
+    def predict_one(self, sample):
+        # 构建输入数据框架
+        full_cols = self.static_cols + self.time_series_cols
+        df = pd.DataFrame([sample], columns=full_cols)
+        
+        # 数据预处理
+        df = self._truncate(df)
+        
+        # 特征提取
+        static_features = df[self.static_cols]
+        time_features = self._extract_time_series_features(df)
+        
+        # 特征合并与对齐
+        feature_df = pd.concat([static_features, time_features], axis=1)
+        feature_df = feature_df.reindex(columns=self.expected_features, fill_value=0)
+        
+        # 维度验证
+        if feature_df.shape[1] != len(self.expected_features):
+            raise ValueError(f"特征维度错误！当前：{feature_df.shape[1]}，需要：{len(self.expected_features)}")
+        
+        # 数据标准化
+        X_scaled = self.scaler.transform(feature_df)
+        
+        # 预测与结果处理
+        prediction = self.model.predict(X_scaled)[0]
+        proba = self.model.predict_proba(X_scaled)[0]
+        return prediction, proba
 
     def _get_slope(self, row):
         x = np.arange(len(row))
