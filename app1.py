@@ -29,27 +29,28 @@ class Predictor:
         if self.scaler.n_features_in_ != len(self.expected_features):
             raise ValueError(f"Scaler特征数不匹配！当前：{self.scaler.n_features_in_}，需要：{len(self.expected_features)}")
 
-    def _truncate(self, df):
-        """改进后的截断逻辑：基于变化率阈值"""
-        time_cols = sorted(
-            [col for col in df.columns if "min" in col],
-            key=lambda x: int(x.split('_')[-1].replace('min',''))
-        
-        values = df[time_cols].iloc[0].values
-        threshold = 0.3  # 相邻时间点变化率超过30%视为有效
-        
-        truncate_pos = len(values)
-        for i in range(1, len(values)):
-            if pd.isna(values[i]) or pd.isna(values[i-1]):
-                continue
-            rate = abs(values[i] - values[i-1]) / (values[i-1] + 1e-6)
-            if rate < threshold:
-                truncate_pos = i
-                break
-        
-        for col in time_cols[truncate_pos:]:
-            df[col] = np.nan
-        return df
+   def _truncate(self, df):
+    """改进后的截断逻辑：基于变化率阈值"""
+    time_cols = sorted(  # 修复括号闭合问题
+        [col for col in df.columns if "min" in col],
+        key=lambda x: int(x.split('_')[-1].replace('min',''))
+    )  # 补全这个括号
+    
+    values = df[time_cols].iloc[0].values
+    threshold = 0.3
+    
+    truncate_pos = len(values)
+    for i in range(1, len(values)):
+        if pd.isna(values[i]) or pd.isna(values[i-1]):
+            continue
+        rate = abs(values[i] - values[i-1]) / (values[i-1] + 1e-6)
+        if rate < threshold:
+            truncate_pos = i
+            break
+    
+    for col in time_cols[truncate_pos:]:
+        df[col] = np.nan
+    return df
 
     def _get_slope(self, row):
         x = np.arange(len(row))
