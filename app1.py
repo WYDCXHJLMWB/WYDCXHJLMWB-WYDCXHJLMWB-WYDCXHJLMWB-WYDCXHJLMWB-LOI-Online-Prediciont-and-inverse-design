@@ -6,12 +6,13 @@ from scipy.stats import kurtosis, skew
 from sklearn.impute import SimpleImputer
 import joblib
 
+# 修改后的完整Predictor类
 class Predictor:
     def __init__(self, scaler_path, svc_path):
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
         
-        # 特征列配置
+        # 明确特征顺序（必须与训练时完全一致）
         self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
         self.time_series_cols = [
             "黄度值_3min", "6min", "9min", "12min",
@@ -21,45 +22,52 @@ class Predictor:
             'seq_length', 'max_value', 'mean_value', 'min_value',
             'std_value', 'trend', 'range_value', 'autocorr'
         ]
-        self.imputer = SimpleImputer(strategy="mean")
+        # 定义完整特征顺序
+        self.expected_features = self.static_cols + self.eng_features
+        
+        # 验证scaler维度
+        if self.scaler.n_features_in_ != len(self.expected_features):
+            raise ValueError(f"Scaler特征数不匹配！当前：{self.scaler.n_features_in_}，需要：{len(self.expected_features)}")
 
     def _truncate(self, df):
-        time_cols = [col for col in df.columns if "min" in col.lower()]
-        time_cols_ordered = [col for col in df.columns if col in time_cols]
-        if time_cols_ordered:
-            row = df.iloc[0][time_cols_ordered]
-            if row.notna().any():
-                max_idx = row.idxmax()
-                max_pos = time_cols_ordered.index(max_idx)
-                for col in time_cols_ordered[max_pos + 1:]:
-                    df.at[df.index[0], col] = np.nan
+        """改进后的截断逻辑：基于变化率阈值"""
+        time_cols = sorted(
+            [col for col in df.columns if "min" in col],
+            key=lambda x: int(x.split('_')[-1].replace('min',''))
+        
+        values = df[time_cols].iloc[0].values
+        threshold = 0.3  # 相邻时间点变化率超过30%视为有效
+        
+        truncate_pos = len(values)
+        for i in range(1, len(values)):
+            if pd.isna(values[i]) or pd.isna(values[i-1]):
+                continue
+            rate = abs(values[i] - values[i-1]) / (values[i-1] + 1e-6)
+            if rate < threshold:
+                truncate_pos = i
+                break
+        
+        for col in time_cols[truncate_pos:]:
+            df[col] = np.nan
         return df
-    
-    def _get_slope(self, row, col=None):
-        # col 是可选的，将被忽略
+
+    def _get_slope(self, row):
         x = np.arange(len(row))
         y = row.values
         mask = ~np.isnan(y)
         if sum(mask) >= 2:
             return stats.linregress(x[mask], y[mask])[0]
-        return np.nan
+        return 0.0  # 默认值修改
 
     def _calc_autocorr(self, row):
-        """计算一阶自相关系数"""
         values = row.dropna().values
         if len(values) > 1:
-            n = len(values)
-            mean = np.mean(values)
-            numerator = sum((values[:-1] - mean) * (values[1:] - mean))
-            denominator = sum((values - mean) ** 2)
-            if denominator != 0:
-                return numerator / denominator
-        return np.nan
+            return np.corrcoef(values[:-1], values[1:])[0, 1]
+        return 0.0  # 默认值修改
 
     def _extract_time_series_features(self, df):
-        """修复后的时序特征提取"""
         time_data = df[self.time_series_cols]
-        time_data_filled = time_data.ffill(axis=1)
+        time_data_filled = time_data.ffill(axis=1).bfill(axis=1)
         
         features = pd.DataFrame()
         features['seq_length'] = time_data_filled.notna().sum(axis=1)
@@ -70,25 +78,85 @@ class Predictor:
         features['range_value'] = features['max_value'] - features['min_value']
         features['trend'] = time_data_filled.apply(self._get_slope, axis=1)
         features['autocorr'] = time_data_filled.apply(self._calc_autocorr, axis=1)
-        return features
+        return features.fillna(0)
 
     def predict_one(self, sample):
+        # 构建输入数据框架
         full_cols = self.static_cols + self.time_series_cols
         df = pd.DataFrame([sample], columns=full_cols)
-        df = self._truncate(df)
         
-        # 特征合并
+        # 数据预处理
+        df = self._truncate(df)  # 关键修改点1：使用改进的截断逻辑
+        
+        # 特征提取
         static_features = df[self.static_cols]
         time_features = self._extract_time_series_features(df)
+        
+        # 特征合并与对齐
         feature_df = pd.concat([static_features, time_features], axis=1)
-        feature_df = feature_df[self.static_cols + self.eng_features]
+        feature_df = feature_df.reindex(columns=self.expected_features, fill_value=0)
         
-        # 验证维度
-        if feature_df.shape[1] != self.scaler.n_features_in_:
-            raise ValueError(f"特征维度不匹配！当前：{feature_df.shape[1]}，需要：{self.scaler.n_features_in_}")
+        # 维度验证
+        if feature_df.shape[1] != len(self.expected_features):
+            raise ValueError(f"特征维度错误！当前：{feature_df.shape[1]}，需要：{len(self.expected_features)}")
         
+        # 数据标准化
         X_scaled = self.scaler.transform(feature_df)
-        return self.model.predict(X_scaled)[0]
+        
+        # 预测与结果处理
+        prediction = self.model.predict(X_scaled)[0]
+        proba = self.model.predict_proba(X_scaled)[0]
+        return prediction, proba
+
+# Streamlit界面修改部分
+elif sub_page == "添加剂推荐":
+    st.subheader("🧪 PVC添加剂智能推荐")
+    predictor = Predictor("scaler_fold_1.pkl", "svc_fold_1.pkl")
+    
+    with st.form("additive_form"):
+        # ... [保持原有输入部分不变] ...
+    
+    if submit_btn:
+        try:
+            # ... [数据验证部分保持不变] ...
+            
+            # 获取预测结果
+            prediction, proba = predictor.predict_one(sample)
+            
+            # 结果映射
+            result_map = {
+                1: "无推荐添加剂", 
+                2: "氯化石蜡", 
+                3: "EA12（脂肪酸复合醇酯）",
+                4: "EA15（市售液体钙锌稳定剂）", 
+                5: "EA16（环氧大豆油）",
+                6: "G70L（多官能团的脂肪酸复合酯混合物）", 
+                7: "EA6（亚磷酸酯）"
+            }
+            
+            # 显示预测置信度
+            with st.expander("🔍 模型置信度分析"):
+                proba_dict = {result_map[i+1]: proba[i] for i in range(len(proba))}
+                st.write("各添加剂概率分布：")
+                st.bar_chart(proba_dict)
+                
+            # 显示主要结果
+            main_result = result_map.get(prediction, "未知类型")
+            confidence = proba[prediction-1]  # 获取对应类别的概率
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("推荐添加剂", main_result)
+            with col2:
+                st.metric("置信度", f"{confidence*100:.1f}%")
+            
+            # 添加低置信度警告
+            if confidence < 0.6:
+                st.warning("⚠️ 置信度较低，建议人工复核")
+                
+        except Exception as e:
+            st.error(f"预测错误：{str(e)}")
+            st.stop()
 
 import streamlit as st
 import pandas as pd
