@@ -35,10 +35,10 @@ class Predictor:
 
     def _truncate(self, df):
         """改进后的截断逻辑：基于变化率阈值"""
-        time_cols = sorted(  # 修复括号闭合问题
+        time_cols = sorted(
             [col for col in df.columns if "min" in col],
             key=lambda x: int(x.split('_')[-1].replace('min',''))
-        )  # 补全这个括号
+        )
         
         values = df[time_cols].iloc[0].values
         threshold = 0.3
@@ -226,15 +226,33 @@ elif page == "性能预测":
     selected_additives = st.multiselect("选择助剂", additives, default=["wollastonite"])
     
     input_values = {}
-    unit = get_unit(fraction_type)
+    unit = {"质量": "g", "质量分数": "wt%", "体积分数": "vol%"}.get(fraction_type, "")
     
-    input_values[selected_matrix] = st.number_input(f"选择 {selected_matrix} ({unit})", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
+    input_values[selected_matrix] = st.number_input(
+        f"选择 {selected_matrix} ({unit})",
+        min_value=0.0, 
+        max_value=100.0, 
+        value=50.0, 
+        step=0.1
+    )
     
     for fr in selected_flame_retardants:
-        input_values[fr] = st.number_input(f"选择 {fr} ({unit})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
+        input_values[fr] = st.number_input(
+            f"选择 {fr} ({unit})",
+            min_value=0.0,
+            max_value=100.0,
+            value=10.0,
+            step=0.1
+        )
     
     for ad in selected_additives:
-        input_values[ad] = st.number_input(f"选择 {ad} ({unit})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
+        input_values[ad] = st.number_input(
+            f"选择 {ad} ({unit})",
+            min_value=0.0,
+            max_value=100.0,
+            value=10.0,
+            step=0.1
+        )
     
     total = sum(input_values.values())
     is_only_pp = all(v == 0 for k, v in input_values.items() if k != "PP")
@@ -258,8 +276,31 @@ elif page == "性能预测":
         if is_only_pp:
             loi_pred, ts_pred = 17.5, 35.0
         else:
-            # ...（保持原有数据处理逻辑）...
+            if fraction_type == "体积分数":
+                vol_values = np.array(list(input_values.values()))
+                mass_values = vol_values
+                total_mass = mass_values.sum()
+                input_values = {k: (v / total_mass * 100) for k, v in zip(input_values.keys(), mass_values)}
+            
+            # 填充LOI特征
+            for feature in models["loi_features"]:
+                if feature not in input_values:
+                    input_values[feature] = 0.0
+
+            loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
+            loi_scaled = models["loi_scaler"].transform(loi_input)
+            loi_pred = models["loi_model"].predict(loi_scaled)[0]
         
+            # 填充TS特征
+            for feature in models["ts_features"]:
+                if feature not in input_values:
+                    input_values[feature] = 0.0
+
+            ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
+            ts_scaled = models["ts_scaler"].transform(ts_input)
+            ts_pred = models["ts_model"].predict(ts_scaled)[0]
+
+        # 显示结果
         col1, col2 = st.columns(2)
         with col1:
             st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
@@ -267,23 +308,235 @@ elif page == "性能预测":
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
 
 # 配方建议页面
-    elif page == "配方建议":
-        if sub_page == "配方优化":
-            # ...（保持原有配方优化代码）...
+elif page == "配方建议":
+    if sub_page == "配方优化":
+        fraction_type = st.sidebar.radio(
+            "📐 单位类型",
+            ["质量", "质量分数", "体积分数"],
+            key="unit_type"
+        )
+        st.subheader("🧪 配方建议：根据性能反推配方")
+    
+        col1, col2 = st.columns(2)
+        with col1:
+            target_loi = st.number_input("目标LOI值（%）", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
+        with col2:
+            target_ts = st.number_input("目标TS值（MPa）", min_value=10.0, max_value=100.0, value=50.0, step=0.1)
         
-        elif sub_page == "添加剂推荐":
-            st.subheader("🧪 PVC添加剂智能推荐")
-            predictor = Predictor("scaler_fold_1.pkl", "svc_fold_1.pkl")
+        with st.expander("⚙️ 算法参数设置"):
+            pop_size = st.number_input("种群数量", 50, 500, 200)
+            n_gen = st.number_input("迭代代数", 10, 100, 50)
+            cx_prob = st.slider("交叉概率", 0.1, 1.0, 0.7)
+            mut_prob = st.slider("变异概率", 0.1, 1.0, 0.2)
+    
+        if st.button("🔍 开始优化", type="primary"):
+            creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+            creator.create("Individual", list, fitness=creator.FitnessMin)
             
-            with st.form("additive_form"):
-                # ...（保持原有表单代码）...
+            toolbox = base.Toolbox()
+            all_features = ensure_pp_first(list(set(models["loi_features"] + models["ts_features"])))
+            n_features = len(all_features)
             
-            if submit_btn:
-                try:
-                    # ...（保持原有预测处理代码）...
-                except Exception as e:
-                    st.error(f"预测错误：{str(e)}")
-                    st.stop()
+            def generate_individual():
+                individual = [random.uniform(0, 100) for _ in range(n_features)]
+                total = sum(individual)
+                return [max(0, x / total * 100) for x in individual]
+            
+            toolbox.register("individual", tools.initIterate, creator.Individual, generate_individual)
+            toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+            
+            def evaluate(individual):
+                if fraction_type == "体积分数":
+                    vol_values = np.array(individual)
+                    mass_values = vol_values
+                    total_mass = mass_values.sum()
+                    if total_mass == 0:
+                        return (1e6,)
+                    mass_percent = (mass_values / total_mass) * 100
+                else:
+                    total = sum(individual)
+                    if total == 0:
+                        return (1e6,)
+                    mass_percent = np.array(individual) / total * 100
+                
+                pp_index = all_features.index("PP")
+                pp_content = mass_percent[pp_index]
+                if pp_content < 50:
+                    return (1e6,)
+                
+                loi_input = mass_percent[:len(models["loi_features"])]
+                loi_scaled = models["loi_scaler"].transform([loi_input])
+                loi_pred = models["loi_model"].predict(loi_scaled)[0]
+                loi_error = abs(target_loi - loi_pred)
+                
+                ts_input = mass_percent[:len(models["ts_features"])]
+                ts_scaled = models["ts_scaler"].transform([ts_input])
+                ts_pred = models["ts_model"].predict(ts_scaled)[0]
+                ts_error = abs(target_ts - ts_pred)
+                total = sum(mass_percent)
+                if abs(total - 100) > 1e-6:
+                    return (1e6,)
+                return (loi_error + ts_error,)
+            
+            toolbox.register("mate", tools.cxBlend, alpha=0.5)
+            toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
+            toolbox.register("select", tools.selTournament, tournsize=3)
+            toolbox.register("evaluate", evaluate)
+            
+            population = toolbox.population(n=pop_size)
+            algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
+            
+            best_individuals = tools.selBest(population, 10)
+            best_values = []
+            for individual in best_individuals:
+                total = sum(individual)
+                best_values.append([round(max(0, i / total * 100), 2) for i in individual]
+            
+            result_df = pd.DataFrame(best_values, columns=all_features)
+            units = [get_unit(fraction_type) for _ in all_features]
+            result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
+            st.write(result_df)
+    
+    elif sub_page == "添加剂推荐":
+        st.subheader("🧪 PVC添加剂智能推荐")
+        predictor = Predictor("scaler_fold_1.pkl", "svc_fold_1.pkl")
+        
+        with st.form("additive_form"):
+            st.markdown("### 基础参数")
+            col_static = st.columns(3)
+            with col_static[0]:
+                add_ratio = st.number_input(
+                    "添加比例 (%)", 
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=5.0,
+                    step=0.1
+                )
+            with col_static[1]:
+                sn_percent = st.number_input(
+                    "Sn含量 (%)", 
+                    min_value=0.0, 
+                    max_value=19.0,
+                    value=14.0,
+                    step=0.1,
+                    help="锡含量范围0%~19%"
+                )
+            with col_static[2]:
+                yijia_percent = st.number_input(
+                    "一甲含量 (%)",
+                    min_value=15.1,
+                    max_value=32.0,
+                    value=23.55,
+                    step=0.1,
+                    help="一甲胺含量范围15.1%~32%"
+                )
+            
+            st.markdown("### 时序参数（黄度值随时间变化）")
+            time_points = [
+                ("3min", 15.0), ("6min", 16.0), ("9min", 17.0),
+                ("12min", 18.0), ("15min", 19.0), ("18min", 20.0),
+                ("21min", 21.0), ("24min", 22.0)
+            ]
+            yellow_values = {}
+            prev_value = 5.0  # 初始最小值
+            cols = st.columns(4)
+            
+            for idx, (time, default) in enumerate(time_points):
+                with cols[idx % 4]:
+                    if time == "3min":
+                        current = st.number_input(
+                            f"{time} 黄度值", 
+                            min_value=5.0,
+                            max_value=25.0,
+                            value=default,
+                            step=0.1,
+                            key=f"yellow_{time}"
+                        )
+                    else:
+                        current = st.number_input(
+                            f"{time} 黄度值",
+                            min_value=prev_value,
+                            value=default,
+                            step=0.1,
+                            key=f"yellow_{time}"
+                        )
+                    yellow_values[time] = current
+                    prev_value = current
+
+            submit_btn = st.form_submit_button("生成推荐方案")
+        
+        if submit_btn:
+            time_sequence = [yellow_values[t] for t, _ in time_points]
+            if any(time_sequence[i] > time_sequence[i+1] for i in range(len(time_sequence)-1):
+                st.error("错误：黄度值必须随时间递增！请检查输入数据")
+                st.stop()
+                
+            try:
+                sample = [
+                    sn_percent, add_ratio, yijia_percent,
+                    yellow_values["3min"], yellow_values["6min"],
+                    yellow_values["9min"], yellow_values["12min"],
+                    yellow_values["15min"], yellow_values["18min"],
+                    yellow_values["21min"], yellow_values["24min"]
+                ]
+                prediction, proba = predictor.predict_one(sample)
+                result_map = {
+                    1: "无推荐添加剂", 
+                    2: "氯化石蜡", 
+                    3: "EA12（脂肪酸复合醇酯）",
+                    4: "EA15（市售液体钙锌稳定剂）", 
+                    5: "EA16（环氧大豆油）",
+                    6: "G70L（多官能团的脂肪酸复合酯混合物）", 
+                    7: "EA6（亚磷酸酯）"
+                }
+                
+                additive_amount = 0.0 if prediction == 1 else add_ratio
+                additive_name = result_map[prediction]
+    
+                formula_data = [
+                    ["PVC份数", 100.00],
+                    ["加工助剂ACR份数", 1.00],
+                    ["外滑剂70S份数", 0.35],
+                    ["MBS份数", 5.00],
+                    ["316A份数", 0.20],
+                    ["稳定剂份数", 1.00]
+                ]
+                
+                if prediction != 1:
+                    formula_data.append([f"{additive_name}含量（wt%）", additive_amount])
+                else:
+                    formula_data.append([additive_name, additive_amount])
+                
+                df = pd.DataFrame(formula_data, columns=["材料名称", "含量"])
+                styled_df = df.style.format({"含量": "{:.2f}"})\
+                                  .hide(axis="index")\
+                                  .set_properties(**{'text-align': 'left'})
+                
+                col1, col2 = st.columns([1, 2])
+                with col1:
+                    st.success(f"**推荐添加剂类型**  \n{additive_name}")
+                    st.metric("建议添加量", 
+                             f"{additive_amount:.2f}%",
+                             delta="无添加" if prediction == 1 else None)
+                    
+                with col2:
+                    st.markdown("**完整配方表（基于PVC 100份）**")
+                    st.dataframe(
+                        styled_df,
+                        use_container_width=True,
+                        height=280,
+                        column_config={
+                            "材料名称": "材料名称",
+                            "含量": st.column_config.NumberColumn(
+                                "含量",
+                                format="%.2f"
+                            )
+                        }
+                    )
+                
+            except Exception as e:
+                st.error(f"预测过程中发生错误：{str(e)}")
+                st.stop()
 
 # 页脚
 def add_footer():
