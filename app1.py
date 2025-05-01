@@ -451,42 +451,91 @@ elif page == "配方建议":
                         )
                     yellow_values[time] = current
                     prev_value = current
-            
+    
             submit_btn = st.form_submit_button("生成推荐方案")
-        
+    
         if submit_btn:
             # 时序数据验证
             time_sequence = [yellow_values[t] for t, _ in time_points]
             if any(time_sequence[i] > time_sequence[i+1] for i in range(len(time_sequence)-1)):
-                st.error("错误：黄度值应随时间单调增加")
-            else:
-                # 打印输入的特征以调试
-                st.write("输入特征：")
-                st.write(f"添加比例：{add_ratio}")
-                st.write(f"锡含量：{sn_percent}")
-                st.write(f"一甲含量：{yijia_percent}")
-                st.write("黄度值：", yellow_values)
+                st.error("错误：黄度值必须随时间递增！请检查输入数据")
+                st.stop()
                 
-                # 生成预测样本
-                sample = {
-                    "产品质量指标_Sn%": sn_percent,
-                    "添加比例": add_ratio,
-                    "一甲%": yijia_percent,
-                    **yellow_values  # 黄度值时序数据
+            try:
+                sample = [
+                    sn_percent, add_ratio, yijia_percent,
+                    yellow_values["3min"], yellow_values["6min"],
+                    yellow_values["9min"], yellow_values["12min"],
+                    yellow_values["15min"], yellow_values["18min"],
+                    yellow_values["21min"], yellow_values["24min"]
+                ]
+                prediction = predictor.predict_one(sample)
+                result_map = {
+                    1: "无推荐添加剂", 
+                    2: "氯化石蜡", 
+                    3: "EA12（脂肪酸复合醇酯）",
+                    4: "EA15（市售液体钙锌稳定剂）", 
+                    5: "EA16（环氧大豆油）",
+                    6: "G70L（多官能团的脂肪酸复合酯混合物）", 
+                    7: "EA6（亚磷酸酯）"
                 }
                 
-                # 检查传递给预测器的样本
-                st.write("传递给预测器的样本：", sample)
+                # ============== 修改开始 ==============
+                # 动态确定添加量和显示名称
+                additive_amount = 0.0 if prediction == 1 else add_ratio
+                additive_name = result_map[prediction]
+    
+                # 构建完整配方表
+                formula_data = [
+                    ["PVC份数", 100.00],
+                    ["加工助剂ACR份数", 1.00],
+                    ["外滑剂70S份数", 0.35],
+                    ["MBS份数", 5.00],
+                    ["316A份数", 0.20],
+                    ["稳定剂份数", 1.00]
+                ]
                 
-                # 进行预测
-                prediction = predictor.predict_one(sample)
+                # 根据预测结果动态添加条目
+                if prediction != 1:
+                    formula_data.append([f"{additive_name}含量（wt%）", additive_amount])
+                else:
+                    formula_data.append([additive_name, additive_amount])
+                # ============== 修改结束 ==============
+    
+                # 创建格式化表格
+                df = pd.DataFrame(formula_data, columns=["材料名称", "含量"])
+                styled_df = df.style.format({"含量": "{:.2f}"})\
+                                  .hide(axis="index")\
+                                  .set_properties(**{'text-align': 'left'})
                 
-                # 输出模型预测的原始结果，帮助进一步调试
-                st.write("模型原始预测结果：", prediction)
+                # 双列布局展示
+                col1, col2 = st.columns([1, 2])
+                with col1:
+                    # ============== 修改开始 ==============
+                    st.success(f"**推荐添加剂类型**  \n{additive_name}")
+                    st.metric("建议添加量", 
+                             f"{additive_amount:.2f}%",
+                             delta="无添加" if prediction == 1 else None)
+                    # ============== 修改结束 ==============
+                    
+                with col2:
+                    st.markdown("**完整配方表（基于PVC 100份）**")
+                    st.dataframe(styled_df,
+                                use_container_width=True,
+                                height=280,
+                                column_config={
+                                    "材料名称": "材料名称",
+                                    "含量": st.column_config.NumberColumn(
+                                        "含量",
+                                        format="%.2f"
+                                    )
+                                })
                 
-                st.success(f"推荐的添加剂种类预测为：{prediction}")
-
-
+    
+                
+            except Exception as e:
+                st.error(f"预测过程中发生错误：{str(e)}")
+                st.stop()
 # 添加页脚
 def add_footer():
     st.markdown("""
