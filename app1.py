@@ -115,20 +115,20 @@ class Predictor:
             if denominator != 0:
                 return numerator / denominator
         return np.nan
-def _extract_time_series_features(self, df):
-    # 移除前向填充，直接使用原始数据（包含NaN）
-    time_data = df[self.time_series_cols].copy()
-    
-    return pd.DataFrame({
-        'seq_length': time_data.count(axis=1),  # 计算非NaN值的数量
-        'max_value': time_data.max(axis=1),
-        'mean_value': time_data.mean(axis=1),
-        'min_value': time_data.min(axis=1),
-        'std_value': time_data.std(axis=1),
-        'trend': time_data.apply(self._get_slope, axis=1),
-        'range_value': time_data.max(axis=1) - time_data.min(axis=1),
-        'autocorr': time_data.apply(self._calc_autocorr, axis=1)
-    }, columns=self.eng_features)
+    def _extract_time_series_features(self, df):
+        # 移除前向填充，直接使用原始数据（包含NaN）
+        time_data = df[self.time_series_cols].copy()
+        
+        return pd.DataFrame({
+            'seq_length': time_data.count(axis=1),  # 计算非NaN值的数量
+            'max_value': time_data.max(axis=1),
+            'mean_value': time_data.mean(axis=1),
+            'min_value': time_data.min(axis=1),
+            'std_value': time_data.std(axis=1),
+            'trend': time_data.apply(self._get_slope, axis=1),
+            'range_value': time_data.max(axis=1) - time_data.min(axis=1),
+            'autocorr': time_data.apply(self._calc_autocorr, axis=1)
+        }, columns=self.eng_features)
     def predict_one(self, sample):
         if len(sample) != len(self.full_cols):
             raise ValueError(f"需要{len(self.full_cols)}个特征，实际{len(sample)}个。完整顺序：{self.full_cols}")
