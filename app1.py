@@ -422,7 +422,7 @@ elif page == "配方建议":
                 )
             with col_static[1]:
                 sn_percent = st.number_input(
-                    "添加比例%", 
+                    "添加比例", 
                     min_value=0.0, 
                     max_value=100.0,
                     value=14.0,
@@ -432,7 +432,7 @@ elif page == "配方建议":
             with col_static[2]:
                 yijia_percent = st.number_input(
                     "一甲%",
-                    min_value=0,
+                    min_value=0.0,
                     max_value=100.0,
                     value=23.55,
                     step=0.1,
