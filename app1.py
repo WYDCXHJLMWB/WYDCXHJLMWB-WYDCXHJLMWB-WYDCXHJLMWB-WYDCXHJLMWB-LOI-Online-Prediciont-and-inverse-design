@@ -480,7 +480,7 @@ elif page == "配方建议":
                     yellow[t] = st.number_input(
                         f"{t} 黄度值",
                         min_value=prev_val if idx>0 else 0.0,
-                        max_value=25.0,
+                        max_value=50.0,
                         value=15.0+idx,
                         key=f"yellow_{t}"
                     )
