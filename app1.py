@@ -12,10 +12,10 @@ class Predictor:
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
         
-        # 特征列配置（需与训练时严格一致）
+        # 特征列配置（与输入数据的键严格对应）
         self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
-        self.time_series_cols = [
-            "黄度值_3min", "6min", "9min", "12min",
+        self.time_series_cols = [  # 修改列名与输入数据匹配
+            "3min", "6min", "9min", "12min",
             "15min", "18min", "21min", "24min"
         ]
         self.eng_features = [
@@ -24,92 +24,99 @@ class Predictor:
         ]
         self.full_cols = self.static_cols + self.time_series_cols
         self.imputer = SimpleImputer(strategy="mean")
-    def _truncate(self, df):  # 确保缩进在类内部
-        """截断时序数据的方法"""
-        time_cols = [col for col in df.columns if "min" in col.lower()]
-        time_cols_ordered = [col for col in df.columns if col in time_cols]
-        if time_cols_ordered:
-            row = df.iloc[0][time_cols_ordered]
-            if row.notna().any():
-                max_idx = row.idxmax()
-                max_pos = time_cols_ordered.index(max_idx)
-                for col in time_cols_ordered[max_pos + 1:]:
-                    df.at[df.index[0], col] = np.nan
+        self.expected_columns = self.static_cols + self.eng_features  # 添加验证用属性
+
+    def _truncate(self, df):
+        """优化后的截断逻辑：基于实际有效数据点"""
+        time_cols = self.time_series_cols  # 直接使用预定义的列
+        row = df[time_cols].iloc[0]
+        
+        # 找到最后一个非空值的索引
+        last_valid_idx = None
+        for idx in reversed(range(len(time_cols))):
+            if not pd.isna(row.iloc[idx]):
+                last_valid_idx = idx
+                break
+        
+        # 截断后续值为NaN
+        if last_valid_idx is not None and last_valid_idx < len(time_cols)-1:
+            cols_to_truncate = time_cols[last_valid_idx+1:]
+            df[cols_to_truncate] = np.nan
+        
         return df
-    def _get_slope(self, row, col=None):
-        # col 是可选的，将被忽略
+
+    def _get_slope(self, row):
+        """稳健的线性趋势计算"""
         x = np.arange(len(row))
         y = row.values
-        mask = ~np.isnan(y)
-        if sum(mask) >= 2:
-            return stats.linregress(x[mask], y[mask])[0]
-        return np.nan
+        valid_mask = ~np.isnan(y)
+        
+        if np.sum(valid_mask) < 2:
+            return np.nan
+        
+        try:
+            slope, _, _, _, _ = stats.linregress(x[valid_mask], y[valid_mask])
+            return slope
+        except:
+            return np.nan
 
     def _calc_autocorr(self, row):
-        """计算一阶自相关系数"""
+        """优化自相关计算：处理边界情况"""
         values = row.dropna().values
-        if len(values) > 1:
-            n = len(values)
-            mean = np.mean(values)
-            numerator = sum((values[:-1] - mean) * (values[1:] - mean))
-            denominator = sum((values - mean) ** 2)
-            if denominator != 0:
-                return numerator / denominator
-        return np.nan
+        if len(values) < 2:
+            return np.nan
+        
+        mean_val = np.nanmean(values)
+        if np.isnan(mean_val):
+            return np.nan
+        
+        numerator = np.nansum((values[:-1] - mean_val) * (values[1:] - mean_val))
+        denominator = np.nansum((values - mean_val)**2)
+        
+        return numerator / denominator if denominator != 0 else np.nan
+
     def _extract_time_series_features(self, df):
-        """严格按 eng_features 顺序生成时序特征"""
-        time_data = df[self.time_series_cols]
-        time_data_filled = time_data.ffill(axis=1)
+        """严格时序特征生成"""
+        # 使用前向填充处理缺失值
+        time_data = df[self.time_series_cols].ffill(axis=1)
         
-        features = pd.DataFrame()
-        # 按 eng_features 定义顺序生成列
-        features['seq_length'] = time_data_filled.notna().sum(axis=1)
-        features['max_value'] = time_data_filled.max(axis=1)
-        features['mean_value'] = time_data_filled.mean(axis=1)
-        features['min_value'] = time_data_filled.min(axis=1)
-        features['std_value'] = time_data_filled.std(axis=1)
-        features['trend'] = time_data_filled.apply(self._get_slope, axis=1)
-        features['range_value'] = features['max_value'] - features['min_value']
-        features['autocorr'] = time_data_filled.apply(self._calc_autocorr, axis=1)
+        features = pd.DataFrame({
+            'seq_length': time_data.notna().sum(axis=1),
+            'max_value': time_data.max(axis=1),
+            'mean_value': time_data.mean(axis=1),
+            'min_value': time_data.min(axis=1),
+            'std_value': time_data.std(axis=1),
+            'trend': time_data.apply(self._get_slope, axis=1),
+            'range_value': time_data.max(axis=1) - time_data.min(axis=1),
+            'autocorr': time_data.apply(self._calc_autocorr, axis=1)
+        })
         
-        # 强制列顺序
+        # 确保特征顺序一致
         return features[self.eng_features]
 
     def predict_one(self, sample):
-        full_cols = self.static_cols + self.time_series_cols
-        df = pd.DataFrame([sample], columns=full_cols)
+        # 构建输入数据框
+        df = pd.DataFrame([sample], columns=self.static_cols + self.time_series_cols)
+        
+        # 数据预处理
         df = self._truncate(df)
         
-        # 特征合并（不再需要重新索引）
+        # 特征工程
         static_features = df[self.static_cols]
         time_features = self._extract_time_series_features(df)
         feature_df = pd.concat([static_features, time_features], axis=1)
-         # 调试输出（使用st.write在页面显示）
-        st.write("### 调试信息")
-        st.write("输入数据列:", df.columns.tolist())
-        st.write("静态特征:", static_features.columns.tolist())
-        st.write("时序特征:", time_features.columns.tolist())
-        st.write("合并后特征:", feature_df.columns.tolist())
-        st.write("期望特征:", self.expected_columns)
-        # ============== 新增验证步骤 ==============
-        expected_columns = self.static_cols + self.eng_features
-        if list(feature_df.columns) != expected_columns:
-            raise ValueError(
-                f"特征列顺序错误！\n当前列顺序：{feature_df.columns.tolist()}\n"
-                f"期望列顺序：{expected_columns}"
-            )
-        # ============== 验证结束 ==============
         
-        # 验证维度
-        if feature_df.shape[1] != self.scaler.n_features_in_:
+        # 特征验证
+        if list(feature_df.columns) != self.expected_columns:
+            missing = set(self.expected_columns) - set(feature_df.columns)
+            extra = set(feature_df.columns) - set(self.expected_columns)
             raise ValueError(
-                f"特征维度不匹配！当前：{feature_df.shape[1]}，"
-                f"需要：{self.scaler.n_features_in_}"
+                f"特征列不匹配！\n缺失列：{missing}\n多余列：{extra}"
             )
         
+        # 数据标准化
         X_scaled = self.scaler.transform(feature_df)
         return self.model.predict(X_scaled)[0]
-
 import streamlit as st
 import pandas as pd
 import numpy as np
