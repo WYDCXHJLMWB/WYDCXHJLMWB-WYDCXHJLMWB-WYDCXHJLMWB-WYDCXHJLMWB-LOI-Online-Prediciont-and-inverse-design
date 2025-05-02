@@ -383,9 +383,6 @@ elif page == "性能预测":
                             - LOI相对误差: `{(delta_loi/actual_loi)*100:.1f}%`  
                             - TS相对误差: `{(delta_ts/actual_ts)*100:.1f}%`
                         """)
-                    except Exception as e:
-                        st.error(f"验证失败: {str(e)}")
-                        st.stop()
                         loi_accuracy = 100 - (delta_loi/actual_loi)*100
                         ts_accuracy = 100 - (delta_ts/actual_ts)*100
                         
@@ -393,6 +390,10 @@ elif page == "性能预测":
                             st.success(f"✅ 模型精度均超过85%（LOI：{loi_accuracy:.1f}%，TS：{ts_accuracy:.1f}%）")
                         else:
                             st.error(f"⚠️ 模型精度未全部达标（LOI：{loi_accuracy:.1f}%，TS：{ts_accuracy:.1f}%）")
+                    except Exception as e:
+                        st.error(f"验证失败: {str(e)}")
+                        st.stop()
+
 
     if st.button("🚀 开始预测", type="primary"):
         if fraction_type in ["体积分数", "质量分数"] and abs(total - 100.0) > 1e-6:
