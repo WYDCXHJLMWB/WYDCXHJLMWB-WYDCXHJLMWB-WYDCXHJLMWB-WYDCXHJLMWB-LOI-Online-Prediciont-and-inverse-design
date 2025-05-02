@@ -424,7 +424,7 @@ elif page == "配方建议":
                 sn_percent = st.number_input(
                     "添加比例%", 
                     min_value=0.0, 
-                    max_value=100.0，
+                    max_value=100.0,
                     value=14.0,
                     step=0.1,
                     #help="锡含量范围0%~19%"
