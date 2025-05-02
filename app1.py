@@ -12,16 +12,10 @@ class Predictor:
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
         
-        # 特征列配置（全部为字符串）
+        # 特征列配置（确保全部为字符串）
         self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
-        self.time_series_cols = [
-            "3min", "6min", "9min", "12min",
-            "15min", "18min", "21min", "24min"
-        ]
-        self.eng_features = [
-            'seq_length', 'max_value', 'mean_value', 'min_value',
-            'std_value', 'trend', 'range_value', 'autocorr'
-        ]
+        self.time_series_cols = ["3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
+        self.eng_features = ['seq_length', 'max_value', 'mean_value', 'min_value', 'std_value', 'trend', 'range_value', 'autocorr']
         self.expected_columns = self.static_cols + self.eng_features
         self.full_cols = self.static_cols + self.time_series_cols
         self.imputer = SimpleImputer(strategy="mean")
@@ -80,24 +74,24 @@ class Predictor:
         return features
 
     def predict_one(self, sample):
-        # 创建输入数据框（强制列名）
+        # 创建输入数据框（强制列名为字符串）
         expected_input_columns = self.static_cols + self.time_series_cols
         df = pd.DataFrame([sample], columns=expected_input_columns)
         
-        # 验证输入列名是否为字符串
-        if not all(isinstance(col, str) for col in df.columns):
-            raise ValueError("输入数据框列名必须为字符串！")
+        # 验证输入列名
+        if list(df.columns) != expected_input_columns:
+            raise ValueError(f"输入列名错误！应为：{expected_input_columns}，实际：{df.columns.tolist()}")
         
         # 数据截断
         df = self._truncate(df)
         
         # 提取特征
-        static_features = df[self.static_cols]
-        time_features = self._extract_time_series_features(df)
+        static_features = df[self.static_cols].reset_index(drop=True)
+        time_features = self._extract_time_series_features(df).reset_index(drop=True)
         
         # 合并特征并强制列名
         feature_df = pd.concat([static_features, time_features], axis=1)
-        feature_df.columns = self.expected_columns  # 显式设置列名
+        feature_df.columns = self.expected_columns  # 关键修复
         
         # 标准化与预测
         X_scaled = self.scaler.transform(feature_df)
