@@ -24,7 +24,13 @@ class Predictor:
         ]
         self.full_cols = self.static_cols + self.time_series_cols
         self.imputer = SimpleImputer(strategy="mean")
-
+    def _get_slope(self, row, col=None):
+        x = np.arange(len(row))
+        y = row.values
+        mask = ~np.isnan(y)
+        if sum(mask) >= 2:
+            return stats.linregress(x[mask], y[mask])[0]
+        return np.nan
     def _extract_time_series_features(self, df):
         """严格按 eng_features 顺序生成时序特征"""
         time_data = df[self.time_series_cols]
