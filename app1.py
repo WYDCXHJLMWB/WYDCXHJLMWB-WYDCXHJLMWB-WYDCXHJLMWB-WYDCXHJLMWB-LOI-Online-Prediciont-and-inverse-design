@@ -486,30 +486,33 @@ elif page == "配方建议":
                 additive_name = result_map[prediction]
     
                 # 构建完整配方表
+                # 构建完整配方表
                 formula_data = [
                     ["PVC份数", 100.00],
                     ["加工助剂ACR份数", 1.00],
                     ["外滑剂70S份数", 0.35],
                     ["MBS份数", 5.00],
                     ["316A份数", 0.20],
-                    ["稳定剂份数", 1.00],
-                    ["一甲%", yijia_percent],  # 新增行：一甲含量
-                    ["Sn%", sn_percent],       # 新增行：锡含量
+                    ["稳定剂组成", ""],  # 主标题行
+                    ["  份数", 1.00],
+                    ["  一甲%", yijia_percent],
+                    ["  Sn%", sn_percent],
                 ]
                 
-                # 根据预测结果动态添加条目
+                # 根据预测结果动态添加添加剂信息
                 if prediction != 1:
-                    formula_data.append([f"{additive_name}含量（wt%）", additive_amount])
+                    formula_data.append(["  添加剂类型", additive_name])
+                    formula_data.append(["  含量（wt%）", additive_amount])
                 else:
-                    formula_data.append([additive_name, additive_amount])
-                # ============== 修改结束 ==============
-    
+                    formula_data.append(["  推荐添加剂", "无"])
+                
                 # 创建格式化表格
                 df = pd.DataFrame(formula_data, columns=["材料名称", "含量"])
                 styled_df = df.style.format({"含量": "{:.2f}"})\
                                   .hide(axis="index")\
-                                  .set_properties(**{'text-align': 'left'})
-                
+                                  .set_properties(**{'text-align': 'left'})\
+                                  .set_properties(subset=df.index[df['材料名称'].str.contains("  ")], **{'padding-left': '20px'})  # 缩进子项
+                                
                 # 双列布局展示
                 col1, col2 = st.columns([1, 2])
                 with col1:
