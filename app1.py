@@ -273,172 +273,120 @@ if page == "首页":
 # 性能预测页面
 elif page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
-    
+
     matrix_materials = ["PP", "PA", "PC/ABS", "POM", "PBT", "PVC", "其他"]
     flame_retardants = [
-        "AHP", "ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol", "DOPO", 
-        "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides", 
+        "AHP", "ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol", "DOPO",
+        "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides",
         "Mg(OH)2", "TCA", "MPP", "PAPP", "其他"
     ]
     additives = [
-       "Anti-drip-agent", "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S", "silane coupling agent", "antioxidant", 
+        "Anti-drip-agent", "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S", "silane coupling agent", "antioxidant",
         "SiO2", "其他"
     ]
-    
+
     fraction_type = st.sidebar.selectbox("选择输入的单位", ["质量", "质量分数", "体积分数"])
 
     st.subheader("请选择配方中的基体、阻燃剂和助剂")
     selected_matrix = st.selectbox("选择基体", matrix_materials, index=0)
     selected_flame_retardants = st.multiselect("选择阻燃剂", flame_retardants, default=["ZS"])
     selected_additives = st.multiselect("选择助剂", additives, default=["wollastonite"])
-    
+
     input_values = {}
-    unit_matrix = get_unit(fraction_type)
-    unit_flame_retardant = get_unit(fraction_type)
-    unit_additive = get_unit(fraction_type)
-    
-    input_values[selected_matrix] = st.number_input(f"选择 {selected_matrix} ({unit_matrix})", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
-    
+    unit = get_unit(fraction_type)
+
+    input_values[selected_matrix] = st.number_input(f"选择 {selected_matrix} ({unit})", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
+
     for fr in selected_flame_retardants:
-        input_values[fr] = st.number_input(f"选择 {fr}({unit_flame_retardant})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
-    
+        input_values[fr] = st.number_input(f"选择 {fr} ({unit})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
+
     for ad in selected_additives:
-        input_values[ad] = st.number_input(f"选择 {ad}  ({unit_additive})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
-    
+        input_values[ad] = st.number_input(f"选择 {ad} ({unit})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
+
     total = sum(input_values.values())
     is_only_pp = all(v == 0 for k, v in input_values.items() if k != "PP")
-    
+
     with st.expander("✅ 输入验证"):
-        if fraction_type == "体积分数":
+        if fraction_type in ["体积分数", "质量分数"]:
             if abs(total - 100.0) > 1e-6:
-                st.error(f"❗ 体积分数的总和必须为100%（当前：{total:.2f}%）")
+                st.error(f"❗ {fraction_type}的总和必须为100%（当前：{total:.2f}%）")
             else:
-                st.success("体积分数总和验证通过")
-        elif fraction_type == "质量分数":
-            if abs(total - 100.0) > 1e-6:
-                st.error(f"❗ 质量分数的总和必须为100%（当前：{total:.2f}%）")
-            else:
-                st.success("质量分数总和验证通过")
+                st.success(f"{fraction_type}总和验证通过")
         else:
             st.success("成分总和验证通过")
-            if is_only_pp:
-                st.info("检测到纯PP配方")
+        if is_only_pp:
+            st.info("检测到纯PP配方")
+
     with st.expander("🔍 模型验证（质量分数参考样本）", expanded=True):
         st.markdown("### 标准参考样本验证（质量分数基准）")
-            
-         # 质量分数参考样本数据集（总和100%）
+
         reference_samples = {
             "阻燃PP-1": {
                 "composition": {
-                     "PP": 61.7,
-                    "PAPP": 23.0,
-                    "MPP": 9.0,
-                    "wollastonite": 5.0, 
-                    "ZS":1.0,
-                    "Anti-drip-agent":0.3,
+                    "PP": 61.7, "PAPP": 23.0, "MPP": 9.0, "wollastonite": 5.0, "ZS": 1.0, "Anti-drip-agent": 0.3,
                 },
-                 "actual": {"LOI": 43, "TS": 15.832}
-                },
+                "actual": {"LOI": 43, "TS": 15.832}
+            },
             "阻燃PP-2": {
                 "composition": {
-                    "PP": 65.2,
-                    "PAPP": 23.0,
-                    "MPP": 7.0,
-                    "wollastonite": 3.0, 
-                    "ZS":1.5,
-                    "Anti-drip-agent":0.3,
-                    },
-                "actual": {"LOI": 43, "TS": 16.94}
+                    "PP": 65.2, "PAPP": 23.0, "MPP": 7.0, "wollastonite": 3.0, "ZS": 1.5, "Anti-drip-agent": 0.3,
                 },
+                "actual": {"LOI": 43, "TS": 16.94}
+            },
             "阻燃PP-3": {
                 "composition": {
-                    "PP": 59.7,
-                    "PAPP": 23.0,
-                    "MPP": 13.0,
-                    "wollastonite": 3.0, 
-                    "ZS":1.0,
-                    "Anti-drip-agent":0.3,
+                    "PP": 59.7, "PAPP": 23.0, "MPP": 13.0, "wollastonite": 3.0, "ZS": 1.0, "Anti-drip-agent": 0.3,
                 },
                 "actual": {"LOI": 43, "TS": 15.289}
             }
         }
-            
-        # 三列布局展示样本
+
         cols = st.columns(3)
         for idx, (sample_name, sample_data) in enumerate(reference_samples.items()):
             with cols[idx]:
                 st.markdown(f"##### {sample_name}")
-                    
-                # 显示配方组成表格
                 comp_df = pd.DataFrame(
-                    [(k, f"{v}%") for k,v in sample_data["composition"].items()],
+                    [(k, f"{v}%") for k, v in sample_data["composition"].items()],
                     columns=["材料", "质量分数"]
                 )
-                st.dataframe(
-                     comp_df,
-                    hide_index=True,
-                    use_container_width=True,
-                    height=200
-                    )
-                    
-                # 验证按钮
-                if st.button(f"验证 {sample_name}", 
-                            key=f"verify_{sample_name}",
-                            help="点击自动填充并验证该样本"):
-                     # 清空当前输入
+                st.dataframe(comp_df, hide_index=True, use_container_width=True, height=200)
+
+                if st.button(f"验证 {sample_name}", key=f"verify_{sample_name}", help="点击自动填充并验证该样本"):
                     input_values.clear()
-                        
-                    # 填充样本数据（转换为质量分数输入）
                     for material, percent in sample_data["composition"].items():
                         input_values[material] = percent
-                        
-                        # 获取实际测量值
+
                     actual_loi = sample_data["actual"]["LOI"]
                     actual_ts = sample_data["actual"]["TS"]
-                        
-                     # 执行预测（复用主流程逻辑）
+
                     try:
-                         # LOI预测
-                         loi_input = np.array([[input_values.get(f, 0.0) for f in models["loi_features"]]])
-                         loi_scaled = models["loi_scaler"].transform(loi_input)
+                        loi_input = np.array([[input_values.get(f, 0.0) for f in models["loi_features"]]])
+                        loi_scaled = models["loi_scaler"].transform(loi_input)
                         pred_loi = models["loi_model"].predict(loi_scaled)[0]
-                            
-                            # TS预测
+
                         ts_input = np.array([[input_values.get(f, 0.0) for f in models["ts_features"]]])
                         ts_scaled = models["ts_scaler"].transform(ts_input)
                         pred_ts = models["ts_model"].predict(ts_scaled)[0]
-                            
-                            # 显示对比结果
+
                         col1, col2 = st.columns(2)
                         with col1:
                             delta_loi = abs(pred_loi - actual_loi)
-                            st.metric(
-                                label="LOI预测值",
-                                value=f"{pred_loi:.1f}%",
-                                delta=f"Δ{delta_loi:.1f}%",
-                                help=f"实际值: {actual_loi}%"
-                            )
+                            st.metric("LOI预测值", f"{pred_loi:.1f}%", delta=f"Δ{delta_loi:.1f}%", help=f"实际值: {actual_loi}%")
                         with col2:
                             delta_ts = abs(pred_ts - actual_ts)
-                            st.metric(
-                                label="TS预测值",
-                                value=f"{pred_ts:.1f}MPa",
-                                delta=f"Δ{delta_ts:.1f}MPa",
-                                help=f"实际值: {actual_ts}MPa"
-                             )
-                            
-                            # 误差分析
+                            st.metric("TS预测值", f"{pred_ts:.1f}MPa", delta=f"Δ{delta_ts:.1f}MPa", help=f"实际值: {actual_ts}MPa")
+
                         st.markdown(f"""
                             ###### 误差分析
                             - LOI绝对误差: `{delta_loi:.2f}%`  
                             - TS绝对误差: `{delta_ts:.2f}MPa`  
                             - LOI相对误差: `{(delta_loi/actual_loi)*100:.1f}%`  
                             - TS相对误差: `{(delta_ts/actual_ts)*100:.1f}%`
-                            """)
-                            
+                        """)
                     except Exception as e:
                         st.error(f"验证失败: {str(e)}")
                         st.stop()
+
     if st.button("🚀 开始预测", type="primary"):
         if fraction_type in ["体积分数", "质量分数"] and abs(total - 100.0) > 1e-6:
             st.error(f"预测中止：{fraction_type}的总和必须为100%")
@@ -450,31 +398,30 @@ elif page == "性能预测":
         else:
             if fraction_type == "体积分数":
                 vol_values = np.array(list(input_values.values()))
-                mass_values = vol_values
+                mass_values = vol_values  # 若有密度数据可替换此行
                 total_mass = mass_values.sum()
                 input_values = {k: (v / total_mass * 100) for k, v in zip(input_values.keys(), mass_values)}
-            
+
             for feature in models["loi_features"]:
                 if feature not in input_values:
                     input_values[feature] = 0.0
-
             loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
             loi_scaled = models["loi_scaler"].transform(loi_input)
             loi_pred = models["loi_model"].predict(loi_scaled)[0]
-        
+
             for feature in models["ts_features"]:
                 if feature not in input_values:
                     input_values[feature] = 0.0
-
             ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
             ts_scaled = models["ts_scaler"].transform(ts_input)
             ts_pred = models["ts_model"].predict(ts_scaled)[0]
-        
+
         col1, col2 = st.columns(2)
         with col1:
             st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
         with col2:
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
+
 
 # 配方建议页面
 elif page == "配方建议":
