@@ -433,7 +433,7 @@ elif page == "配方建议":
                 yijia_percent = st.number_input(
                     "一甲%",
                     min_value=0,
-                    max_value=100,
+                    max_value=100.0,
                     value=23.55,
                     step=0.1,
                     #help="一甲含量范围15.1%~32%"
