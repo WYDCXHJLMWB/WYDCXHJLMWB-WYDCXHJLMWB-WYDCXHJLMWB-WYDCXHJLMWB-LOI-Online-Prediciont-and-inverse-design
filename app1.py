@@ -507,7 +507,7 @@ elif page == "配方建议":
                         ["一甲%", yijia], ["Sn%", sn]
                     ]
                     if pred != 1:
-                        formula.extend([[f"{additive}含量", f"{ratio if pred!=1 else 0}%"])
+                        formula.extend([[f"{additive}含量", f"{ratio if pred!=1 else 0}%"]])
     
                     # 显示结果（保持原有逻辑）
                     col1, col2 = st.columns(2)
