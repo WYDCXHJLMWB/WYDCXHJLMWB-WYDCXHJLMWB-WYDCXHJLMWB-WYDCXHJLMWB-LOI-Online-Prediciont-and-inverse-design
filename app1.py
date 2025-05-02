@@ -102,7 +102,26 @@ class Predictor:
             df[invalid_cols] = np.nan
             
         return df
+    def _get_slope(self, row, col=None):
+        # col 是可选的，将被忽略
+        x = np.arange(len(row))
+        y = row.values
+        mask = ~np.isnan(y)
+        if sum(mask) >= 2:
+            return stats.linregress(x[mask], y[mask])[0]
+        return np.nan
 
+    def _calc_autocorr(self, row):
+        """计算一阶自相关系数"""
+        values = row.dropna().values
+        if len(values) > 1:
+            n = len(values)
+            mean = np.mean(values)
+            numerator = sum((values[:-1] - mean) * (values[1:] - mean))
+            denominator = sum((values - mean) ** 2)
+            if denominator != 0:
+                return numerator / denominator
+        return np.nan
     def _extract_time_series_features(self, df):
         """时序特征提取（带列名保护）"""
         time_data = df[self.time_series_cols].ffill(axis=1)
