@@ -84,7 +84,11 @@ class Predictor:
         static_features = df[self.static_cols]
         time_features = self._extract_time_series_features(df)
         feature_df = pd.concat([static_features, time_features], axis=1)
-        
+        print("输入样本列:", df.columns.tolist())
+        print("静态特征列:", static_features.columns.tolist())
+        print("时序特征列:", time_features.columns.tolist())
+        print("合并后特征列:", feature_df.columns.tolist())
+        print("缩放器期望列:", self.scaler.feature_names_in_.tolist())
         # ============== 新增验证步骤 ==============
         expected_columns = self.static_cols + self.eng_features
         if list(feature_df.columns) != expected_columns:
