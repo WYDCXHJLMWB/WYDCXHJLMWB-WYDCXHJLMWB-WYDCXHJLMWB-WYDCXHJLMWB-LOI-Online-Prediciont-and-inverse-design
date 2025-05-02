@@ -12,27 +12,31 @@ class Predictor:
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
         
-        # 特征列配置
+        # 特征列配置（全部为字符串）
         self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
-        self.time_series_cols = ["3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
-        self.eng_features = ['seq_length', 'max_value', 'mean_value', 'min_value', 'std_value', 'trend', 'range_value', 'autocorr']
+        self.time_series_cols = [
+            "3min", "6min", "9min", "12min",
+            "15min", "18min", "21min", "24min"
+        ]
+        self.eng_features = [
+            'seq_length', 'max_value', 'mean_value', 'min_value',
+            'std_value', 'trend', 'range_value', 'autocorr'
+        ]
         self.expected_columns = self.static_cols + self.eng_features
         self.full_cols = self.static_cols + self.time_series_cols
         self.imputer = SimpleImputer(strategy="mean")
 
     def _truncate(self, df):
-        """截断无效时间序列数据"""
+        """截断时间序列无效数据"""
         time_cols = self.time_series_cols
         row = df[time_cols].iloc[0]
         
-        # 找到最后一个有效值的位置
         last_valid_idx = None
         for idx in reversed(range(len(time_cols))):
             if not pd.isna(row.iloc[idx]):
                 last_valid_idx = idx
                 break
         
-        # 截断后续值为NaN
         if last_valid_idx is not None and last_valid_idx < len(time_cols)-1:
             cols_to_truncate = time_cols[last_valid_idx+1:]
             df[cols_to_truncate] = np.nan
@@ -48,7 +52,7 @@ class Predictor:
         return stats.linregress(x[valid_mask], y[valid_mask])[0]
 
     def _calc_autocorr(self, row):
-        """计算一阶自相关系数"""
+        """计算自相关系数"""
         values = row.dropna().values
         if len(values) < 2:
             return np.nan
@@ -58,9 +62,8 @@ class Predictor:
         return numerator / denominator if denominator != 0 else np.nan
 
     def _extract_time_series_features(self, df):
-        """提取时序特征（严格保证列名）"""
+        """提取时序特征（强制列名）"""
         time_data = df[self.time_series_cols].ffill(axis=1)
-        
         features = pd.DataFrame(
             {
                 'seq_length': time_data.notna().sum(axis=1),
@@ -72,18 +75,18 @@ class Predictor:
                 'range_value': time_data.max(axis=1) - time_data.min(axis=1),
                 'autocorr': time_data.apply(self._calc_autocorr, axis=1)
             },
-            columns=self.eng_features  # 显式设置列名
+            columns=self.eng_features  # 强制列名为字符串
         )
         return features
 
     def predict_one(self, sample):
-        # 创建输入数据框
+        # 创建输入数据框（强制列名）
         expected_input_columns = self.static_cols + self.time_series_cols
         df = pd.DataFrame([sample], columns=expected_input_columns)
         
-        # 验证输入列名
-        if list(df.columns) != expected_input_columns:
-            raise ValueError(f"输入列名错误！预期：{expected_input_columns}，实际：{df.columns.tolist()}")
+        # 验证输入列名是否为字符串
+        if not all(isinstance(col, str) for col in df.columns):
+            raise ValueError("输入数据框列名必须为字符串！")
         
         # 数据截断
         df = self._truncate(df)
@@ -94,7 +97,7 @@ class Predictor:
         
         # 合并特征并强制列名
         feature_df = pd.concat([static_features, time_features], axis=1)
-        feature_df.columns = self.expected_columns  # 强制列名一致
+        feature_df.columns = self.expected_columns  # 显式设置列名
         
         # 标准化与预测
         X_scaled = self.scaler.transform(feature_df)
