@@ -489,13 +489,13 @@ elif page == "配方建议":
             st.error(f"模型初始化失败：{str(e)}")
             st.stop()
         
-        # 将整个表单内容包裹在with语句中
+        # 整个表单必须包裹在with语句中
         with st.form("additive_form"):
             st.markdown("### 基础参数")
             col_static = st.columns(3)
             with col_static[0]:
                 add_ratio = st.number_input(
-                    "产品质量指标_Sn%", 
+                    "Sn%", 
                     min_value=0.0,
                     max_value=100.0,
                     value=5.0,
@@ -526,13 +526,16 @@ elif page == "配方建议":
             ]
             
             yellow_values = {}
-            prev_time = None  # 初始化prev_time
+            prev_time = None  # 初始化时间点跟踪变量
             cols = st.columns(4)
+            
+            # 时间输入组件必须包含在表单内
             for idx, (time, default) in enumerate(time_points):
                 with cols[idx % 4]:
+                    min_val = 0.0 if time == "3min" else (yellow_values[prev_time] if prev_time else 0.0)
                     current = st.number_input(
                         f"{time} 黄度值",
-                        min_value=0.0 if time == "3min" else yellow_values.get(prev_time, 5.0),
+                        min_value=min_val,
                         max_value=25.0,
                         value=default,
                         step=0.1,
@@ -544,24 +547,101 @@ elif page == "配方建议":
             # 提交按钮必须位于表单内部
             submit_btn = st.form_submit_button("生成推荐方案")
     
-            # 处理逻辑也必须在表单内部
+            # 处理逻辑也必须包含在表单上下文中
             if submit_btn:
                 # 时序数据验证
                 time_sequence = [yellow_values[t] for t, _ in time_points]
                 if any(time_sequence[i] > time_sequence[i+1] for i in range(len(time_sequence)-1)):
                     st.error("错误：黄度值必须随时间递增！请检查输入数据")
                     st.stop()
-                    
+                
                 try:
+                    # 构建输入样本（严格按模型要求的顺序）
                     sample = [
-                        sn_percent, add_ratio, yijia_percent,
-                        yellow_values["3min"], yellow_values["6min"],
-                        yellow_values["9min"], yellow_values["12min"],
-                        yellow_values["15min"], yellow_values["18min"],
-                        yellow_values["21min"], yellow_values["24min"]
+                        sn_percent,    # static_cols[0]
+                        add_ratio,     # static_cols[1]
+                        yijia_percent, # static_cols[2]
+                        yellow_values["3min"],   # time_series_cols[0]
+                        yellow_values["6min"],   # time_series_cols[1]
+                        yellow_values["9min"],   # time_series_cols[2]
+                        yellow_values["12min"],  # time_series_cols[3]
+                        yellow_values["15min"],  # time_series_cols[4]
+                        yellow_values["18min"],  # time_series_cols[5]
+                        yellow_values["21min"],  # time_series_cols[6]
+                        yellow_values["24min"]   # time_series_cols[7]
                     ]
-                    # ...后续处理代码保持不变...
+    
+                    # 执行预测
+                    prediction = predictor.predict_one(sample)
                     
+                    # 结果显示（保持在表单上下文内）
+                    result_map = {
+                        1: "无推荐添加剂", 
+                        2: "氯化石蜡", 
+                        3: "EA12（脂肪酸复合醇酯）",
+                        4: "EA15（市售液体钙锌稳定剂）", 
+                        5: "EA16（环氧大豆油）",
+                        6: "G70L（多官能团的脂肪酸复合酯混合物）", 
+                        7: "EA6（亚磷酸酯）"
+                    }
+                    
+                    additive_amount = 0.0 if prediction == 1 else add_ratio
+                    additive_name = result_map[prediction]
+    
+                    # 构建配方表
+                    formula_data = [
+                        ["PVC份数", 100.00],
+                        ["加工助剂ACR份数", 1.00],
+                        ["外滑剂70S份数", 0.35],
+                        ["MBS份数", 5.00],
+                        ["316A份数", 0.20],
+                        ["稳定剂组成", ""],
+                        ["  份数", 1.00],
+                        ["  一甲%", yijia_percent],
+                        ["  Sn%", sn_percent],
+                    ]
+    
+                    if prediction != 1:
+                        formula_data.extend([
+                            ["  添加剂类型", additive_name],
+                            ["  含量（wt%）", additive_amount]
+                        ])
+                    else:
+                        formula_data.append(["  推荐添加剂", "无"])
+    
+                    # 创建样式化表格
+                    df = pd.DataFrame(formula_data, columns=["材料名称", "含量"])
+                    styled_df = df.style.format({"含量": "{:.2f}"})\
+                                      .hide(axis="index")\
+                                      .set_properties(**{'text-align': 'left', 'font-size': '14px'})\
+                                      .set_properties(
+                                          subset=df.index[df['材料名称'].str.startswith('  ')],
+                                          **{'padding-left': '30px', 'color': '#2c3e50'}
+                                      )
+    
+                    # 双列布局展示
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        st.success(f"**推荐结果**\n\n{additive_name}")
+                        st.metric(
+                            "建议添加量", 
+                            f"{additive_amount:.2f}%",
+                            delta="无添加" if prediction == 1 else None,
+                            delta_color="off"
+                        )
+                        
+                    with col2:
+                        st.markdown("**完整配方表（基于PVC 100份）**")
+                        st.dataframe(
+                            styled_df,
+                            use_container_width=True,
+                            height=320,
+                            column_config={
+                                "材料名称": st.column_config.Column(width="medium"),
+                                "含量": st.column_config.NumberColumn(format="%.2f")
+                            }
+                        )
+    
                 except Exception as e:
                     st.error(f"预测过程中发生错误：{str(e)}")
                     st.stop()
