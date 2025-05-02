@@ -524,7 +524,7 @@ elif page == "配方建议":
                 ("12min", 18.0), ("15min", 19.0), ("18min", 20.0),
                 ("21min", 21.0), ("24min", 22.0)
             ]
-         yellow_values = {}
+        yellow_values = {}
         cols = st.columns(4)
         for idx, (time, default) in enumerate(time_points):
             with cols[idx % 4]:
