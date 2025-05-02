@@ -7,95 +7,151 @@ from sklearn.impute import SimpleImputer
 import joblib
 
 
+import pandas as pd
+import numpy as np
+import joblib
+from scipy import stats
+from sklearn.impute import SimpleImputer
+import warnings
+warnings.filterwarnings("ignore")
+
 class Predictor:
     def __init__(self, scaler_path, svc_path):
+        # 加载预处理对象
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
         
-        # 特征列配置（确保全部为字符串）
+        # 定义当前代码期望的特征结构
         self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
-        self.time_series_cols = ["3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
-        self.eng_features = ['seq_length', 'max_value', 'mean_value', 'min_value', 'std_value', 'trend', 'range_value', 'autocorr']
+        self.time_series_cols = [
+            "3min", "6min", "9min", "12min",
+            "15min", "18min", "21min", "24min"
+        ]
+        self.eng_features = [
+            'seq_length', 'max_value', 'mean_value', 'min_value',
+            'std_value', 'trend', 'range_value', 'autocorr'
+        ]
         self.expected_columns = self.static_cols + self.eng_features
         self.full_cols = self.static_cols + self.time_series_cols
-        self.imputer = SimpleImputer(strategy="mean")
+        
+        # 初始化时立即执行检查
+        self._validate_components()
+        
+    def _validate_components(self):
+        """核心验证方法"""
+        # ================= 特征维度验证 =================
+        # 获取标准化器和模型的特征维度
+        scaler_features = getattr(self.scaler, "n_features_in_", None)
+        model_features = getattr(self.model, "n_features_in_", None)
+        
+        # 获取当前代码的特征维度
+        code_features = len(self.expected_columns)
+        
+        error_msgs = []
+        if scaler_features != code_features:
+            error_msgs.append(
+                f"标准化器特征维度不匹配！代码: {code_features}，标准化器: {scaler_features}"
+            )
+        if model_features and model_features != code_features:
+            error_msgs.append(
+                f"模型特征维度不匹配！代码: {code_features}，模型: {model_features}"
+            )
+        if error_msgs:
+            raise ValueError("\n".join(error_msgs))
+
+        # ================= 特征名称验证 =================
+        # 检查模型是否保存了原始特征名
+        model_feature_names = getattr(self.model, "feature_names_in_", None)
+        if model_feature_names is not None:
+            # 对比特征名称和顺序
+            if list(model_feature_names) != self.expected_columns:
+                msg = [
+                    "特征名称或顺序不匹配！",
+                    f"模型特征名: {list(model_feature_names)}",
+                    f"代码预期: {self.expected_columns}"
+                ]
+                raise ValueError("\n".join(msg))
+
+        # ================= 虚拟数据测试 =================
+        # 生成符合当前代码维度的随机数据
+        np.random.seed(42)
+        dummy_data = np.random.rand(1, code_features)
+        
+        try:
+            dummy_scaled = self.scaler.transform(dummy_data)
+            _ = self.model.predict(dummy_scaled)
+        except Exception as e:
+            raise RuntimeError(
+                f"虚拟数据测试失败！请检查预处理流程：{str(e)}"
+            ) from e
 
     def _truncate(self, df):
-        """截断时间序列无效数据"""
+        """时间序列截断逻辑"""
         time_cols = self.time_series_cols
         row = df[time_cols].iloc[0]
         
-        last_valid_idx = None
-        for idx in reversed(range(len(time_cols))):
-            if not pd.isna(row.iloc[idx]):
-                last_valid_idx = idx
-                break
+        # 寻找最后一个有效点
+        last_valid_idx = next(
+            (idx for idx in reversed(range(len(time_cols))) if not pd.isna(row.iloc[idx])),
+            None
+        )
         
+        # 执行截断
         if last_valid_idx is not None and last_valid_idx < len(time_cols)-1:
-            cols_to_truncate = time_cols[last_valid_idx+1:]
-            df[cols_to_truncate] = np.nan
+            invalid_cols = time_cols[last_valid_idx+1:]
+            df[invalid_cols] = np.nan
+            
         return df
 
-    def _get_slope(self, row):
-        """计算时间序列趋势"""
-        x = np.arange(len(row))
-        y = row.values
-        valid_mask = ~np.isnan(y)
-        if np.sum(valid_mask) < 2:
-            return np.nan
-        return stats.linregress(x[valid_mask], y[valid_mask])[0]
-
-    def _calc_autocorr(self, row):
-        """计算自相关系数"""
-        values = row.dropna().values
-        if len(values) < 2:
-            return np.nan
-        mean_val = np.mean(values)
-        numerator = np.sum((values[:-1] - mean_val) * (values[1:] - mean_val))
-        denominator = np.sum((values - mean_val)**2)
-        return numerator / denominator if denominator != 0 else np.nan
-
     def _extract_time_series_features(self, df):
-        """提取时序特征（强制列名）"""
+        """时序特征提取（带列名保护）"""
         time_data = df[self.time_series_cols].ffill(axis=1)
-        features = pd.DataFrame(
-            {
-                'seq_length': time_data.notna().sum(axis=1),
-                'max_value': time_data.max(axis=1),
-                'mean_value': time_data.mean(axis=1),
-                'min_value': time_data.min(axis=1),
-                'std_value': time_data.std(axis=1),
-                'trend': time_data.apply(self._get_slope, axis=1),
-                'range_value': time_data.max(axis=1) - time_data.min(axis=1),
-                'autocorr': time_data.apply(self._calc_autocorr, axis=1)
-            },
-            columns=self.eng_features  # 强制列名为字符串
-        )
+        
+        # 显式指定列名
+        features = pd.DataFrame({
+            'seq_length': time_data.notna().sum(axis=1),
+            'max_value': time_data.max(axis=1),
+            'mean_value': time_data.mean(axis=1),
+            'min_value': time_data.min(axis=1),
+            'std_value': time_data.std(axis=1),
+            'trend': time_data.apply(self._get_slope, axis=1),
+            'range_value': time_data.max(axis=1) - time_data.min(axis=1),
+            'autocorr': time_data.apply(self._calc_autocorr, axis=1)
+        }, columns=self.eng_features)  # 强制列名
+        
         return features
 
     def predict_one(self, sample):
-        # 创建输入数据框（强制列名为字符串）
-        expected_input_columns = self.static_cols + self.time_series_cols
-        df = pd.DataFrame([sample], columns=expected_input_columns)
+        # 输入数据验证
+        if len(sample) != len(self.full_cols):
+            raise ValueError(
+                f"输入数据长度错误！需要 {len(self.full_cols)} 个特征，实际 {len(sample)} 个"
+            )
         
-        # 验证输入列名
-        if list(df.columns) != expected_input_columns:
-            raise ValueError(f"输入列名错误！应为：{expected_input_columns}，实际：{df.columns.tolist()}")
-        
-        # 数据截断
+        # 创建DataFrame（强制列名）
+        df = pd.DataFrame([sample], columns=self.full_cols)
         df = self._truncate(df)
         
-        # 提取特征
-        static_features = df[self.static_cols].reset_index(drop=True)
-        time_features = self._extract_time_series_features(df).reset_index(drop=True)
+        # 特征工程
+        static_features = df[self.static_cols].copy()
+        time_features = self._extract_time_series_features(df)
         
-        # 合并特征并强制列名
+        # 合并特征（带列名保护）
         feature_df = pd.concat([static_features, time_features], axis=1)
-        feature_df.columns = self.expected_columns  # 关键修复
+        feature_df = feature_df[self.expected_columns]  # 强制列顺序
         
-        # 标准化与预测
+        # 最终维度验证
+        if feature_df.shape[1] != len(self.expected_columns):
+            raise RuntimeError(
+                f"最终特征维度异常！预期 {len(self.expected_columns)}，实际 {feature_df.shape[1]}"
+            )
+            
+        # 执行预测
         X_scaled = self.scaler.transform(feature_df)
         return self.model.predict(X_scaled)[0]
+
+    # 保持其他辅助方法不变 (_get_slope, _calc_autocorr)
+    # ...
 import streamlit as st
 import pandas as pd
 import numpy as np
