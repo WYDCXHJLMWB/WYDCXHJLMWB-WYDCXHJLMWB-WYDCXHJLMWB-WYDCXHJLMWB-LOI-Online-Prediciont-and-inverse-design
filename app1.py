@@ -13,7 +13,7 @@ class Predictor:
         self.model = joblib.load(svc_path)
         
         # 特征列配置（需与训练时严格一致）
-        self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
+        self.static_cols = ["Sn%", "添加比例", "一甲%"]
         self.time_series_cols = [
             "黄度值_3min", "6min", "9min", "12min",
             "15min", "18min", "21min", "24min"
@@ -414,7 +414,7 @@ elif page == "配方建议":
             col_static = st.columns(3)
             with col_static[0]:
                 add_ratio = st.number_input(
-                    "添加比例 (%)", 
+                    "Sn%)", 
                     min_value=0.0,
                     max_value=100.0,
                     value=5.0,
@@ -422,21 +422,21 @@ elif page == "配方建议":
                 )
             with col_static[1]:
                 sn_percent = st.number_input(
-                    "Sn含量 (%)", 
+                    "添加比例%", 
                     min_value=0.0, 
-                    max_value=19.0,
+                    max_value=100.0，
                     value=14.0,
                     step=0.1,
-                    help="锡含量范围0%~19%"
+                    #help="锡含量范围0%~19%"
                 )
             with col_static[2]:
                 yijia_percent = st.number_input(
-                    "一甲含量 (%)",
-                    min_value=15.1,
-                    max_value=32.0,
+                    "一甲%",
+                    min_value=0,
+                    max_value=100,
                     value=23.55,
                     step=0.1,
-                    help="一甲胺含量范围15.1%~32%"
+                    #help="一甲含量范围15.1%~32%"
                 )
             
             st.markdown("### 时序参数（黄度值随时间变化）")
