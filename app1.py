@@ -75,26 +75,43 @@ class Predictor:
         return features[self.eng_features]
 
     def predict_one(self, sample):
+        # 创建输入数据框
         df = pd.DataFrame([sample], columns=self.static_cols + self.time_series_cols)
+        
+        # 调试输出：输入数据列名
+        st.write("输入数据列名:", df.columns.tolist())
+        
+        # 数据截断处理
         df = self._truncate(df)
         
+        # 提取静态特征和时间序列特征
         static_features = df[self.static_cols]
         time_features = self._extract_time_series_features(df)
+        
+        # 调试输出：时间序列特征列名
+        st.write("时间序列特征列名:", time_features.columns.tolist())
+        
+        # 合并特征
         feature_df = pd.concat([static_features, time_features], axis=1)
         
-        # 增强的特征列验证
+        # 调试输出：合并后特征列名
+        st.write("合并后特征列名:", feature_df.columns.tolist())
+        st.write("期望列名:", self.expected_columns)
+        
+        # 验证特征列
         if list(feature_df.columns) != self.expected_columns:
             missing = set(self.expected_columns) - set(feature_df.columns)
             extra = set(feature_df.columns) - set(self.expected_columns)
             error_msg = [
-                "特征列不匹配！",
-                f"预期列顺序：{self.expected_columns}",
-                f"实际列顺序：{feature_df.columns.tolist()}",
-                f"缺失列：{list(missing)}" if missing else "",
-                f"多余列：{list(extra)}" if extra else ""
+                "特征列验证失败！",
+                f"预期列: {self.expected_columns}",
+                f"实际列: {feature_df.columns.tolist()}",
+                f"缺失列: {list(missing)}" if missing else "",
+                f"多余列: {list(extra)}" if extra else ""
             ]
             raise ValueError("\n".join([line for line in error_msg if line]))
         
+        # 数据标准化与预测
         X_scaled = self.scaler.transform(feature_df)
         return self.model.predict(X_scaled)[0]
 import streamlit as st
