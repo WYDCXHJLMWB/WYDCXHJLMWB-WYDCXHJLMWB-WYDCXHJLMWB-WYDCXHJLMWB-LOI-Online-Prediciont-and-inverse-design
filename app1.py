@@ -400,25 +400,31 @@ elif page == "配方建议":
             st.markdown("### 基础参数")
             col_static = st.columns(3)
             with col_static[0]:
-                add_ratio = st.number_input("添加比例 (%)", 
-                                          min_value=0.0,
-                                          max_value=100.0,
-                                          value=5.0,
-                                          step=0.1)
+                add_ratio = st.number_input(
+                    "添加比例 (%)", 
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=5.0,
+                    step=0.1
+                )
             with col_static[1]:
-                sn_percent = st.number_input("Sn含量 (%)", 
-                                           min_value=0.0, 
-                                           max_value=19.0,
-                                           value=14.0,
-                                           step=0.1,
-                                           help="锡含量范围0%~19%")
+                sn_percent = st.number_input(
+                    "Sn含量 (%)", 
+                    min_value=0.0, 
+                    max_value=19.0,
+                    value=14.0,
+                    step=0.1,
+                    help="锡含量范围0%~19%"
+                )
             with col_static[2]:
-                yijia_percent = st.number_input("一甲含量 (%)",
-                                               min_value=15.1,
-                                               max_value=32.0,
-                                               value=23.55,
-                                               step=0.1,
-                                               help="一甲胺含量范围15.1%~32%")
+                yijia_percent = st.number_input(
+                    "一甲含量 (%)",
+                    min_value=15.1,
+                    max_value=32.0,
+                    value=23.55,
+                    step=0.1,
+                    help="一甲胺含量范围15.1%~32%"
+                )
             
             st.markdown("### 时序参数（黄度值随时间变化）")
             time_points = [
@@ -457,7 +463,7 @@ elif page == "配方建议":
         if submit_btn:
             # 时序数据验证
             time_sequence = [yellow_values[t] for t, _ in time_points]
-            if any(time_sequence[i] > time_sequence[i+1] for i in range(len(time_sequence)-1)):
+            if any(time_sequence[i] > time_sequence[i+1] for i in range(len(time_sequence)-1):
                 st.error("错误：黄度值必须随时间递增！请检查输入数据")
                 st.stop()
                 
@@ -480,8 +486,7 @@ elif page == "配方建议":
                     7: "EA6（亚磷酸酯）"
                 }
                 
-                # ============== 修改开始 ==============
-                # 动态确定添加量和显示名称
+                # ============== 修改后的稳定剂显示部分 ==============
                 additive_amount = 0.0 if prediction == 1 else add_ratio
                 additive_name = result_map[prediction]
     
@@ -492,46 +497,63 @@ elif page == "配方建议":
                     ["外滑剂70S份数", 0.35],
                     ["MBS份数", 5.00],
                     ["316A份数", 0.20],
-                    ["稳定剂份数", 1.00]
+                    ["稳定剂组成", ""],  # 主标题
+                    ["  份数", 1.00],
+                    ["  一甲%", yijia_percent],
+                    ["  Sn%", sn_percent],
                 ]
-                
-                # 根据预测结果动态添加条目
+    
+                # 动态添加添加剂信息
                 if prediction != 1:
-                    formula_data.append([f"{additive_name}含量（wt%）", additive_amount])
+                    formula_data.extend([
+                        ["  添加剂类型", additive_name],
+                        ["  含量（wt%）", additive_amount]
+                    ])
                 else:
-                    formula_data.append([additive_name, additive_amount])
-                # ============== 修改结束 ==============
+                    formula_data.append(["  推荐添加剂", "无"])
     
                 # 创建格式化表格
                 df = pd.DataFrame(formula_data, columns=["材料名称", "含量"])
                 styled_df = df.style.format({"含量": "{:.2f}"})\
                                   .hide(axis="index")\
-                                  .set_properties(**{'text-align': 'left'})
-                
+                                  .set_properties(**{
+                                      'text-align': 'left',
+                                      'font-size': '14px'
+                                  })\
+                                  .set_properties(
+                                      subset=df.index[df['材料名称'].str.startswith('  ')],
+                                      **{'padding-left': '30px', 'color': '#2c3e50'}
+                                  )
+    
                 # 双列布局展示
                 col1, col2 = st.columns([1, 2])
                 with col1:
-                    # ============== 修改开始 ==============
-                    st.success(f"**推荐添加剂类型**  \n{additive_name}")
-                    st.metric("建议添加量", 
-                             f"{additive_amount:.2f}%",
-                             delta="无添加" if prediction == 1 else None)
-                    # ============== 修改结束 ==============
+                    st.success(f"**推荐结果**\n\n{additive_name}")
+                    st.metric(
+                        "建议添加量", 
+                        f"{additive_amount:.2f}%",
+                        delta="无添加" if prediction == 1 else None,
+                        delta_color="off"
+                    )
                     
                 with col2:
                     st.markdown("**完整配方表（基于PVC 100份）**")
-                    st.dataframe(styled_df,
-                                use_container_width=True,
-                                height=280,
-                                column_config={
-                                    "材料名称": "材料名称",
-                                    "含量": st.column_config.NumberColumn(
-                                        "含量",
-                                        format="%.2f"
-                                    )
-                                })
-                
-    
+                    st.dataframe(
+                        styled_df,
+                        use_container_width=True,
+                        height=320,
+                        column_config={
+                            "材料名称": st.column_config.Column(
+                                width="medium",
+                                help="配方组成明细"
+                            ),
+                            "含量": st.column_config.NumberColumn(
+                                format="%.2f",
+                                width="small"
+                            )
+                        }
+                    )
+                # ============== 修改结束 ==============
                 
             except Exception as e:
                 st.error(f"预测过程中发生错误：{str(e)}")
