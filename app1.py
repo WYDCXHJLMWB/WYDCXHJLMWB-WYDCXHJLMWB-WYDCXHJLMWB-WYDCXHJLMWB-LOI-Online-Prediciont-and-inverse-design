@@ -539,7 +539,7 @@ elif page == "配方建议":
                 yellow_values[time] = current
                 prev_time = time  # 跟踪前一个时间点
     
-            submit_btn = st.form_submit_button("生成推荐方案")
+        submit_btn = st.form_submit_button("生成推荐方案")
     
         if submit_btn:
             # 时序数据验证
