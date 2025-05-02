@@ -31,6 +31,16 @@ class Predictor:
         if sum(mask) >= 2:
             return stats.linregress(x[mask], y[mask])[0]
         return np.nan
+    def _calc_autocorr(self, row):
+        values = row.dropna().values
+        if len(values) > 1:
+            n = len(values)
+            mean = np.mean(values)
+            numerator = sum((values[:-1] - mean) * (values[1:] - mean))
+            denominator = sum((values - mean) ** 2)
+            if denominator != 0:
+                return numerator / denominator
+        return np.nan
     def _extract_time_series_features(self, df):
         """严格按 eng_features 顺序生成时序特征"""
         time_data = df[self.time_series_cols]
