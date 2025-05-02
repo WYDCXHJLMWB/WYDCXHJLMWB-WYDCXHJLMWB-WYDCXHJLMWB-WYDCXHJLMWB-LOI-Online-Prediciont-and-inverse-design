@@ -468,57 +468,55 @@ elif page == "配方建议":
             with col2: ratio = st.number_input("添加比例", 0.0, 100.0, 14.0)
             with col3: yijia = st.number_input("一甲%", 0.0, 100.0, 23.55)
             
-            # 时序参数
-            st.markdown("### 黄度值时序参数")
+            # 时序参数（修改部分）
+            st.markdown("### 黄度值时序参数（0-50）")
             time_points = ["3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
             yellow = {}
             cols = st.columns(4)
-            prev_val = 0.0
             
             for idx, t in enumerate(time_points):
                 with cols[idx%4]:
                     yellow[t] = st.number_input(
                         f"{t} 黄度值",
-                        min_value=prev_val if idx>0 else 0.0,
-                        max_value=50.0,
-                        value=15.0+idx,
+                        min_value=0.0,    # 修改最小值固定为0
+                        max_value=50.0,   # 修改最大值调整为50
+                        value=15.0+idx,   # 默认值保持不变
                         key=f"yellow_{t}"
                     )
-                    prev_val = yellow[t]
             
             # 提交按钮
             if st.form_submit_button("生成推荐"):
                 try:
-                    # 构建输入样本（严格按顺序）
+                    # 构建输入样本（保持原有逻辑）
                     sample = [sn, ratio, yijia] + [yellow[t] for t in time_points]
                     
-                    # 执行预测
+                    # 执行预测（保持原有逻辑）
                     pred = predictor.predict_one(sample)
                     
-                    # 显示结果
+                    # 显示结果（保持原有逻辑）
                     result_map = {
                         1: "无推荐添加剂", 2: "氯化石蜡", 3: "EA12", 
                         4: "EA15", 5: "EA16", 6: "G70L", 7: "EA6"
                     }
                     additive = result_map.get(pred, "未知")
                     
-                    # 构建展示数据
+                    # 构建展示数据（保持原有逻辑）
                     formula = [
                         ["PVC份数", 100.0], ["ACR份数", 1.0], ["70S份数", 0.35],
                         ["MBS份数", 5.0], ["316A份数", 0.2], ["稳定剂份数", 1.0],
                         ["一甲%", yijia], ["Sn%", sn]
                     ]
                     if pred != 1:
-                        formula.extend([[f"{additive}含量", f"{ratio if pred!=1 else 0}%"]])
+                        formula.extend([[f"{additive}含量", f"{ratio if pred!=1 else 0}%"])
     
-                    # 显示结果
+                    # 显示结果（保持原有逻辑）
                     col1, col2 = st.columns(2)
                     with col1:
                         st.metric("推荐结果", additive)
                     with col2:
                         st.dataframe(pd.DataFrame(formula, columns=["材料", "含量"]), 
                                    hide_index=True)
-                        
+                            
                 except Exception as e:
                     st.error(f"预测错误: {str(e)}")
 # 添加页脚
