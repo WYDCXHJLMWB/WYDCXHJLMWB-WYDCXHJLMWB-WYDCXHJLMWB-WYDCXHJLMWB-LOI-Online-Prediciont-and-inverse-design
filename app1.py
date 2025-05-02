@@ -24,7 +24,38 @@ class Predictor:
         ]
         self.full_cols = self.static_cols + self.time_series_cols
         self.imputer = SimpleImputer(strategy="mean")
+    def _truncate(self, df):  # 确保缩进在类内部
+        """截断时序数据的方法"""
+        time_cols = [col for col in df.columns if "min" in col.lower()]
+        time_cols_ordered = [col for col in df.columns if col in time_cols]
+        if time_cols_ordered:
+            row = df.iloc[0][time_cols_ordered]
+            if row.notna().any():
+                max_idx = row.idxmax()
+                max_pos = time_cols_ordered.index(max_idx)
+                for col in time_cols_ordered[max_pos + 1:]:
+                    df.at[df.index[0], col] = np.nan
+        return df
+    def _get_slope(self, row, col=None):
+        # col 是可选的，将被忽略
+        x = np.arange(len(row))
+        y = row.values
+        mask = ~np.isnan(y)
+        if sum(mask) >= 2:
+            return stats.linregress(x[mask], y[mask])[0]
+        return np.nan
 
+    def _calc_autocorr(self, row):
+        """计算一阶自相关系数"""
+        values = row.dropna().values
+        if len(values) > 1:
+            n = len(values)
+            mean = np.mean(values)
+            numerator = sum((values[:-1] - mean) * (values[1:] - mean))
+            denominator = sum((values - mean) ** 2)
+            if denominator != 0:
+                return numerator / denominator
+        return np.nan
     def _extract_time_series_features(self, df):
         """严格按 eng_features 顺序生成时序特征"""
         time_data = df[self.time_series_cols]
