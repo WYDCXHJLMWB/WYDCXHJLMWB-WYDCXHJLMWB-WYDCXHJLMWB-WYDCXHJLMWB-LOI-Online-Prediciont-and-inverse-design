@@ -463,7 +463,7 @@ elif page == "配方建议":
         if submit_btn:
             # 时序数据验证
             time_sequence = [yellow_values[t] for t, _ in time_points]
-            if any(time_sequence[i] > time_sequence[i+1] for i in range(len(time_sequence)-1):
+            if any(time_sequence[i] > time_sequence[i+1] for i in range(len(time_sequence)-1)):
                 st.error("错误：黄度值必须随时间递增！请检查输入数据")
                 st.stop()
                 
