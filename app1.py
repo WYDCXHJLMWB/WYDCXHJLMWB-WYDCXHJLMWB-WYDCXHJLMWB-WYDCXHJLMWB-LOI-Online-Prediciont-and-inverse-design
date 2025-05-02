@@ -41,7 +41,17 @@ class Predictor:
         features['range_value'] = features['max_value'] - features['min_value']  # 第6个特征
         features['autocorr'] = time_data_filled.apply(self._calc_autocorr, axis=1)
         return features[self.eng_features]  # 强制按指定顺序返回
-
+    def _truncate(self, df):
+        time_cols = [col for col in df.columns if "min" in col.lower()]
+        time_cols_ordered = [col for col in df.columns if col in time_cols]
+        if time_cols_ordered:
+            row = df.iloc[0][time_cols_ordered]
+            if row.notna().any():
+                max_idx = row.idxmax()
+                max_pos = time_cols_ordered.index(max_idx)
+                for col in time_cols_ordered[max_pos + 1:]:
+                    df.at[df.index[0], col] = np.nan
+        return df
     def predict_one(self, sample):
         # 确保输入列顺序
         df = pd.DataFrame([sample], columns=self.full_cols)
