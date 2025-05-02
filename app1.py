@@ -12,7 +12,7 @@ class Predictor:
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
         
-        # 特征列配置（需与训练时完全一致）
+        # 特征列配置
         self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
         self.time_series_cols = [
             "黄度值_3min", "6min", "9min", "12min",
@@ -20,43 +20,10 @@ class Predictor:
         ]
         self.eng_features = [
             'seq_length', 'max_value', 'mean_value', 'min_value',
-            'std_value', 'trend', 'range_value', 'autocorr'  # 修正顺序
+            'std_value', 'trend', 'range_value', 'autocorr'
         ]
-        self.full_cols = self.static_cols + self.time_series_cols
         self.imputer = SimpleImputer(strategy="mean")
-    def _get_slope(self, row, col=None):
-        x = np.arange(len(row))
-        y = row.values
-        mask = ~np.isnan(y)
-        if sum(mask) >= 2:
-            return stats.linregress(x[mask], y[mask])[0]
-        return np.nan
-    def _calc_autocorr(self, row):
-        values = row.dropna().values
-        if len(values) > 1:
-            n = len(values)
-            mean = np.mean(values)
-            numerator = sum((values[:-1] - mean) * (values[1:] - mean))
-            denominator = sum((values - mean) ** 2)
-            if denominator != 0:
-                return numerator / denominator
-        return np.nan
-    def _extract_time_series_features(self, df):
-        """严格按 eng_features 顺序生成时序特征"""
-        time_data = df[self.time_series_cols]
-        time_data_filled = time_data.ffill(axis=1)
-        
-        features = pd.DataFrame()
-        # 按 eng_features 定义顺序生成列
-        features['seq_length'] = time_data_filled.notna().sum(axis=1)
-        features['max_value'] = time_data_filled.max(axis=1)
-        features['mean_value'] = time_data_filled.mean(axis=1)
-        features['min_value'] = time_data_filled.min(axis=1)
-        features['std_value'] = time_data_filled.std(axis=1)
-        features['trend'] = time_data_filled.apply(self._get_slope, axis=1)       # 第5个特征
-        features['range_value'] = features['max_value'] - features['min_value']  # 第6个特征
-        features['autocorr'] = time_data_filled.apply(self._calc_autocorr, axis=1)
-        return features[self.eng_features]  # 强制按指定顺序返回
+
     def _truncate(self, df):
         time_cols = [col for col in df.columns if "min" in col.lower()]
         time_cols_ordered = [col for col in df.columns if col in time_cols]
@@ -68,26 +35,62 @@ class Predictor:
                 for col in time_cols_ordered[max_pos + 1:]:
                     df.at[df.index[0], col] = np.nan
         return df
+    
+    def _get_slope(self, row, col=None):
+        # col 是可选的，将被忽略
+        x = np.arange(len(row))
+        y = row.values
+        mask = ~np.isnan(y)
+        if sum(mask) >= 2:
+            return stats.linregress(x[mask], y[mask])[0]
+        return np.nan
+
+    def _calc_autocorr(self, row):
+        """计算一阶自相关系数"""
+        values = row.dropna().values
+        if len(values) > 1:
+            n = len(values)
+            mean = np.mean(values)
+            numerator = sum((values[:-1] - mean) * (values[1:] - mean))
+            denominator = sum((values - mean) ** 2)
+            if denominator != 0:
+                return numerator / denominator
+        return np.nan
+
+    def _extract_time_series_features(self, df):
+        """修复后的时序特征提取"""
+        time_data = df[self.time_series_cols]
+        time_data_filled = time_data.ffill(axis=1)
+        
+        features = pd.DataFrame()
+        features['seq_length'] = time_data_filled.notna().sum(axis=1)
+        features['max_value'] = time_data_filled.max(axis=1)
+        features['mean_value'] = time_data_filled.mean(axis=1)
+        features['min_value'] = time_data_filled.min(axis=1)
+        features['std_value'] = time_data_filled.std(axis=1)
+        features['range_value'] = features['max_value'] - features['min_value']
+        features['trend'] = time_data_filled.apply(self._get_slope, axis=1)
+        features['autocorr'] = time_data_filled.apply(self._calc_autocorr, axis=1)
+        return features
+
     def predict_one(self, sample):
-        # 确保输入列顺序
-        df = pd.DataFrame([sample], columns=self.full_cols)
+        full_cols = self.static_cols + self.time_series_cols
+        df = pd.DataFrame([sample], columns=full_cols)
         df = self._truncate(df)
         
-        # 特征提取与合并
+        # 特征合并
         static_features = df[self.static_cols]
         time_features = self._extract_time_series_features(df)
         feature_df = pd.concat([static_features, time_features], axis=1)
+        feature_df = feature_df[self.static_cols + self.eng_features]
         
-        # 验证特征顺序和维度
-        expected_columns = self.static_cols + self.eng_features
-        if list(feature_df.columns) != expected_columns:
-            raise ValueError(f"特征顺序错误！当前：{feature_df.columns.tolist()}，需要：{expected_columns}")
-        
+        # 验证维度
         if feature_df.shape[1] != self.scaler.n_features_in_:
-            raise ValueError(f"特征数不匹配！当前：{feature_df.shape[1]}，需要：{self.scaler.n_features_in_}")
-
+            raise ValueError(f"特征维度不匹配！当前：{feature_df.shape[1]}，需要：{self.scaler.n_features_in_}")
+        
         X_scaled = self.scaler.transform(feature_df)
         return self.model.predict(X_scaled)[0]
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -483,33 +486,28 @@ elif page == "配方建议":
                 additive_name = result_map[prediction]
     
                 # 构建完整配方表
-                # 构建完整配方表
                 formula_data = [
                     ["PVC份数", 100.00],
                     ["加工助剂ACR份数", 1.00],
                     ["外滑剂70S份数", 0.35],
                     ["MBS份数", 5.00],
                     ["316A份数", 0.20],
-                    ["稳定剂组成", ""],  # 主标题行
-                    ["  份数", 1.00],
-                    ["  一甲%", yijia_percent],
-                    ["  Sn%", sn_percent],
+                    ["稳定剂份数", 1.00]
                 ]
                 
-                # 根据预测结果动态添加添加剂信息
+                # 根据预测结果动态添加条目
                 if prediction != 1:
-                    formula_data.append(["  添加剂类型", additive_name])
-                    formula_data.append(["  含量（wt%）", additive_amount])
+                    formula_data.append([f"{additive_name}含量（wt%）", additive_amount])
                 else:
-                    formula_data.append(["  推荐添加剂", "无"])
-                
+                    formula_data.append([additive_name, additive_amount])
+                # ============== 修改结束 ==============
+    
                 # 创建格式化表格
                 df = pd.DataFrame(formula_data, columns=["材料名称", "含量"])
                 styled_df = df.style.format({"含量": "{:.2f}"})\
                                   .hide(axis="index")\
-                                  .set_properties(**{'text-align': 'left'})\
-                                  .set_properties(subset=df.index[df['材料名称'].str.contains("  ")], **{'padding-left': '20px'})  # 缩进子项
-                                
+                                  .set_properties(**{'text-align': 'left'})
+                
                 # 双列布局展示
                 col1, col2 = st.columns([1, 2])
                 with col1:
@@ -549,4 +547,4 @@ def add_footer():
     </footer>
     """, unsafe_allow_html=True)
 
-add_footer()
+add_footer() 这段代码最后添加剂种类推荐显示的时候，添加剂属于稳定剂的一部分，除了添加剂，稳定剂的下面还需要显示出一甲和锡的含量
