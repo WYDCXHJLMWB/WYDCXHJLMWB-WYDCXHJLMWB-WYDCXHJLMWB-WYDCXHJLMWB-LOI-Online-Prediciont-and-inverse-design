@@ -13,7 +13,7 @@ class Predictor:
         self.model = joblib.load(svc_path)
         
         # 特征列配置（需与训练时严格一致）
-        self.static_cols = ["Sn%", "添加比例", "一甲%"]
+        self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
         self.time_series_cols = [
             "黄度值_3min", "6min", "9min", "12min",
             "15min", "18min", "21min", "24min"
@@ -414,7 +414,7 @@ elif page == "配方建议":
             col_static = st.columns(3)
             with col_static[0]:
                 add_ratio = st.number_input(
-                    "Sn%)", 
+                    "产品质量指标_Sn%", 
                     min_value=0.0,
                     max_value=100.0,
                     value=5.0,
