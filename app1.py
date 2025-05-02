@@ -12,7 +12,7 @@ class Predictor:
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
         
-        # 特征列配置
+        # 特征列配置（需与训练时严格一致）
         self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
         self.time_series_cols = [
             "黄度值_3min", "6min", "9min", "12min",
@@ -22,71 +22,53 @@ class Predictor:
             'seq_length', 'max_value', 'mean_value', 'min_value',
             'std_value', 'trend', 'range_value', 'autocorr'
         ]
+        self.full_cols = self.static_cols + self.time_series_cols
         self.imputer = SimpleImputer(strategy="mean")
 
-    def _truncate(self, df):
-        time_cols = [col for col in df.columns if "min" in col.lower()]
-        time_cols_ordered = [col for col in df.columns if col in time_cols]
-        if time_cols_ordered:
-            row = df.iloc[0][time_cols_ordered]
-            if row.notna().any():
-                max_idx = row.idxmax()
-                max_pos = time_cols_ordered.index(max_idx)
-                for col in time_cols_ordered[max_pos + 1:]:
-                    df.at[df.index[0], col] = np.nan
-        return df
-    
-    def _get_slope(self, row, col=None):
-        # col 是可选的，将被忽略
-        x = np.arange(len(row))
-        y = row.values
-        mask = ~np.isnan(y)
-        if sum(mask) >= 2:
-            return stats.linregress(x[mask], y[mask])[0]
-        return np.nan
-
-    def _calc_autocorr(self, row):
-        """计算一阶自相关系数"""
-        values = row.dropna().values
-        if len(values) > 1:
-            n = len(values)
-            mean = np.mean(values)
-            numerator = sum((values[:-1] - mean) * (values[1:] - mean))
-            denominator = sum((values - mean) ** 2)
-            if denominator != 0:
-                return numerator / denominator
-        return np.nan
-
     def _extract_time_series_features(self, df):
-        """修复后的时序特征提取"""
+        """严格按 eng_features 顺序生成时序特征"""
         time_data = df[self.time_series_cols]
         time_data_filled = time_data.ffill(axis=1)
         
         features = pd.DataFrame()
+        # 按 eng_features 定义顺序生成列
         features['seq_length'] = time_data_filled.notna().sum(axis=1)
         features['max_value'] = time_data_filled.max(axis=1)
         features['mean_value'] = time_data_filled.mean(axis=1)
         features['min_value'] = time_data_filled.min(axis=1)
         features['std_value'] = time_data_filled.std(axis=1)
-        features['range_value'] = features['max_value'] - features['min_value']
         features['trend'] = time_data_filled.apply(self._get_slope, axis=1)
+        features['range_value'] = features['max_value'] - features['min_value']
         features['autocorr'] = time_data_filled.apply(self._calc_autocorr, axis=1)
-        return features
+        
+        # 强制列顺序
+        return features[self.eng_features]
 
     def predict_one(self, sample):
         full_cols = self.static_cols + self.time_series_cols
         df = pd.DataFrame([sample], columns=full_cols)
         df = self._truncate(df)
         
-        # 特征合并
+        # 特征合并（不再需要重新索引）
         static_features = df[self.static_cols]
         time_features = self._extract_time_series_features(df)
         feature_df = pd.concat([static_features, time_features], axis=1)
-        feature_df = feature_df[self.static_cols + self.eng_features]
+        
+        # ============== 新增验证步骤 ==============
+        expected_columns = self.static_cols + self.eng_features
+        if list(feature_df.columns) != expected_columns:
+            raise ValueError(
+                f"特征列顺序错误！\n当前列顺序：{feature_df.columns.tolist()}\n"
+                f"期望列顺序：{expected_columns}"
+            )
+        # ============== 验证结束 ==============
         
         # 验证维度
         if feature_df.shape[1] != self.scaler.n_features_in_:
-            raise ValueError(f"特征维度不匹配！当前：{feature_df.shape[1]}，需要：{self.scaler.n_features_in_}")
+            raise ValueError(
+                f"特征维度不匹配！当前：{feature_df.shape[1]}，"
+                f"需要：{self.scaler.n_features_in_}"
+            )
         
         X_scaled = self.scaler.transform(feature_df)
         return self.model.predict(X_scaled)[0]
