@@ -547,4 +547,4 @@ def add_footer():
     </footer>
     """, unsafe_allow_html=True)
 
-add_footer() 这段代码最后添加剂种类推荐显示的时候，添加剂属于稳定剂的一部分，除了添加剂，稳定剂的下面还需要显示出一甲和锡的含量
+add_footer() 
