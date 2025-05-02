@@ -17,33 +17,18 @@ warnings.filterwarnings("ignore")
 
 class Predictor:
     def __init__(self, scaler_path, svc_path):
-        # 加载预处理对象
         self.scaler = joblib.load(scaler_path)
         self.model = joblib.load(svc_path)
         
-        # 定义当前代码期望的特征结构
+        # 特征结构定义
         self.static_cols = ["产品质量指标_Sn%", "添加比例", "一甲%"]
-        self.time_series_cols = [
-            "3min", "6min", "9min", "12min",
-            "15min", "18min", "21min", "24min"
-        ]
-        self.eng_features = [
-            'seq_length', 'max_value', 'mean_value', 'min_value',
-            'std_value', 'trend', 'range_value', 'autocorr'
-        ]
+        self.time_series_cols = ["3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
+        self.eng_features = ['seq_length', 'max_value', 'mean_value', 'min_value', 'std_value', 'trend', 'range_value', 'autocorr']
         self.expected_columns = self.static_cols + self.eng_features
         self.full_cols = self.static_cols + self.time_series_cols
         
-        # 初始化时立即执行检查
+        # 初始化验证
         self._validate_components()
-        self._verify_column_order()
-    def _verify_column_order(self):
-        """新增：严格验证时间序列列顺序"""
-        expected_time_order = ["3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
-        if self.time_series_cols != expected_time_order:
-            raise ValueError(
-                f"时间序列列顺序错误！\n预期: {expected_time_order}\n实际: {self.time_series_cols}"
-            )
 
     def _validate_components(self):
         """核心验证方法"""
@@ -131,11 +116,8 @@ class Predictor:
                 return numerator / denominator
         return np.nan
     def _extract_time_series_features(self, df):
-        """时序特征提取（带列名保护）"""
         time_data = df[self.time_series_cols].ffill(axis=1)
-        
-        # 显式指定列名
-        features = pd.DataFrame({
+        return pd.DataFrame({
             'seq_length': time_data.notna().sum(axis=1),
             'max_value': time_data.max(axis=1),
             'mean_value': time_data.mean(axis=1),
@@ -144,40 +126,27 @@ class Predictor:
             'trend': time_data.apply(self._get_slope, axis=1),
             'range_value': time_data.max(axis=1) - time_data.min(axis=1),
             'autocorr': time_data.apply(self._calc_autocorr, axis=1)
-        }, columns=self.eng_features)  # 强制列名
-        
-        return features
+        }, columns=self.eng_features)
 
     def predict_one(self, sample):
-        # 输入数据验证
         if len(sample) != len(self.full_cols):
-            raise ValueError(
-                f"输入数据长度错误！需要 {len(self.full_cols)} 个特征，实际 {len(sample)} 个"
-            )
+            raise ValueError(f"需要{len(self.full_cols)}个特征，实际{len(sample)}个。完整顺序：{self.full_cols}")
         
-        # 创建DataFrame（强制列名）
         df = pd.DataFrame([sample], columns=self.full_cols)
         df = self._truncate(df)
         
-        # 特征工程
-        static_features = df[self.static_cols].copy()
+        # 单次合并并强制列名
+        static_features = df[self.static_cols]
         time_features = self._extract_time_series_features(df)
-        
-        # 合并特征（带列名保护）
-        feature_df = pd.concat([static_features, time_features], axis=1)
-        feature_df = feature_df[self.expected_columns]  # 强制列顺序
         feature_df = pd.concat([static_features.reset_index(drop=True), 
-        time_features.reset_index(drop=True)], axis=1)
+                             time_features.reset_index(drop=True)], axis=1)
         feature_df.columns = self.expected_columns
-        # 最终维度验证
-        if feature_df.shape[1] != len(self.expected_columns):
-            raise RuntimeError(
-                f"最终特征维度异常！预期 {len(self.expected_columns)}，实际 {feature_df.shape[1]}"
-            )
-            
-        # 执行预测
-        X_scaled = self.scaler.transform(feature_df)
-        return self.model.predict(X_scaled)[0]
+        
+        # 最终验证
+        if list(feature_df.columns) != self.expected_columns:
+            raise ValueError(f"列名不匹配！\n预期：{self.expected_columns}\n实际：{feature_df.columns.tolist()}")
+        
+        return self.model.predict(self.scaler.transform(feature_df))[0]
 
 
 import streamlit as st
@@ -486,165 +455,71 @@ elif page == "配方建议":
         try:
             predictor = Predictor("scaler_fold_1.pkl", "svc_fold_1.pkl")
         except Exception as e:
-            st.error(f"模型初始化失败：{str(e)}")
+            st.error(f"初始化失败: {str(e)}")
             st.stop()
-        
-        # 整个表单必须包裹在with语句中
+    
         with st.form("additive_form"):
-            st.markdown("### 基础参数")
-            col_static = st.columns(3)
-            with col_static[0]:
-                add_ratio = st.number_input(
-                    "Sn%", 
-                    min_value=0.0,
-                    max_value=100.0,
-                    value=5.0,
-                    step=0.1
-                )
-            with col_static[1]:
-                sn_percent = st.number_input(
-                    "添加比例", 
-                    min_value=0.0, 
-                    max_value=100.0,
-                    value=14.0,
-                    step=0.1
-                )
-            with col_static[2]:
-                yijia_percent = st.number_input(
-                    "一甲%",
-                    min_value=0.0,
-                    max_value=100.0,
-                    value=23.55,
-                    step=0.1
-                )
-    
-            st.markdown("### 时序参数（黄度值随时间变化）")
-            time_points = [
-                ("3min", 15.0), ("6min", 16.0), ("9min", 17.0),
-                ("12min", 18.0), ("15min", 19.0), ("18min", 20.0),
-                ("21min", 21.0), ("24min", 22.0)
-            ]
+            st.subheader("🧪 PVC添加剂智能推荐")
             
-            yellow_values = {}
-            prev_time = None  # 初始化时间点跟踪变量
+            # 基础参数
+            col1, col2, col3 = st.columns(3)
+            with col1: sn = st.number_input("Sn%", 0.0, 100.0, 5.0)
+            with col2: ratio = st.number_input("添加比例", 0.0, 100.0, 14.0)
+            with col3: yijia = st.number_input("一甲%", 0.0, 100.0, 23.55)
+            
+            # 时序参数
+            st.markdown("### 黄度值时序参数")
+            time_points = ["3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
+            yellow = {}
             cols = st.columns(4)
+            prev_val = 0.0
             
-            # 时间输入组件必须包含在表单内
-            for idx, (time, default) in enumerate(time_points):
-                with cols[idx % 4]:
-                    min_val = 0.0 if time == "3min" else (yellow_values[prev_time] if prev_time else 0.0)
-                    current = st.number_input(
-                        f"{time} 黄度值",
-                        min_value=min_val,
+            for idx, t in enumerate(time_points):
+                with cols[idx%4]:
+                    yellow[t] = st.number_input(
+                        f"{t} 黄度值",
+                        min_value=prev_val if idx>0 else 0.0,
                         max_value=25.0,
-                        value=default,
-                        step=0.1,
-                        key=f"yellow_{time}"
+                        value=15.0+idx,
+                        key=f"yellow_{t}"
                     )
-                    yellow_values[time] = current
-                    prev_time = time
-    
-            # 提交按钮必须位于表单内部
-            submit_btn = st.form_submit_button("生成推荐方案")
-    
-            # 处理逻辑也必须包含在表单上下文中
-            if submit_btn:
-                # 时序数据验证
-                time_sequence = [yellow_values[t] for t, _ in time_points]
-                if any(time_sequence[i] > time_sequence[i+1] for i in range(len(time_sequence)-1)):
-                    st.error("错误：黄度值必须随时间递增！请检查输入数据")
-                    st.stop()
-                
+                    prev_val = yellow[t]
+            
+            # 提交按钮
+            if st.form_submit_button("生成推荐"):
                 try:
-                    # 构建输入样本（严格按模型要求的顺序）
-                    sample = [
-                        sn_percent,    # static_cols[0]
-                        add_ratio,     # static_cols[1]
-                        yijia_percent, # static_cols[2]
-                        yellow_values["3min"],   # time_series_cols[0]
-                        yellow_values["6min"],   # time_series_cols[1]
-                        yellow_values["9min"],   # time_series_cols[2]
-                        yellow_values["12min"],  # time_series_cols[3]
-                        yellow_values["15min"],  # time_series_cols[4]
-                        yellow_values["18min"],  # time_series_cols[5]
-                        yellow_values["21min"],  # time_series_cols[6]
-                        yellow_values["24min"]   # time_series_cols[7]
-                    ]
-    
+                    # 构建输入样本（严格按顺序）
+                    sample = [sn, ratio, yijia] + [yellow[t] for t in time_points]
+                    
                     # 执行预测
-                    prediction = predictor.predict_one(sample)
+                    pred = predictor.predict_one(sample)
                     
-                    # 结果显示（保持在表单上下文内）
+                    # 显示结果
                     result_map = {
-                        1: "无推荐添加剂", 
-                        2: "氯化石蜡", 
-                        3: "EA12（脂肪酸复合醇酯）",
-                        4: "EA15（市售液体钙锌稳定剂）", 
-                        5: "EA16（环氧大豆油）",
-                        6: "G70L（多官能团的脂肪酸复合酯混合物）", 
-                        7: "EA6（亚磷酸酯）"
+                        1: "无推荐添加剂", 2: "氯化石蜡", 3: "EA12", 
+                        4: "EA15", 5: "EA16", 6: "G70L", 7: "EA6"
                     }
+                    additive = result_map.get(pred, "未知")
                     
-                    additive_amount = 0.0 if prediction == 1 else add_ratio
-                    additive_name = result_map[prediction]
-    
-                    # 构建配方表
-                    formula_data = [
-                        ["PVC份数", 100.00],
-                        ["加工助剂ACR份数", 1.00],
-                        ["外滑剂70S份数", 0.35],
-                        ["MBS份数", 5.00],
-                        ["316A份数", 0.20],
-                        ["稳定剂组成", ""],
-                        ["  份数", 1.00],
-                        ["  一甲%", yijia_percent],
-                        ["  Sn%", sn_percent],
+                    # 构建展示数据
+                    formula = [
+                        ["PVC份数", 100.0], ["ACR份数", 1.0], ["70S份数", 0.35],
+                        ["MBS份数", 5.0], ["316A份数", 0.2], ["稳定剂份数", 1.0],
+                        ["一甲%", yijia], ["Sn%", sn]
                     ]
+                    if pred != 1:
+                        formula.extend([[f"{additive}含量", f"{ratio if pred!=1 else 0}%"]])
     
-                    if prediction != 1:
-                        formula_data.extend([
-                            ["  添加剂类型", additive_name],
-                            ["  含量（wt%）", additive_amount]
-                        ])
-                    else:
-                        formula_data.append(["  推荐添加剂", "无"])
-    
-                    # 创建样式化表格
-                    df = pd.DataFrame(formula_data, columns=["材料名称", "含量"])
-                    styled_df = df.style.format({"含量": "{:.2f}"})\
-                                      .hide(axis="index")\
-                                      .set_properties(**{'text-align': 'left', 'font-size': '14px'})\
-                                      .set_properties(
-                                          subset=df.index[df['材料名称'].str.startswith('  ')],
-                                          **{'padding-left': '30px', 'color': '#2c3e50'}
-                                      )
-    
-                    # 双列布局展示
-                    col1, col2 = st.columns([1, 2])
+                    # 显示结果
+                    col1, col2 = st.columns(2)
                     with col1:
-                        st.success(f"**推荐结果**\n\n{additive_name}")
-                        st.metric(
-                            "建议添加量", 
-                            f"{additive_amount:.2f}%",
-                            delta="无添加" if prediction == 1 else None,
-                            delta_color="off"
-                        )
-                        
+                        st.metric("推荐结果", additive)
                     with col2:
-                        st.markdown("**完整配方表（基于PVC 100份）**")
-                        st.dataframe(
-                            styled_df,
-                            use_container_width=True,
-                            height=320,
-                            column_config={
-                                "材料名称": st.column_config.Column(width="medium"),
-                                "含量": st.column_config.NumberColumn(format="%.2f")
-                            }
-                        )
-    
+                        st.dataframe(pd.DataFrame(formula, columns=["材料", "含量"]), 
+                                   hide_index=True)
+                        
                 except Exception as e:
-                    st.error(f"预测过程中发生错误：{str(e)}")
-                    st.stop()
+                    st.error(f"预测错误: {str(e)}")
 # 添加页脚
 def add_footer():
     st.markdown("""
