@@ -36,7 +36,15 @@ class Predictor:
         
         # 初始化时立即执行检查
         self._validate_components()
-        
+        self._verify_column_order()
+    def _verify_column_order(self):
+        """新增：严格验证时间序列列顺序"""
+        expected_time_order = ["3min", "6min", "9min", "12min", "15min", "18min", "21min", "24min"]
+        if self.time_series_cols != expected_time_order:
+            raise ValueError(
+                f"时间序列列顺序错误！\n预期: {expected_time_order}\n实际: {self.time_series_cols}"
+            )
+
     def _validate_components(self):
         """核心验证方法"""
         # ================= 特征维度验证 =================
@@ -158,7 +166,9 @@ class Predictor:
         # 合并特征（带列名保护）
         feature_df = pd.concat([static_features, time_features], axis=1)
         feature_df = feature_df[self.expected_columns]  # 强制列顺序
-        
+        feature_df = pd.concat([static_features.reset_index(drop=True), 
+        time_features.reset_index(drop=True)], axis=1)
+        feature_df.columns = self.expected_columns
         # 最终维度验证
         if feature_df.shape[1] != len(self.expected_columns):
             raise RuntimeError(
@@ -169,8 +179,7 @@ class Predictor:
         X_scaled = self.scaler.transform(feature_df)
         return self.model.predict(X_scaled)[0]
 
-    # 保持其他辅助方法不变 (_get_slope, _calc_autocorr)
-    # ...
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -474,8 +483,11 @@ elif page == "配方建议":
     
     elif sub_page == "添加剂推荐":
         st.subheader("🧪 PVC添加剂智能推荐")
-        predictor = Predictor("scaler_fold_1.pkl", "svc_fold_1.pkl")
-        
+        try:
+            predictor = Predictor("scaler_fold_1.pkl", "svc_fold_1.pkl")
+        except Exception as e:
+            st.error(f"模型初始化失败：{str(e)}")
+            st.stop()
         with st.form("additive_form"):
             st.markdown("### 基础参数")
             col_static = st.columns(3)
@@ -512,31 +524,20 @@ elif page == "配方建议":
                 ("12min", 18.0), ("15min", 19.0), ("18min", 20.0),
                 ("21min", 21.0), ("24min", 22.0)
             ]
-            yellow_values = {}
-            prev_value = 5.0  # 初始最小值
-            cols = st.columns(4)
-            
-            for idx, (time, default) in enumerate(time_points):
-                with cols[idx % 4]:
-                    if time == "3min":
-                        current = st.number_input(
-                            f"{time} 黄度值", 
-                            min_value=5.0,
-                            max_value=25.0,
-                            value=default,
-                            step=0.1,
-                            key=f"yellow_{time}"
-                        )
-                    else:
-                        current = st.number_input(
-                            f"{time} 黄度值",
-                            min_value=prev_value,
-                            value=default,
-                            step=0.1,
-                            key=f"yellow_{time}"
-                        )
-                    yellow_values[time] = current
-                    prev_value = current
+         yellow_values = {}
+        cols = st.columns(4)
+        for idx, (time, default) in enumerate(time_points):
+            with cols[idx % 4]:
+                current = st.number_input(
+                    f"{time} 黄度值",
+                    min_value=0.0 if time == "3min" else yellow_values.get(prev_time, 5.0),
+                    max_value=25.0,
+                    value=default,
+                    step=0.1,
+                    key=f"yellow_{time}"
+                )
+                yellow_values[time] = current
+                prev_time = time  # 跟踪前一个时间点
     
             submit_btn = st.form_submit_button("生成推荐方案")
     
