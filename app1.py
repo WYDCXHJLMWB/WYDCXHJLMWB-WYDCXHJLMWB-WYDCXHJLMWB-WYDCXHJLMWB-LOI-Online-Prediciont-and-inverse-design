@@ -167,7 +167,7 @@ def image_to_base64(image_path):
 image_path = "图片1.png"
 icon_base64 = image_to_base64(image_path)
 st.set_page_config(
-    page_title="聚丙烯LOI和TS模型",
+    page_title="阻燃聚合物复合材料智能设计平台",
     layout="wide",
     page_icon=f"data:image/png;base64,{icon_base64}"
 )
