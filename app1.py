@@ -234,38 +234,71 @@ def ensure_pp_first(features):
 # 首页
 if page == "首页":
     st.markdown("""
-    本平台基于先进的人工智能和材料科学技术，致力于提供聚丙烯（PP）等聚合物复合材料的性能预测与配方优化建议。
-    通过本平台，用户可以进行材料性能预测（如LOI和TS预测），并根据性能目标优化配方，推荐适合的助剂。
-    """)
-    st.markdown("<hr>", unsafe_allow_html=True)  # 添加水平分隔线
-    # 功能概览
+    <div style="text-align: center;">
+
+        <h1 style="color: #4A90E2;">聚合物复合材料智能平台</h1>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 水平分隔线
+    st.markdown("<hr>", unsafe_allow_html=True)
+    
+    # 功能概览 - 卡片式布局
     st.markdown("""
     ## 功能概览
-    1. **性能预测**：通过输入材料配方，预测聚合物复合材料的LOI和TS性能。
-    2. **配方建议**：根据目标性能，优化材料配方。
-    3. **添加剂推荐**：根据黄度值等时序数据，智能推荐最佳添加剂。
-    """)
-    st.markdown("<hr>", unsafe_allow_html=True)  # 添加水平分隔线
+    <div style="display: flex; justify-content: space-between; gap: 20px;">
+        <div style="background: #f0f2f6; padding: 20px; border-radius: 10px; flex: 1;">
+            <h3>📊 性能预测</h3>
+            <p>通过输入材料配方，预测聚合物复合材料的 LOI 和TS 性能。</p>
+        </div>
+        <div style="background: #f0f2f6; padding: 20px; border-radius: 10px; flex: 1;">
+            <h3>🔧 配方建议</h3>
+            <p>根据目标性能，优化材料配方。</p>
+        </div>
+        <div style="background: #f0f2f6; padding: 20px; border-radius: 10px; flex: 1;">
+            <h3>🧪 添加剂推荐</h3>
+            <p>根据黄度值等时序数据，智能推荐最佳添加剂。</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 水平分隔线
+    st.markdown("<hr>", unsafe_allow_html=True)
+    
     # 引用部分
     st.markdown("""
-    ## **引用**
-    Weibin, Ma; Ling, Li; Yu, Zhang et al. Active learning-based generative design of halogen-free flame-retardant polymeric composites. J Mater Inf, 2025,5,DOI:10.20517/jmi.2025.09 
-    """)
-
-    # 致谢部分优化，添加换行符
-    st.markdown("""
-    ## **致谢**<br>
-    云南省科技重点计划项目 （202302AB080022）
-
-
-    *开发者*：<br>
-    马维宾博士生<br>
-    *审查*：<br>
-    丁鹏教授<br>
+    ## 引用
+    <div style="background: #f0f2f6; padding: 20px; border-radius: 10px;">
+        <p>Ma W, Li L, Zhang Y, Li M, Song N, Ding P. Active learning-based generative design of halogen-free flame-retardant polymeric composites. J Mater Inf 2025;5:[Accept]. <a href="http://dx.doi.org/10.20517/jmi.2025.09 " target="_blank">DOI</a></p>
+    </div>
     """, unsafe_allow_html=True)
-
-    # 添加分隔线和背景色
-    st.markdown("<hr>", unsafe_allow_html=True)  # 添加水平分隔线
+    
+    # 水平分隔线
+    st.markdown("<hr>", unsafe_allow_html=True)
+    
+    # 致谢部分
+    st.markdown("""
+    ## 致谢
+    <div style="background: #f0f2f6; padding: 20px; border-radius: 10px;">
+        <p>云南省科技重点计划项目（202302AB080022）</p>
+        <p><strong>开发者：</strong>上海大学功能高分子团队：马维宾、李凌、张瑜、宋娜、丁鹏</p>
+        <p><strong>审查：</strong>丁鹏</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 底部渐变背景
+    st.markdown("""
+    <style>
+    .footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background: linear-gradient(90deg, #4A90E2, #6A82FB);
+        color: white;
+        text-align: center;
+        padding: 10px;
+    }
 
 
 # 性能预测页面
