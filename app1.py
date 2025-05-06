@@ -407,12 +407,13 @@ elif page == "性能预测":
                             delta_ts = abs(pred_ts - actual_ts)
                             st.metric("TS预测值", f"{pred_ts:.1f}MPa", delta=f"Δ{delta_ts:.1f}MPa", help=f"实际值: {actual_ts}MPa")
 
+                    
                         st.markdown(f"""
                             ###### 误差分析
-                            - LOI绝对误差: `{delta_loi:.2f}%`  
-                            - TS绝对误差: `{delta_ts:.2f}MPa`  
-                            - LOI相对误差: `{(delta_loi/actual_loi)*100:.1f}%`  
-                            - TS相对误差: `{(delta_ts/actual_ts)*100:.1f}%`
+                            - LOI 绝对误差: `{delta_loi:.2f}%`  
+                            - TS 绝对误差: `{delta_ts:.2f}MPa`  
+                            - LOI 相对误差: `{(delta_loi/actual_loi)*100:.1f}%`  
+                            - TS 相对误差: `{(delta_ts/actual_ts)*100:.1f}%`
                         """)
                         loi_accuracy = 100 - (delta_loi/actual_loi)*100
                         ts_accuracy = 100 - (delta_ts/actual_ts)*100
