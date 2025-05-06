@@ -176,48 +176,56 @@ def ensure_pp_first(features):
 # 首页
 if page == "首页":
     st.markdown("""
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather&family=Roboto+Slab:wght@500&display=swap" rel="stylesheet">
     <style>
+        body {
+            font-family: 'Merriweather', serif;
+        }
         .header-container {
             display: flex;
             align-items: center;
             margin-bottom: 2rem;
             padding: 1.5rem;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            background: linear-gradient(135deg, #f0f2f5 0%, #dee2e6 100%);
             border-radius: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
         }
         .platform-title {
-            color: #2b5876;
-            font-size: 2.2rem;
+            font-family: 'Roboto Slab', serif;
+            color: #1e3d59;
+            font-size: 2.4rem;
             margin-left: 1.5rem;
-            text-shadow: 2px 2px 4px rgba(43,88,118,0.1);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
         }
         .feature-section {
             background: white;
-            border-radius: 12px;
+            border-radius: 14px;
             padding: 2rem;
             margin: 1.5rem 0;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease;
+        }
+        .feature-section:hover {
+            transform: scale(1.01);
         }
         .feature-list li {
             margin: 1.2rem 0;
-            padding-left: 1.5rem;
+            padding-left: 2rem;
             position: relative;
-            font-size: 1.05rem;
+            font-size: 1.1rem;
         }
         .feature-list li:before {
-            content: "▹";
+            content: "📌";
             position: absolute;
             left: 0;
-            color: #3f87a6;
-            font-weight: bold;
         }
         .quote-section {
-            background: #f8f9fa;
-            border-left: 4px solid #3f87a6;
+            background: #f5f7fa;
+            border-left: 4px solid #1e3d59;
             padding: 1.5rem;
             margin: 2rem 0;
             border-radius: 0 8px 8px 0;
+            font-style: italic;
         }
         .acknowledgment-grid {
             display: grid;
@@ -228,8 +236,12 @@ if page == "首页":
         .ack-card {
             background: white;
             padding: 1.5rem;
-            border-radius: 10px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: transform 0.3s ease;
+        }
+        .ack-card:hover {
+            transform: scale(1.02);
         }
         .funding-badge {
             background: #e3f2fd;
@@ -241,11 +253,25 @@ if page == "首页":
             font-size: 0.9em;
         }
         .section-title {
-            color: #2b5876;
-            font-size: 1.6rem;
+            font-family: 'Roboto Slab', serif;
+            color: #1e3d59;
+            font-size: 1.8rem;
             margin: 2rem 0 1.5rem;
             border-bottom: 2px solid #3f87a6;
             padding-bottom: 0.5rem;
+        }
+
+        body::after {
+            content: "";
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 280px;
+            height: 280px;
+            background: url('data:image/png;base64,...') no-repeat;
+            background-size: contain;
+            opacity: 0.05;
+            z-index: -1;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -253,16 +279,18 @@ if page == "首页":
     # 标题区域
     st.markdown(f"""
     <div class="header-container">
-        <img src="data:image/png;base64,{icon_base64}" style="width: 120px; height: auto;"/>
+        <img src="data:image/png;base64,{icon_base64}" style="width: 110px; height: auto;"/>
         <h1 class="platform-title">阻燃聚合物复合材料智能设计平台</h1>
     </div>
     """, unsafe_allow_html=True)
 
     # 平台简介
     st.markdown("""
-    <div style="font-size: 1.1rem; line-height: 1.8; color: #4a4a4a;">
-        本平台基于先进的人工智能和材料科学技术，致力于提供聚丙烯（PP）等聚合物复合材料的性能预测与配方优化建议。
-        通过本平台，用户可以进行材料性能预测（如LOI和TS预测），并根据性能目标优化配方，推荐适合的助剂。
+    <div class="feature-section">
+        <p style="font-size: 1.1rem; line-height: 1.8; color: #2c2c2c;">
+            本平台基于先进的人工智能与材料科学技术，致力于提供聚丙烯（PP）等聚合物复合材料的性能预测与配方优化建议。
+            用户可使用本平台进行材料性能预测（如LOI和TS预测），并根据性能目标优化配方，推荐适合的助剂组合。
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -271,9 +299,9 @@ if page == "首页":
     st.markdown("""
     <div class="feature-section">
         <ul class="feature-list">
-            <li><strong>性能预测</strong>：通过输入材料配方，预测聚合物复合材料的LOI和TS性能</li>
-            <li><strong>配方建议</strong>：根据目标性能，优化材料配方</li>
-            <li><strong>添加剂推荐</strong>：根据黄度值等时序数据，智能推荐最佳添加剂</li>
+            <li>🔬 <strong>性能预测</strong>：通过输入材料配方，预测聚合物复合材料的LOI和TS性能</li>
+            <li>🧪 <strong>配方建议</strong>：根据目标性能，优化材料配方组合</li>
+            <li>🧠 <strong>添加剂推荐</strong>：根据黄度值等时序数据，智能推荐最佳添加剂</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -282,7 +310,9 @@ if page == "首页":
     st.markdown('<div class="section-title">研究成果</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="quote-section">
- Ma W, Li L, Zhang Y, Li M, Song N, Ding P. Active learning-based generative design of halogen-free flame-retardant polymeric composites. J Mater Inf 2025;5:[Accept]. http://dx.doi.org/10.20517/jmi.2025.09
+        Ma W, Li L, Zhang Y, Li M, Song N, Ding P. <br>
+        <em>Active learning-based generative design of halogen-free flame-retardant polymeric composites.</em> <br>
+        <strong>J Mater Inf</strong> 2025;5:[Accept]. DOI: <a href="http://dx.doi.org/10.20517/jmi.2025.09" target="_blank">10.20517/jmi.2025.09</a>
     </div>
     """, unsafe_allow_html=True)
 
@@ -291,13 +321,13 @@ if page == "首页":
     st.markdown("""
     <div class="acknowledgment-grid">
         <div class="ack-card">
-            <p>开发者：上海大学功能高分子组：马维宾，李凌， 张瑜，宋娜，丁鹏</p>
-            <p>审查：丁鹏</p>
+            <p><strong>开发者</strong>：上海大学功能高分子组：马维宾，李凌，张瑜，宋娜，丁鹏</p>
+            <p><strong>审查</strong>：丁鹏</p>
         </div>
         
         <div class="ack-card">
-            <h4 style="color: #2b5876; margin-bottom: 1rem;">基金支持</h4>
-            <div style="margin-top: 0.5rem;">
+            <h4 style="color: #1e3d59; margin-bottom: 1rem;">基金支持</h4>
+            <div>
                 <span class="funding-badge">云南省科技重点计划项目（202302AB080022）</span>
             </div>
         </div>
