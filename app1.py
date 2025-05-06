@@ -312,19 +312,21 @@ if page == "首页":
     st.markdown('<div class="section-title">致谢</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="acknowledgment-grid">
-    <div class="ack-card">
-        <h4 style="color: #1e3d59; margin-bottom: 1rem; font-family: 'Roboto Slab', serif;">
-            基金支持
-        </h4>
-        <div style="line-height: 1.6; font-size: 1rem; color: #333;">
-            <div class="funding-badge" style="display: block; margin-bottom: 0.5rem;">
-                项目名称：云南省科技重点计划项目
-            </div>
-            <div class="funding-badge" style="display: block; margin-bottom: 0.5rem;">
-                项目编号：202302AB080022
+        <div class="ack-card">
+            <h4 style="color: #1e3d59; margin-bottom: 1rem; font-family: 'Roboto Slab', serif;">
+                基金支持
+            </h4>
+            <div style="line-height: 1.6; font-size: 1rem; color: #333;">
+                <div class="funding-badge" style="display: block; margin-bottom: 0.5rem;">
+                    项目名称：云南省科技重点计划项目
+                </div>
+                <div class="funding-badge" style="display: block; margin-bottom: 0.5rem;">
+                    项目编号：202302AB080022
+                </div>
             </div>
         </div>
-    </div>)
+    </div>
+    """, unsafe_allow_html=True)
 
 # 性能预测页面
 elif page == "性能预测":
