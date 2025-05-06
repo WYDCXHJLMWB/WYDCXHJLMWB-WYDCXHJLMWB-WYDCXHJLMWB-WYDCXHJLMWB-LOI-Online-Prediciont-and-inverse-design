@@ -173,43 +173,136 @@ def ensure_pp_first(features):
     return ["PP"] + sorted(features)
 
 # 首页
+# 首页
 if page == "首页":
     st.markdown("""
-    本平台基于先进的人工智能和材料科学技术，致力于提供聚丙烯（PP）等聚合物复合材料的性能预测与配方优化建议。
-    通过本平台，用户可以进行材料性能预测（如LOI和TS预测），并根据性能目标优化配方，推荐适合的助剂。
-    """)
-    st.markdown("<hr>", unsafe_allow_html=True)  # 添加水平分隔线
-    # 功能概览
-    st.markdown("""
-    ## 功能概览
-    1. **性能预测**：通过输入材料配方，预测聚合物复合材料的LOI和TS性能。
-    2. **配方建议**：根据目标性能，优化材料配方。
-    3. **添加剂推荐**：根据黄度值等时序数据，智能推荐最佳添加剂。
-    """)
-    st.markdown("<hr>", unsafe_allow_html=True)  # 添加水平分隔线
-    # 引用部分
-    st.markdown("""
-    ## **引用**
-    Weibin, Ma; Ling, Li; Yu, Zhang et al. Active learning-based generative design of halogen-free flame-retardant polymeric composites. Journal of Materials Informatics
-    """)
-
-    # 致谢部分优化，添加换行符
-    st.markdown("""
-    ## **致谢**<br>
-    *贡献者*：<br>
-    *团队*：<br>
-    上海大学功能高分子组<br>
-    *开发者*：<br>
-    马维宾博士生<br>
-    *审查*：<br>
-    丁鹏教授<br>
-    *基金支持*：<br>
-    云南省科技重点计划项目 （202302AB080022）、苏州市重点技术研究项目 （SYG2024017）
+    <style>
+        .header-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        .platform-title {
+            color: #2b5876;
+            font-size: 2.2rem;
+            margin-left: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(43,88,118,0.1);
+        }
+        .feature-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+        }
+        .feature-list li {
+            margin: 1.2rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            font-size: 1.05rem;
+        }
+        .feature-list li:before {
+            content: "▹";
+            position: absolute;
+            left: 0;
+            color: #3f87a6;
+            font-weight: bold;
+        }
+        .quote-section {
+            background: #f8f9fa;
+            border-left: 4px solid #3f87a6;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .acknowledgment-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .ack-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+        .funding-badge {
+            background: #e3f2fd;
+            color: #1a73e8;
+            padding: 8px 15px;
+            border-radius: 20px;
+            display: inline-block;
+            margin: 5px;
+            font-size: 0.9em;
+        }
+        .section-title {
+            color: #2b5876;
+            font-size: 1.6rem;
+            margin: 2rem 0 1.5rem;
+            border-bottom: 2px solid #3f87a6;
+            padding-bottom: 0.5rem;
+        }
+    </style>
     """, unsafe_allow_html=True)
 
-    # 添加分隔线和背景色
-    st.markdown("<hr>", unsafe_allow_html=True)  # 添加水平分隔线
+    # 标题区域
+    st.markdown(f"""
+    <div class="header-container">
+        <img src="data:image/png;base64,{icon_base64}" style="width: 120px; height: auto;"/>
+        <h1 class="platform-title">阻燃聚合物复合材料智能设计平台</h1>
+    </div>
+    """, unsafe_allow_html=True)
 
+    # 平台简介
+    st.markdown("""
+    <div style="font-size: 1.1rem; line-height: 1.8; color: #4a4a4a;">
+        本平台基于先进的人工智能和材料科学技术，致力于提供聚丙烯（PP）等聚合物复合材料的性能预测与配方优化建议。
+        通过本平台，用户可以进行材料性能预测（如LOI和TS预测），并根据性能目标优化配方，推荐适合的助剂。
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 功能概览
+    st.markdown('<div class="section-title">核心功能</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="feature-section">
+        <ul class="feature-list">
+            <li><strong>性能预测</strong>：通过输入材料配方，预测聚合物复合材料的LOI和TS性能</li>
+            <li><strong>配方建议</strong>：根据目标性能，优化材料配方</li>
+            <li><strong>添加剂推荐</strong>：根据黄度值等时序数据，智能推荐最佳添加剂</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 文献引用
+    st.markdown('<div class="section-title">研究成果</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="quote-section">
+        Weibin, Ma; Ling, Li; Yu, Zhang et al. Active learning-based generative design of halogen-free flame-retardant polymeric composites. Journal of Materials Informatics
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 致谢部分
+    st.markdown('<div class="section-title">项目信息</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="acknowledgment-grid">
+        <div class="ack-card">
+            <p>开发者：上海大学功能高分子组：马维宾，李凌， 张瑜，宋娜，丁鹏</p>
+            <p>审查：丁鹏</p>
+        </div>
+        
+        <div class="ack-card">
+            <h4 style="color: #2b5876; margin-bottom: 1rem;">基金支持</h4>
+            <div style="margin-top: 0.5rem;">
+                <span class="funding-badge">云南省科技重点计划项目（202302AB080022）</span>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # 性能预测页面
 elif page == "性能预测":
