@@ -299,15 +299,15 @@ if page == "首页":
     st.markdown("""
     <div class="feature-section">
         <ul class="feature-list">
-            <li>🔬 <strong>性能预测</strong>：通过输入材料配方，预测聚合物复合材料的LOI和TS性能</li>
-            <li>🧪 <strong>配方建议</strong>：根据目标性能，优化材料配方组合</li>
-            <li>🧠 <strong>添加剂推荐</strong>：根据黄度值等时序数据，智能推荐最佳添加剂</li>
+             <strong>性能预测</strong>：通过输入材料配方，预测聚合物复合材料的LOI和TS性能</li>
+             <strong>配方建议</strong>：根据目标性能，优化材料配方组合</li>
+             <strong>添加剂推荐</strong>：根据黄度值等时序数据，智能推荐最佳添加剂</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
 
     # 文献引用
-    st.markdown('<div class="section-title">研究成果</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">引用</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="quote-section">
         Ma W, Li L, Zhang Y, Li M, Song N, Ding P. <br>
@@ -317,7 +317,7 @@ if page == "首页":
     """, unsafe_allow_html=True)
 
     # 致谢部分
-    st.markdown('<div class="section-title">项目信息</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">致谢</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="acknowledgment-grid">
         <div class="ack-card">
