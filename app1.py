@@ -172,7 +172,7 @@ def ensure_pp_first(features):
         features.remove("PP")
     return ["PP"] + sorted(features)
 
-# 首页
+
 # 首页
 if page == "首页":
     st.markdown("""
@@ -286,7 +286,7 @@ if page == "首页":
     </div>
     """, unsafe_allow_html=True)
 
-    # 功能概览
+    # 核心功能
     st.markdown('<div class="section-title">核心功能</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="feature-section">
@@ -327,6 +327,16 @@ if page == "首页":
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # 开发者信息
+    st.markdown('<div class="section-title">开发者</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="feature-section">
+        <p style="font-size: 1.1rem; line-height: 1.8; color: #2c2c2c;">
+            上海大学功能高分子团队：马维宾，李凌，张瑜，宋娜，丁鹏<br>
+    </div>
+    """, unsafe_allow_html=True)
+
 
 # 性能预测页面
 elif page == "性能预测":
