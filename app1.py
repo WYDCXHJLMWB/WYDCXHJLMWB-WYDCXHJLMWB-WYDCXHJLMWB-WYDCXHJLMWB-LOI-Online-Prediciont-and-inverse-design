@@ -282,7 +282,7 @@ if page == "首页":
     st.markdown('<div class="section-title">研究成果</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="quote-section">
-        Weibin, Ma; Ling, Li; Yu, Zhang et al. Active learning-based generative design of halogen-free flame-retardant polymeric composites. Journal of Materials Informatics
+ Ma W, Li L, Zhang Y, Li M, Song N, Ding P. Active learning-based generative design of halogen-free flame-retardant polymeric composites. J Mater Inf 2025;5:[Accept]. http://dx.doi.org/10.20517/jmi.2025.09
     </div>
     """, unsafe_allow_html=True)
 
