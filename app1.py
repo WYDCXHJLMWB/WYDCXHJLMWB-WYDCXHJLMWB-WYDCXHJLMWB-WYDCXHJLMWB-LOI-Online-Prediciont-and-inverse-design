@@ -276,14 +276,6 @@ if page == "首页":
     </style>
     """, unsafe_allow_html=True)
 
-    # 标题区域
-    st.markdown(f"""
-    <div class="header-container">
-        <img src="data:image/png;base64,{icon_base64}" style="width: 110px; height: auto;"/>
-        <h1 class="platform-title">阻燃聚合物复合材料智能设计平台</h1>
-    </div>
-    """, unsafe_allow_html=True)
-
     # 平台简介
     st.markdown("""
     <div class="feature-section">
@@ -320,19 +312,19 @@ if page == "首页":
     st.markdown('<div class="section-title">致谢</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="acknowledgment-grid">
-        <div class="ack-card">
-            <p><strong>开发者</strong>：上海大学功能高分子组：马维宾，李凌，张瑜，宋娜，丁鹏</p>
-            <p><strong>审查</strong>：丁鹏</p>
-        </div>
-        
-        <div class="ack-card">
-            <h4 style="color: #1e3d59; margin-bottom: 1rem;">基金支持</h4>
-            <div>
-                <span class="funding-badge">云南省科技重点计划项目（202302AB080022）</span>
+    <div class="ack-card">
+        <h4 style="color: #1e3d59; margin-bottom: 1rem; font-family: 'Roboto Slab', serif;">
+            基金支持
+        </h4>
+        <div style="line-height: 1.6; font-size: 1rem; color: #333;">
+            <div class="funding-badge" style="display: block; margin-bottom: 0.5rem;">
+                项目名称：云南省科技重点计划项目
+            </div>
+            <div class="funding-badge" style="display: block; margin-bottom: 0.5rem;">
+                项目编号：202302AB080022
             </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+    </div>)
 
 # 性能预测页面
 elif page == "性能预测":
