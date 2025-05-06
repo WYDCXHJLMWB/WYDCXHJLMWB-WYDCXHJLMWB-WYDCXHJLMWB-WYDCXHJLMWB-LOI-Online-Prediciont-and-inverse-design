@@ -249,21 +249,19 @@ if page == "首页":
     # 引用部分
     st.markdown("""
     ## **引用**
-    Weibin, Ma; Ling, Li; Yu, Zhang et al. Active learning-based generative design of halogen-free flame-retardant polymeric composites. Journal of Materials Informatics
+    Weibin, Ma; Ling, Li; Yu, Zhang et al. Active learning-based generative design of halogen-free flame-retardant polymeric composites. J Mater Inf, 2025,5,DOI:10.20517/jmi.2025.09 
     """)
 
     # 致谢部分优化，添加换行符
     st.markdown("""
     ## **致谢**<br>
-    *贡献者*：<br>
-    *团队*：<br>
-    上海大学功能高分子组<br>
+    云南省科技重点计划项目 （202302AB080022）
+
+
     *开发者*：<br>
     马维宾博士生<br>
     *审查*：<br>
     丁鹏教授<br>
-    *基金支持*：<br>
-    云南省科技重点计划项目 （202302AB080022）、苏州市重点技术研究项目 （SYG2024017）
     """, unsafe_allow_html=True)
 
     # 添加分隔线和背景色
