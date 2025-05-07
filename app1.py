@@ -728,11 +728,11 @@ elif page == "配方建议":
             # 参考样本数据
             sample_data = [
                 ["样本1", "无添加剂", 
-                 {"Sn%": 19.2, "添加比例": 0, "一甲%": 32, "黄度值_3min": 5.36, "黄度值_15min": 6.29, "黄度值_18min": 7.57, "黄度值_21min": 8.57, "黄度值_24min": 10.26}],
+                 {"Sn%": 19.2, "添加比例": 0, "一甲%": 32, "黄度值_3min": 5.36, "黄度值_6min": 6.29, "黄度值_9min": 7.57, "黄度值_12min": 8.57, "黄度值_15min": 10.26,"黄度值_18min":13.21,"黄度值_21min":16.54,"黄度值_24min"：27.47}],
                 ["样本2", "氯化石蜡", 
-                 {"Sn%": 18.5, "添加比例": 3.64, "一甲%": 31.05, "黄度值_3min": 5.29, "黄度值_15min": 6.83, "黄度值_18min": 8.00, "黄度值_21min": 9.32, "黄度值_24min": 11.40}],
+                 {"Sn%": 18.5, "添加比例": 3.64, "一甲%": 31.05, "黄度值_3min": 5.29, "黄度值_6min": 6.83, "黄度值_9min": 8.00, "黄度值_12min": 9.32, "黄度值_15min": 11.40,"黄度值_18min":14.12,"黄度值_21min":18.37,"黄度值_24min"：30.29}],
                 ["样本3", "EA15（市售液体钙锌稳定剂）", 
-                 {"Sn%": 19, "添加比例": 1.04, "一甲%": 31.88, "黄度值_3min": 5.24, "黄度值_15min": 6.17, "黄度值_18min": 7.11, "黄度值_21min": 8.95, "黄度值_24min": 10.33}]
+                {"Sn%": 19, "添加比例":1.041666667, "一甲%": 31.88, "黄度值_3min": 5.24, "黄度值_6min": 6.17, "黄度值_9min": 7.11, "黄度值_12min": 8.95, "黄度值_15min": 10.33,"黄度值_18min":13.21,"黄度值_21min":17.48,"黄度值_24min"：28.08}]
             ]
             
             # 为每个样本创建一个独立的表格
@@ -755,34 +755,34 @@ elif page == "配方建议":
                 add_ratio = st.number_input("添加比例 (%)", 
                                           min_value=0.0,
                                           max_value=100.0,
-                                          value=5.0,
+                                          value=3.64,
                                           step=0.1)
             with col_static[1]:
                 sn_percent = st.number_input("Sn含量 (%)", 
                                            min_value=0.0, 
                                            max_value=100.0,
-                                           value=14.0,
+                                           value=18.5,
                                            step=0.1,
                                            help="锡含量范围0%~100%")
             with col_static[2]:
                 yijia_percent = st.number_input("一甲含量 (%)",
                                                min_value=0.0,
                                                max_value=100.0,
-                                               value=23.55,
+                                               value=31.05,
                                                step=0.1,
                                                help="一甲胺含量范围15.1%~32%")
             
             st.markdown("### 黄度值")
             yellow_values = {}
             col1, col2, col3, col4 = st.columns(4)
-            yellow_values["3min"] = st.number_input("3min 黄度值", min_value=0.0, max_value=100.0, value=5.0, step=0.1)
-            yellow_values["6min"] = st.number_input("6min 黄度值", min_value=yellow_values["3min"], max_value=100.0, value=6.0, step=0.1)
-            yellow_values["9min"] = st.number_input("9min 黄度值", min_value=yellow_values["6min"], max_value=100.0, value=7.0, step=0.1)
-            yellow_values["12min"] = st.number_input("12min 黄度值", min_value=yellow_values["9min"], max_value=100.0, value=8.0, step=0.1)
-            yellow_values["15min"] = st.number_input("15min 黄度值", min_value=yellow_values["12min"], max_value=100.0, value=9.0, step=0.1)
-            yellow_values["18min"] = st.number_input("18min 黄度值", min_value=yellow_values["15min"], max_value=100.0, value=10.0, step=0.1)
-            yellow_values["21min"] = st.number_input("21min 黄度值", min_value=yellow_values["18min"], max_value=100.0, value=11.0, step=0.1)
-            yellow_values["24min"] = st.number_input("24min 黄度值", min_value=yellow_values["21min"], max_value=100.0, value=12.0, step=0.1)
+            yellow_values["3min"] = st.number_input("3min 黄度值", min_value=0.0, max_value=100.0, value=5.29, step=0.1)
+            yellow_values["6min"] = st.number_input("6min 黄度值", min_value=yellow_values["3min"], max_value=100.0, value= 6.83, step=0.1)
+            yellow_values["9min"] = st.number_input("9min 黄度值", min_value=yellow_values["6min"], max_value=100.0, value=8.00, step=0.1)
+            yellow_values["12min"] = st.number_input("12min 黄度值", min_value=yellow_values["9min"], max_value=100.0, value=9.32, step=0.1)
+            yellow_values["15min"] = st.number_input("15min 黄度值", min_value=yellow_values["12min"], max_value=100.0, value=11.40, step=0.1)
+            yellow_values["18min"] = st.number_input("18min 黄度值", min_value=yellow_values["15min"], max_value=100.0, value=14.12, step=0.1)
+            yellow_values["21min"] = st.number_input("21min 黄度值", min_value=yellow_values["18min"], max_value=100.0, value=18.37, step=0.1)
+            yellow_values["24min"] = st.number_input("24min 黄度值", min_value=yellow_values["21min"], max_value=100.0, value=30.29, step=0.1)
         
             submit_btn = st.form_submit_button("生成推荐方案")
         
