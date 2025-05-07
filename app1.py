@@ -99,28 +99,47 @@ import base64
 import random
 from deap import base, creator, tools, algorithms
 
-# 辅助函数：图片转base64
-def image_to_base64(image_path):
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode()
-
 # 页面配置
+def optimize_image_resolution(image_path, max_width=1000):
+    # 获取原始图片尺寸
+    from PIL import Image
+    img = Image.open(image_path)
+    original_width, original_height = img.size
+    
+    # 计算等比例缩放尺寸
+    if original_width > max_width:
+        ratio = max_width / original_width
+        optimized_width = max_width
+        optimized_height = int(original_height * ratio)
+    else:
+        optimized_width = original_width
+        optimized_height = original_height
+    
+    return optimized_width, optimized_height
+
+# 应用优化
 image_path = "图片1.png"
 icon_base64 = image_to_base64(image_path)
+optimized_width, optimized_height = optimize_image_resolution(image_path)
+
 st.set_page_config(
     page_title="聚丙烯LOI和TS模型",
     layout="wide",
     page_icon=f"data:image/png;base64,{icon_base64}"
 )
 
-# 页面标题样式
-width = 1000
-height = int(158 * (width / 507))
+# 响应式图片显示
 st.markdown(
     f"""
-    <h1 style="display: flex; align-items: center;">
-        <img src="data:image/png;base64,{icon_base64}" style="width: {width}px; height: {height}px; margin-right: 15px;" />
-    </h1>
+    <div style="display: flex; justify-content: center;">
+        <img src="data:image/png;base64,{icon_base64}" 
+             style="max-width: {optimized_width}px; 
+                    width: 100%; 
+                    height: auto;
+                    object-fit: contain;
+                    margin: 1rem 0;" 
+             alt="Header Image">
+    </div>
     """, 
     unsafe_allow_html=True
 )
