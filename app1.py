@@ -488,83 +488,43 @@ elif page == "性能预测":
             if is_only_pp:
                 st.info("检测到纯PP配方")
 
-    # 模型验证样本
-    with st.expander("📊 模型精度验证样本（预测误差<15%）"):
-        samples = [
-            {
-                "name": "配方1",
-                "配方": {"PP": 63.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 9.0, "wollastonite": 3.0},
-                "LOI_真实值": 43.5,
-                "TS_真实值": 15.845
-            },
-            {
-                "name": "配方2",
-                "配方": {"PP": 65.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 7.0, "wollastonite": 3.0},
-                "LOI_真实值": 43.0,
-                "TS_真实值": 16.94
-            },
-            {
-                "name": "配方3",
-                "配方": {"PP": 58.2, "PAPP": 23.0, "ZS": 0.5, "Anti-drip-agent": 0.3, "MPP": 13.0, "wollastonite": 5.0},
-                "LOI_真实值": 43.5,
-                "TS_真实值": 15.303
-            }
-        ]
+# 模型验证样本
+with st.expander("📊 模型精度验证样本（预测误差<15%）"):
+    samples = [
+        {
+            "name": "配方1",
+            "配方": {"PP": 63.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 9.0, "wollastonite": 3.0},
+            "LOI_真实值": 43.5,
+            "TS_真实值": 15.845
+        },
+        {
+            "name": "配方2",
+            "配方": {"PP": 65.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 7.0, "wollastonite": 3.0},
+            "LOI_真实值": 43.0,
+            "TS_真实值": 16.94
+        },
+        {
+            "name": "配方3",
+            "配方": {"PP": 58.2, "PAPP": 23.0, "ZS": 0.5, "Anti-drip-agent": 0.3, "MPP": 13.0, "wollastonite": 5.0},
+            "LOI_真实值": 43.5,
+            "TS_真实值": 15.303
+        }
+    ]
 
-        st.markdown("""
-        <style>
-            .sample-box {
-                border: 1px solid #e6e6e6;
-                border-radius: 8px;
-                padding: 1.2rem;
-                margin: 1rem 0;
-                background: #f9fafb;
-            }
-            .sample-title {
-                color: #2c3e50;
-                font-weight: 600;
-                margin-bottom: 0.8rem;
-            }
-            .metric-badge {
-                background: #f0f2f6;
-                padding: 0.3rem 0.8rem;
-                border-radius: 20px;
-                display: inline-block;
-                margin: 0.2rem;
-            }
-        </style>
-        """, unsafe_allow_html=True)
+    # 设置列布局
+    col1, col2, col3 = st.columns(3)
 
-        all_features = set(models["loi_features"]) | set(models["ts_features"])
-
-        for sample in samples:
-            # 初始化输入向量（显式包含所有模型特征）
-            input_vector = {feature: 0.0 for feature in all_features}
+    # 循环显示每个配方的内容
+    for i, sample in enumerate(samples):
+        with [col1, col2, col3][i]:  # 根据配方编号选择列
+            st.markdown(f"### {sample['name']}")
             
-            # 填充样本数据
-            for k, v in sample["配方"].items():
-                if k not in input_vector:
-                    st.warning(f"检测到样本中存在模型未定义的特征: {k}")
-                input_vector[k] = v  # 存在的特征会被覆盖，不存在的特征会显示警告
+            # 显示配方具体内容
+            st.write("配方：")
+            for ingredient, value in sample["配方"].items():
+                st.write(f"  - {ingredient}: {value} %")
 
-            # LOI预测
-            try:
-                loi_input = np.array([[input_vector[f] for f in models["loi_features"]]])
-                loi_scaled = models["loi_scaler"].transform(loi_input)
-                loi_pred = models["loi_model"].predict(loi_scaled)[0]
-            except KeyError as e:
-                st.error(f"LOI模型特征缺失: {e}，请检查模型配置")
-                st.stop()
-
-            # TS预测
-            try:
-                ts_input = np.array([[input_vector[f] for f in models["ts_features"]]])
-                ts_scaled = models["ts_scaler"].transform(ts_input)
-                ts_pred = models["ts_model"].predict(ts_scaled)[0]
-            except KeyError as e:
-                st.error(f"TS模型特征缺失: {e}，请检查模型配置")
-                st.stop()
-
+            # 显示LOI和TS预测误差
             loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
             ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
 
@@ -587,6 +547,7 @@ elif page == "性能预测":
                 st.success(f"✅ {sample['name']}：模型精度超过85%")
             else:
                 st.warning(f"⚠️ {sample['name']}：模型预测误差较大")
+
 
     if st.button("🚀 开始预测", type="primary"):
         if fraction_type in ["体积分数", "质量分数"] and abs(total - 100.0) > 1e-6:
