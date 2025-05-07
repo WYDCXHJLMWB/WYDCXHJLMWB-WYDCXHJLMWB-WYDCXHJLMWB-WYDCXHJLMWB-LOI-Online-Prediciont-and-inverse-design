@@ -535,18 +535,33 @@ elif page == "性能预测":
         """, unsafe_allow_html=True)
 
         for sample in samples:
-            all_features = set(models["loi_features"]) | set(models["ts_features"])
-            input_vector = {k: 0.0 for k in all_features}
+            # 初始化输入向量（显式包含所有模型特征）
+            input_vector = {feature: 0.0 for feature in all_features}
+            
+            # 填充样本数据
             for k, v in sample["配方"].items():
-                input_vector[k] = v
+                if k not in input_vector:
+                    st.warning(f"检测到样本中存在模型未定义的特征: {k}")
+                input_vector[k] = v  # 存在的特征会被覆盖，不存在的特征会显示警告
 
-            loi_input = np.array([[input_vector[f] for f in models["loi_features"]]])
-            loi_scaled = models["loi_scaler"].transform(loi_input)
-            loi_pred = models["loi_model"].predict(loi_scaled)[0]
+            # LOI预测
+            try:
+                loi_input = np.array([[input_vector[f] for f in all_loi_features]])
+                loi_scaled = models["loi_scaler"].transform(loi_input)
+                loi_pred = models["loi_model"].predict(loi_scaled)[0]
+            except KeyError as e:
+                st.error(f"LOI模型特征缺失: {e}，请检查模型配置")
+                st.stop()
 
-            ts_input = np.array([[input_vector[f] for f in models["ts_features"]]])
-            ts_scaled = models["ts_scaler"].transform(ts_input)
-            ts_pred = models["ts_model"].predict(ts_scaled)[0]
+            # TS预测
+            try:
+                ts_input = np.array([[input_vector[f] for f in all_ts_features]])
+                ts_scaled = models["ts_scaler"].transform(ts_input)
+                ts_pred = models["ts_model"].predict(ts_scaled)[0]
+            except KeyError as e:
+                st.error(f"TS模型特征缺失: {e}，请检查模型配置")
+                st.stop()
+
 
             loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
             ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
