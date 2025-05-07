@@ -172,146 +172,130 @@ def ensure_pp_first(features):
         features.remove("PP")
     return ["PP"] + sorted(features)
 
-#首页
+
+# 首页
 if page == "首页":
     st.markdown("""
     <link href="https://fonts.googleapis.com/css2?family=Merriweather&family=Roboto+Slab:wght@500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --primary: #1e3d59;
-            --secondary: #3f87a6;
-            --accent: #FF6B6B;
-            --glass: rgba(255,255,255,0.85);
-        }
         body {
             font-family: 'Merriweather', serif;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            font-size: 1.15rem;  /* 调整基础字号 */
         }
         .header-container {
-            backdrop-filter: blur(12px);
-            background: var(--glass);
-            border: 1px solid rgba(255,255,255,0.3);
-            position: relative;
-            overflow: hidden;
-        }
-        .header-container:after {
-            content: "";
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: linear-gradient(45deg, 
-                rgba(62, 127, 174, 0.1) 0%,
-                rgba(255,255,255,0.15) 50%,
-                rgba(62, 127, 174, 0.1) 100%);
-            animation: shine 8s infinite;
-        }
-        .platform-title {
-            position: relative;
-            background: linear-gradient(135deg, var(--primary), #2b5876);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -0.03em;
-        }
-        .feature-section {
-            background: var(--glass);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.3);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .feature-section:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 12px 32px rgba(0,0,0,0.1);
-        }
-        .feature-list li {
-            padding: 1rem 2rem;
-            border-radius: 8px;
-            margin: 1rem 0;
-            background: rgba(255,255,255,0.9);
-            transition: transform 0.3s;
-        }
-        .feature-list li:hover {
-            transform: translateX(10px);
-        }
-        .quote-section {
-            position: relative;
-            background: var(--glass);
-            border-left: 4px solid var(--accent);
-        }
-        .quote-section:before {
-            content: "❝";
-            position: absolute;
-            left: -30px;
-            top: -25px;
-            font-size: 4rem;
-            color: var(--accent);
-            opacity: 0.2;
-        }
-        .ack-card {
-            position: relative;
-            background: var(--glass);
-            border-top: 3px solid var(--secondary);
             display: flex;
             align-items: center;
-            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f0f2f5 0%, #dee2e6 100%);
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
         }
-        .ack-card i {
-            font-size: 2rem;
-            color: var(--secondary);
+        .platform-title {
+            font-family: 'Roboto Slab', serif;
+            color: #1e3d59;
+            font-size: 3rem;  /* 修正单位 */
+            margin-left: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
         }
-        .funding-badge {
-            background: rgba(62, 127, 174, 0.1);
-            border: 1px solid rgba(62, 127, 174, 0.2);
-            backdrop-filter: blur(4px);
+        .feature-section {
+            background: white;
+            border-radius: 14px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease;
         }
-        .section-title {
-            position: relative;
+        .feature-section:hover {
+            transform: scale(1.01);
+        }
+        .feature-list li {
+            margin: 1.2rem 0;
             padding-left: 2rem;
+            position: relative;
+            font-size: 1.3rem;  /* 增大列表字号 */
+            line-height: 1.8;
         }
-        .section-title:before {
-            content: "";
+        .feature-list li:before {
+            content: "📌";
             position: absolute;
             left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 8px;
-            height: 80%;
-            background: var(--accent);
-            border-radius: 4px;
+            font-size: 1.1em;
         }
-        @keyframes shine {
-            0% { transform: translateX(-50%) rotate(45deg); }
-            100% { transform: translateX(50%) rotate(45deg); }
+        .quote-section {
+            background: #f5f7fa;
+            border-left: 4px solid #1e3d59;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+            font-size: 1.2rem;  /* 增大引用字号 */
         }
-        @media (max-width: 768px) {
-            .platform-title { font-size: 2.2rem; }
-            .section-title { font-size: 2rem; }
+        .acknowledgment-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .ack-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: transform 0.3s ease;
+        }
+        .ack-card:hover {
+            transform: scale(1.02);
+        }
+        .funding-badge {
+            background: #e3f2fd;
+            color: #1a73e8;
+            padding: 12px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            margin: 8px;
+            font-size: 1.1rem;  /* 调整徽章字号 */
+        }
+        .section-title {
+            font-family: 'Roboto Slab', serif;
+            color: #1e3d59;
+            font-size: 2.5rem;  /* 增大章节标题 */
+            margin: 2.5rem 0 2rem;
+            border-bottom: 3px solid #3f87a6;
+            padding-bottom: 0.8rem;
+        }
+        body::after {
+            content: "";
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 280px;
+            height: 280px;
+            background: url('data:image/png;base64,...') no-repeat;
+            background-size: contain;
+            opacity: 0.05;
+            z-index: -1;
         }
     </style>
     """, unsafe_allow_html=True)
 
-    # 平台简介（增加动态图标）
+    # 平台简介
     st.markdown("""
     <div class="feature-section">
-        <div style="display: flex; align-items: center; gap: 1.5rem;">
-            <i class="fas fa-flask" style="font-size: 2.5rem; color: #3f87a6;"></i>
-            <p style="font-size: 1.4rem; line-height: 1.8; color: #2c2c2c;">
-                本平台基于人工智能与材料科学技术，致力于阻燃聚合物复合材料的智能设计
-            </p>
-        </div>
+        <p style="font-size: 1.5rem; line-height: 1.9; color: #2c2c2c;">
+            本平台基于人工智能与材料科学技术，致力于阻燃聚合物复合材料的智能设计。
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
-    # 核心功能（增加图标和悬停效果）
+    # 核心功能（修复换行问题）
     st.markdown('<div class="section-title">核心功能</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="feature-section">
         <ul class="feature-list">
-            <li><i class="fas fa-chart-line"></i> <strong>性能预测</strong> </li>
-            <li><i class="fas fa-prescription-bottle"></i> <strong>配方建议</strong> </li>
-            <li><i class="fas fa-atom"></i> <strong>添加剂推荐</strong> </li>
+            <li><strong>性能预测</strong></li>
+            <li><strong>配方建议</strong></li>
+            <li><strong>添加剂推荐</strong></li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
