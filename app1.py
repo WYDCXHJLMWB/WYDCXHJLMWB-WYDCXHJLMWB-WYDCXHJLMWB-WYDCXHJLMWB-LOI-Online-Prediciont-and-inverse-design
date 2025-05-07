@@ -438,9 +438,6 @@ if page == "首页":
         </p>
     </div>
     """, unsafe_allow_html=True)
-# 性能预测页面
-import streamlit as st
-import numpy as np
 
 # 性能预测页面
 elif page == "性能预测":
