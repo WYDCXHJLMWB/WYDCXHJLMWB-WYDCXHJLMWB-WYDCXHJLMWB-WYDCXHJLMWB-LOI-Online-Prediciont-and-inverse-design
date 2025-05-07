@@ -556,6 +556,10 @@ elif page == "性能预测":
     
             loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
             ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
+    
+            # 根据误差设置颜色
+            loi_color = "green" if loi_error < 15 else "red"
+            ts_color = "green" if ts_error < 15 else "red"
             
             # 显示结果
             st.markdown(f"""
@@ -574,6 +578,7 @@ elif page == "性能预测":
                 st.success(f"✅ {sample['name']}：模型精度超过85%")
             else:
                 st.warning(f"⚠️ {sample['name']}：模型预测误差较大")
+
 
 
 
