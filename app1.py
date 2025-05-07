@@ -692,15 +692,16 @@ elif page == "配方建议":
                 ts_pred = models["ts_model"].predict(ts_scaled)[0]
                 ts_error = abs(target_ts - ts_pred)
                 
-                # 确保mass_percent的总和为100
+                # 强制确保mass_percent的总和为100
                 total = sum(mass_percent)
                 if abs(total - 100) > 1e-6:
-                    mass_percent = (mass_percent / total) * 100  # 规范化处理，使其总和为100
+                    # 规范化：每个元素按照比例调整，确保总和为100
+                    mass_percent = (mass_percent / total) * 100
                 
-                # 校验mass_percent总和为100
+                # 校验mass_percent总和是否为100
                 if abs(sum(mass_percent) - 100) > 1e-6:
                     return (1e6,)
-
+                
                 return (loi_error + ts_error,)
             
             toolbox.register("mate", tools.cxBlend, alpha=0.5)
@@ -714,13 +715,18 @@ elif page == "配方建议":
             best_individuals = tools.selBest(population, 10)
             best_values = []
             for individual in best_individuals:
+                # 确保最佳个体的配方总和为100
                 total = sum(individual)
-                best_values.append([round(max(0, i / total * 100), 2) for i in individual])  # 修正括号闭合
-            
+                if total != 0:
+                    best_values.append([round(max(0, i / total * 100), 2) for i in individual])
+                else:
+                    best_values.append([0] * len(individual))  # 如果总和为0，返回0的配方
+                
             result_df = pd.DataFrame(best_values, columns=all_features)
             units = [get_unit(fraction_type) for _ in all_features]
             result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
             st.write(result_df)
+
 
 
     
