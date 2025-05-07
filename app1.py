@@ -441,57 +441,75 @@ if page == "首页":
 # 性能预测页面
 elif page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
-    
+
     matrix_materials = ["PP", "PA", "PC/ABS", "POM", "PBT", "PVC", "其他"]
     flame_retardants = [
-        "AHP", "ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol", "DOPO", 
-        "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides", 
+        "AHP", "ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol", "DOPO",
+        "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides",
         "Mg(OH)2", "TCA", "MPP", "PAPP", "其他"
     ]
     additives = [
-        "Anti-drip-agent","wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S", "silane coupling agent", "antioxidant", 
+        "Anti-drip-agent", "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S", "silane coupling agent", "antioxidant",
         "SiO2", "其他"
     ]
-    
+
     fraction_type = st.sidebar.selectbox("选择输入的单位", ["质量", "质量分数", "体积分数"])
 
     st.subheader("请选择配方中的基体、阻燃剂和助剂")
     selected_matrix = st.selectbox("选择基体", matrix_materials, index=0)
     selected_flame_retardants = st.multiselect("选择阻燃剂", flame_retardants, default=["ZS"])
     selected_additives = st.multiselect("选择助剂", additives, default=["wollastonite"])
-    
+
     input_values = {}
     unit_matrix = get_unit(fraction_type)
     unit_flame_retardant = get_unit(fraction_type)
     unit_additive = get_unit(fraction_type)
-    
+
     input_values[selected_matrix] = st.number_input(f"选择 {selected_matrix} ({unit_matrix})", min_value=0.0, max_value=100.0, value=50.0, step=0.1)
-    
+
     for fr in selected_flame_retardants:
         input_values[fr] = st.number_input(f"选择 {fr}({unit_flame_retardant})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
-    
+
     for ad in selected_additives:
-        input_values[ad] = st.number_input(f"选择 {ad}  ({unit_additive})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
-    
+        input_values[ad] = st.number_input(f"选择 {ad} ({unit_additive})", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
+
     total = sum(input_values.values())
     is_only_pp = all(v == 0 for k, v in input_values.items() if k != "PP")
-    
+
     with st.expander("✅ 输入验证"):
-        if fraction_type == "体积分数":
+        if fraction_type in ["体积分数", "质量分数"]:
             if abs(total - 100.0) > 1e-6:
-                st.error(f"❗ 体积分数的总和必须为100%（当前：{total:.2f}%）")
+                st.error(f"❗ {fraction_type}的总和必须为100%（当前：{total:.2f}%）")
             else:
-                st.success("体积分数总和验证通过")
-        elif fraction_type == "质量分数":
-            if abs(total - 100.0) > 1e-6:
-                st.error(f"❗ 质量分数的总和必须为100%（当前：{total:.2f}%）")
-            else:
-                st.success("质量分数总和验证通过")
+                st.success(f"{fraction_type}总和验证通过")
         else:
             st.success("成分总和验证通过")
             if is_only_pp:
                 st.info("检测到纯PP配方")
+
+    # 模型验证样本
     with st.expander("📊 模型精度验证样本（预测误差<15%）"):
+        samples = [
+            {
+                "name": "配方1",
+                "配方": {"PP": 63.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 9.0, "wollastonite": 3.0},
+                "LOI_真实值": 43.5,
+                "TS_真实值": 15.845
+            },
+            {
+                "name": "配方2",
+                "配方": {"PP": 65.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 7.0, "wollastonite": 3.0},
+                "LOI_真实值": 43.0,
+                "TS_真实值": 16.94
+            },
+            {
+                "name": "配方3",
+                "配方": {"PP": 58.2, "PAPP": 23.0, "ZS": 0.5, "Anti-drip-agent": 0.3, "MPP": 13.0, "wollastonite": 5.0},
+                "LOI_真实值": 43.5,
+                "TS_真实值": 15.303
+            }
+        ]
+
         st.markdown("""
         <style>
             .sample-box {
@@ -515,62 +533,43 @@ elif page == "性能预测":
             }
         </style>
         """, unsafe_allow_html=True)
-    
-        samples = [
-            {
-                "配方": {"PP": 63.2, "PAPP": 23, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 9, "wollastonite": 3},
-                "LOI_真实值": 43.5,
-                "TS_真实值": 15.845
-            },
-            {
-                "配方": {"PP": 65.2, "PAPP": 23, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 7, "wollastonite": 3},
-                "LOI_真实值": 43,
-                "TS_真实值": 16.94
-            },
-            {
-                "配方": {"PP": 58.2, "PAPP": 23, "ZS": 0.5, "Anti-drip-agent": 0.3, "MPP": 13, "wollastonite": 5},
-                "LOI_真实值": 43.5,
-                "TS_真实值": 15.303
-            }
-        ]
-    
+
         for sample in samples:
-            input_vector = {k: 0.0 for k in models["loi_features"]}
+            all_features = set(models["loi_features"]) | set(models["ts_features"])
+            input_vector = {k: 0.0 for k in all_features}
             for k, v in sample["配方"].items():
                 input_vector[k] = v
-    
+
             loi_input = np.array([[input_vector[f] for f in models["loi_features"]]])
             loi_scaled = models["loi_scaler"].transform(loi_input)
             loi_pred = models["loi_model"].predict(loi_scaled)[0]
-    
+
             ts_input = np.array([[input_vector[f] for f in models["ts_features"]]])
             ts_scaled = models["ts_scaler"].transform(ts_input)
             ts_pred = models["ts_model"].predict(ts_scaled)[0]
-    
+
             loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
             ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
-    
-            formula_text = " + ".join([f"{k}({v}%)" for k, v in sample["配方"].items()])
-    
+
+            loi_color = "#2ecc71" if loi_error < 15 else "#e74c3c"
+            ts_color = "#2ecc71" if ts_error < 15 else "#e74c3c"
+
             st.markdown(f"""
             <div class="sample-box">
-                <div class="sample-title">📌 {formula_text}</div>
-                <div class="metric-badge" style="color: {"#2ecc71" if loi_error<15 else "#e74c3c"}">
-                    LOI误差: {loi_error:.1f}% {"✅ 模型精度超过85%" if loi_error < 15 else "⚠️ 精度低于85%"}
-                </div>
-                <div class="metric-badge" style="color: {"#2ecc71" if ts_error<15 else "#e74c3c"}">
-                    TS误差: {ts_error:.1f}% {"✅ 模型精度超过85%" if ts_error < 15 else "⚠️ 精度低于85%"}
-                </div>
+                <div class="sample-title">📌 {sample["name"]}</div>
+                <div class="metric-badge" style="color: {loi_color}">LOI误差: {loi_error:.1f}%</div>
+                <div class="metric-badge" style="color: {ts_color}">TS误差: {ts_error:.1f}%</div>
                 <div style="margin-top: 0.8rem;">
-                    <span>🔥 真实LOI: {sample["LOI_真实值"]:.2f}%</span> → 
-                    <span>预测LOI: {loi_pred:.2f}%</span>
+                    🔥 真实LOI: {sample["LOI_真实值"]}% → 预测LOI: {loi_pred:.2f}%
                 </div>
-                <div>
-                    <span>💪 真实TS: {sample["TS_真实值"]:.2f} MPa</span> → 
-                    <span>预测TS: {ts_pred:.2f} MPa</span>
-                </div>
+                <div>💪 真实TS: {sample["TS_真实值"]} MPa → 预测TS: {ts_pred:.2f} MPa</div>
             </div>
             """, unsafe_allow_html=True)
+
+            if loi_error < 15 and ts_error < 15:
+                st.success(f"✅ {sample['name']}：模型精度超过85%")
+            else:
+                st.warning(f"⚠️ {sample['name']}：模型预测误差较大")
 
     if st.button("🚀 开始预测", type="primary"):
         if fraction_type in ["体积分数", "质量分数"] and abs(total - 100.0) > 1e-6:
@@ -586,7 +585,7 @@ elif page == "性能预测":
                 mass_values = vol_values
                 total_mass = mass_values.sum()
                 input_values = {k: (v / total_mass * 100) for k, v in zip(input_values.keys(), mass_values)}
-            
+
             for feature in models["loi_features"]:
                 if feature not in input_values:
                     input_values[feature] = 0.0
@@ -594,7 +593,7 @@ elif page == "性能预测":
             loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
             loi_scaled = models["loi_scaler"].transform(loi_input)
             loi_pred = models["loi_model"].predict(loi_scaled)[0]
-        
+
             for feature in models["ts_features"]:
                 if feature not in input_values:
                     input_values[feature] = 0.0
@@ -602,12 +601,13 @@ elif page == "性能预测":
             ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
             ts_scaled = models["ts_scaler"].transform(ts_input)
             ts_pred = models["ts_model"].predict(ts_scaled)[0]
-        
+
         col1, col2 = st.columns(2)
         with col1:
             st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
         with col2:
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
+
 
 # 配方建议页面
 elif page == "配方建议":
