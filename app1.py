@@ -739,23 +739,9 @@ elif page == "配方建议":
             sample_name, additive, features = sample
             st.markdown(f"#### {sample_name} - {additive}")
             
-            # 获取推荐添加剂类型和量
-            result_map = {
-                1: "无推荐添加剂", 
-                2: "氯化石蜡", 
-                3: "EA12（脂肪酸复合醇酯）",
-                4: "EA15（市售液体钙锌稳定剂）", 
-                5: "EA16（环氧大豆油）",
-                6: "G70L（多官能团的脂肪酸复合酯混合物）", 
-                7: "EA6（亚磷酸酯）"
-            }
-            prediction = predictor.predict_one(list(features.values()))
-            additive_name = result_map[prediction]
-            additive_amount = 0.0 if prediction == 1 else features["添加比例"]
-            
-            # 将数据与推荐添加剂添加到表格
-            features["推荐添加剂"] = additive_name
-            features["推荐添加量 (%)"] = additive_amount
+            # 将数据添加到表格
+            features["推荐添加剂"] = additive  # 显示样本推荐的添加剂
+            features["推荐添加量 (%)"] = features["添加比例"]  # 使用已提供的添加比例
             
             # 转换字典为 DataFrame
             df_sample = pd.DataFrame(list(features.items()), columns=["特征", "值"])
