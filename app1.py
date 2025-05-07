@@ -513,7 +513,7 @@ elif page == "性能预测":
     
         # 设置列布局
         col1, col2, col3 = st.columns(3)
-    
+        all_features = set(models["loi_features"]) | set(models["ts_features"])
         # 循环显示每个配方的内容
         for i, sample in enumerate(samples):
             with [col1, col2, col3][i]:  # 根据配方编号选择列
