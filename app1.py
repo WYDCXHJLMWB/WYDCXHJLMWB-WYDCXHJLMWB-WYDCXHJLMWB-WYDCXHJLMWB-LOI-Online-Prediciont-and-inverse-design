@@ -402,9 +402,9 @@ if page == "首页":
     st.markdown("""
     <div class="feature-section">
         <ul class="feature-list">
-            <strong>性能预测</strong></li>
-            <strong>配方建议</strong></li>
-            <strong>添加剂推荐</strong></li>
+            <li><strong>性能预测</strong></li>
+            <li><strong>配方建议</strong></li>
+            <li><strong>添加剂推荐</strong></li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -625,7 +625,6 @@ elif page == "性能预测":
 
 
 
-# 配方建议页面
 elif page == "配方建议":
     if sub_page == "配方优化":
         fraction_type = st.sidebar.radio(
@@ -637,9 +636,9 @@ elif page == "配方建议":
     
         col1, col2 = st.columns(2)
         with col1:
-            target_loi = st.number_input("目标LOI值（%）", min_value=10.0, max_value=50.0, value=40.0, step=0.1)
+            target_loi = st.number_input("目标LOI值（%）", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
         with col2:
-            target_ts = st.number_input("目标TS值（MPa）", min_value=10.0, max_value=100.0, value=20.0, step=0.1)
+            target_ts = st.number_input("目标TS值（MPa）", min_value=10.0, max_value=100.0, value=50.0, step=0.1)
         
         with st.expander("⚙️ 算法参数设置"):
             pop_size = st.number_input("种群数量", 50, 500, 200)
@@ -664,6 +663,7 @@ elif page == "配方建议":
             toolbox.register("population", tools.initRepeat, list, toolbox.individual)
             
             def evaluate(individual):
+                # 根据单位类型选择体积分数/质量分数/质量
                 if fraction_type == "体积分数" or fraction_type == "质量分数":
                     vol_values = np.array(individual)
                     mass_values = vol_values
@@ -692,13 +692,11 @@ elif page == "配方建议":
                 ts_pred = models["ts_model"].predict(ts_scaled)[0]
                 ts_error = abs(target_ts - ts_pred)
                 
-                # 强制确保mass_percent的总和为100
+                # 确保mass_percent的总和为100
                 total = sum(mass_percent)
                 if abs(total - 100) > 1e-6:
-                    # 规范化：每个元素按照比例调整，确保总和为100
                     mass_percent = (mass_percent / total) * 100
                 
-                # 校验mass_percent总和是否为100
                 if abs(sum(mass_percent) - 100) > 1e-6:
                     return (1e6,)
                 
@@ -712,16 +710,18 @@ elif page == "配方建议":
             population = toolbox.population(n=pop_size)
             algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
             
-            best_individuals = tools.selBest(population, 10)
+            # 选择最好的个体，保证生成5到10个
+            best_individuals = tools.selBest(population, 10)  # 最好选择10个个体
             best_values = []
             for individual in best_individuals:
-                # 确保最佳个体的配方总和为100
                 total = sum(individual)
+                # 强制保证配方总和为100
                 if total != 0:
                     best_values.append([round(max(0, i / total * 100), 2) for i in individual])
                 else:
                     best_values.append([0] * len(individual))  # 如果总和为0，返回0的配方
                 
+            # 将所有个体的配方转化为DataFrame
             result_df = pd.DataFrame(best_values, columns=all_features)
             units = [get_unit(fraction_type) for _ in all_features]
             result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
