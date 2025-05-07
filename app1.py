@@ -174,16 +174,15 @@ def ensure_pp_first(features):
 # 首页
 if page == "首页":
     st.markdown("""
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather&family=Roboto+Slab:wght@500&display=swap" rel="stylesheet">
     <style>
         :root {
             /* 字号系统 */
-            --text-base: 1.15rem;   /* 基准字号 */
-            --text-lg: 1.3rem;      /* 大正文 */
-            --text-xl: 1.5rem;      /* 强调文本 */
-            --title-sm: 1.75rem;     /* 小标题 */
-            --title-md: 2rem;        /* 中标题 */
-            --title-lg: 2.25rem;     /* 大标题 */
+            --text-base: 1.15rem;
+            --text-lg: 1.3rem;
+            --text-xl: 1.5rem;
+            --title-sm: 1.75rem;
+            --title-md: 2rem;
+            --title-lg: 2.25rem;
             
             /* 颜色系统 */
             --primary: #1e3d59;
@@ -192,7 +191,8 @@ if page == "首页":
         }
 
         body {
-            font-family: 'Merriweather', serif;
+            /* 中文字体优先使用微软雅黑，英文使用Times New Roman */
+            font-family: "Times New Roman", "微软雅黑", SimSun, serif;
             font-size: var(--text-base);
             line-height: 1.7;
             color: var(--accent);
@@ -200,16 +200,18 @@ if page == "首页":
 
         /* 标题系统 */
         .platform-title {
-            font-family: 'Roboto Slab', serif;
+            font-family: "Times New Roman", "微软雅黑", SimSun, serif;
             font-size: var(--title-lg);
+            font-weight: 600;
             color: var(--primary);
             margin: 0 0 1.2rem 1.5rem;
             line-height: 1.3;
         }
 
         .section-title {
-            font-family: 'Roboto Slab', serif;
+            font-family: "Times New Roman", "微软雅黑", SimSun, serif;
             font-size: var(--title-md);
+            font-weight: 600;
             color: var(--primary);
             margin: 2rem 0 1.5rem;
             padding-bottom: 0.5rem;
@@ -297,9 +299,9 @@ if page == "首页":
     st.markdown("""
     <div class="feature-section">
         <ul class="feature-list">
-            <li><strong>性能预测</strong> - 基于机器学习的多维度性能分析</li>
-            <li><strong>配方建议</strong> - 智能生成优化配方方案</li>
-            <li><strong>添加剂推荐</strong> - 可持续材料的多目标优化</li>
+            <strong>性能预测</strong> </li>
+            <strong>配方建议</strong> </li>
+            <strong>添加剂推荐</strong> </li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
