@@ -181,7 +181,7 @@ st.markdown("""
     }
     
     .header-title {
-        font-size: 2.2rem !important;
+        font-size: 4.4rem !important;
         color: #1e3d59;
         margin: 0;
         line-height: 1.2;
