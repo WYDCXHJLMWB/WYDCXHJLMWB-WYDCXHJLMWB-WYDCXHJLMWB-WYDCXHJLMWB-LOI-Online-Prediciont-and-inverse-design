@@ -116,15 +116,6 @@ st.set_page_config(
 # 页面标题样式
 width = 200
 height = int(158 * (width / 507))
-'''st.markdown(
-    f"""
-    <h1 style="display: flex; align-items: center;">
-        <img src="data:image/png;base64,{icon_base64}" style="width: {width}px; height: {height}px; margin-right: 15px;" />
-        阻燃聚合物复合材料智能设计平台
-    </h1>
-    """, 
-    unsafe_allow_html=True
-)'''
 
 # 侧边栏主导航
 page = st.sidebar.selectbox(
