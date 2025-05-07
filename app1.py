@@ -489,7 +489,7 @@ elif page == "性能预测":
                 st.info("检测到纯PP配方")
 
         # 模型验证样本
-     with st.expander("📊 模型精度验证样本（预测误差<15%）"):
+    with st.expander("📊 模型精度验证样本（预测误差<15%）"):
         samples = [
             {
                 "name": "配方1",
