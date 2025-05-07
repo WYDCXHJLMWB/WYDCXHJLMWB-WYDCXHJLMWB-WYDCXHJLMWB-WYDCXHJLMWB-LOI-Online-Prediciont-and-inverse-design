@@ -785,8 +785,8 @@ elif page == "配方建议":
                     if time == "3min":
                         current = st.number_input(
                             f"{time} 黄度值", 
-                            min_value=5.0,
-                            max_value=25.0,
+                            min_value=0.0,
+                            max_value=100.0,
                             value=default,
                             step=0.1,
                             key=f"yellow_{time}"
