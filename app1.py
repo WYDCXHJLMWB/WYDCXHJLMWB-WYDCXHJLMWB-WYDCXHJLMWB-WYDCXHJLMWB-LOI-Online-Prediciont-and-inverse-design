@@ -637,9 +637,9 @@ elif page == "配方建议":
     
         col1, col2 = st.columns(2)
         with col1:
-            target_loi = st.number_input("目标LOI值（%）", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
+            target_loi = st.number_input("目标LOI值（%）", min_value=10.0, max_value=50.0, value=40.0, step=0.1)
         with col2:
-            target_ts = st.number_input("目标TS值（MPa）", min_value=10.0, max_value=100.0, value=50.0, step=0.1)
+            target_ts = st.number_input("目标TS值（MPa）", min_value=10.0, max_value=100.0, value=20.0, step=0.1)
         
         with st.expander("⚙️ 算法参数设置"):
             pop_size = st.number_input("种群数量", 50, 500, 200)
