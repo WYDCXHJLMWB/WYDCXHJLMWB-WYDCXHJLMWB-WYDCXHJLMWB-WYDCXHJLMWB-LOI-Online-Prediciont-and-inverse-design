@@ -664,7 +664,7 @@ elif page == "配方建议":
             toolbox.register("population", tools.initRepeat, list, toolbox.individual)
             
             def evaluate(individual):
-                if fraction_type == "体积分数":
+                if fraction_type == "体积分数" or "质量分数":
                     vol_values = np.array(individual)
                     mass_values = vol_values
                     total_mass = mass_values.sum()
@@ -746,6 +746,7 @@ elif page == "配方建议":
                 # 转换字典为 DataFrame
                 df_sample = pd.DataFrame(list(features.items()), columns=["特征", "值"])
                 st.table(df_sample)  # 显示为表格形式
+# 修改黄度值输入为独立输入
         with st.form("additive_form"):
             st.markdown("### 基础参数")
             col_static = st.columns(3)
@@ -770,122 +771,93 @@ elif page == "配方建议":
                                                step=0.1,
                                                help="一甲胺含量范围15.1%~32%")
             
-            st.markdown("### 时序参数（黄度值随时间变化）")
-            time_points = [
-                ("3min", 15.0), ("6min", 16.0), ("9min", 17.0),
-                ("12min", 18.0), ("15min", 19.0), ("18min", 20.0),
-                ("21min", 21.0), ("24min", 22.0)
-            ]
+            st.markdown("### 黄度值")
             yellow_values = {}
-            prev_value = 5.0  # 初始最小值
-            cols = st.columns(4)
-            
-            for idx, (time, default) in enumerate(time_points):
-                with cols[idx % 4]:
-                    if time == "3min":
-                        current = st.number_input(
-                            f"{time} 黄度值", 
-                            min_value=0.0,
-                            max_value=100.0,
-                            value=default,
-                            step=0.1,
-                            key=f"yellow_{time}"
-                        )
-                    else:
-                        current = st.number_input(
-                            f"{time} 黄度值",
-                            min_value=prev_value,
-                            value=default,
-                            step=0.1,
-                            key=f"yellow_{time}"
-                        )
-                    yellow_values[time] = current
-                    prev_value = current
-    
+            col1, col2, col3, col4 = st.columns(4)
+            yellow_values["3min"] = st.number_input("3min 黄度值", min_value=0.0, max_value=100.0, value=5.0, step=0.1)
+            yellow_values["6min"] = st.number_input("6min 黄度值", min_value=yellow_values["3min"], max_value=100.0, value=6.0, step=0.1)
+            yellow_values["9min"] = st.number_input("9min 黄度值", min_value=yellow_values["6min"], max_value=100.0, value=7.0, step=0.1)
+            yellow_values["12min"] = st.number_input("12min 黄度值", min_value=yellow_values["9min"], max_value=100.0, value=8.0, step=0.1)
+            yellow_values["15min"] = st.number_input("15min 黄度值", min_value=yellow_values["12min"], max_value=100.0, value=9.0, step=0.1)
+            yellow_values["18min"] = st.number_input("18min 黄度值", min_value=yellow_values["15min"], max_value=100.0, value=10.0, step=0.1)
+            yellow_values["21min"] = st.number_input("21min 黄度值", min_value=yellow_values["18min"], max_value=100.0, value=11.0, step=0.1)
+            yellow_values["24min"] = st.number_input("24min 黄度值", min_value=yellow_values["21min"], max_value=100.0, value=12.0, step=0.1)
+        
             submit_btn = st.form_submit_button("生成推荐方案")
-    
+        
+        # 如果提交了表单，进行数据验证和预测
         if submit_btn:
-            # 时序数据验证
-            time_sequence = [yellow_values[t] for t, _ in time_points]
-            if any(time_sequence[i] > time_sequence[i+1] for i in range(len(time_sequence)-1)):
+            # 验证比例是否符合要求：每个黄度值输入必须满足递增条件
+            if any(yellow_values[t] > yellow_values[next_time] for t, next_time in zip(yellow_values.keys(), list(yellow_values.keys())[1:])):
                 st.error("错误：黄度值必须随时间递增！请检查输入数据")
                 st.stop()
-                
-            try:
-                sample = [
-                    sn_percent, add_ratio, yijia_percent,
-                    yellow_values["3min"], yellow_values["6min"],
-                    yellow_values["9min"], yellow_values["12min"],
-                    yellow_values["15min"], yellow_values["18min"],
-                    yellow_values["21min"], yellow_values["24min"]
-                ]
-                prediction = predictor.predict_one(sample)
-                result_map = {
-                    1: "无推荐添加剂", 
-                    2: "氯化石蜡", 
-                    3: "EA12（脂肪酸复合醇酯）",
-                    4: "EA15（市售液体钙锌稳定剂）", 
-                    5: "EA16（环氧大豆油）",
-                    6: "G70L（多官能团的脂肪酸复合酯混合物）", 
-                    7: "EA6（亚磷酸酯）"
-                }
-                
-                # ============== 修改开始 ==============
-                # 动态确定添加量和显示名称
-                additive_amount = 0.0 if prediction == 1 else add_ratio
-                additive_name = result_map[prediction]
-    
-                # 构建完整配方表
-                formula_data = [
-                    ["PVC份数", 100.00],
-                    ["加工助剂ACR份数", 1.00],
-                    ["外滑剂70S份数", 0.35],
-                    ["MBS份数", 5.00],
-                    ["316A份数", 0.20],
-                    ["稳定剂份数", 1.00]
-                ]
-                
-                # 根据预测结果动态添加条目
-                if prediction != 1:
-                    formula_data.append([f"{additive_name}含量（wt%）", additive_amount])
-                else:
-                    formula_data.append([additive_name, additive_amount])
-                # ============== 修改结束 ==============
-    
-                # 创建格式化表格
-                df = pd.DataFrame(formula_data, columns=["材料名称", "含量"])
-                styled_df = df.style.format({"含量": "{:.2f}"})\
+            
+            # 构建输入样本
+            sample = [
+                sn_percent, add_ratio, yijia_percent,
+                yellow_values["3min"], yellow_values["6min"],
+                yellow_values["9min"], yellow_values["12min"],
+                yellow_values["15min"], yellow_values["18min"],
+                yellow_values["21min"], yellow_values["24min"]
+            ]
+        
+            # 进行预测
+            prediction = predictor.predict_one(sample)
+            result_map = {
+                1: "无推荐添加剂", 
+                2: "氯化石蜡", 
+                3: "EA12（脂肪酸复合醇酯）",
+                4: "EA15（市售液体钙锌稳定剂）", 
+                5: "EA16（环氧大豆油）",
+                6: "G70L（多官能团的脂肪酸复合酯混合物）", 
+                7: "EA6（亚磷酸酯）"
+            }
+        
+            # 动态确定添加量和显示名称
+            additive_amount = 0.0 if prediction == 1 else add_ratio
+            additive_name = result_map[prediction]
+        
+            # 构建配方表
+            formula_data = [
+                ["PVC份数", 100.00],
+                ["加工助剂ACR份数", 1.00],
+                ["外滑剂70S份数", 0.35],
+                ["MBS份数", 5.00],
+                ["316A份数", 0.20],
+                ["稳定剂份数", 1.00]
+            ]
+        
+            if prediction != 1:
+                formula_data.append([f"{additive_name}含量（wt%）", additive_amount])
+            else:
+                formula_data.append([additive_name, additive_amount])
+        
+            # 创建格式化表格
+            df = pd.DataFrame(formula_data, columns=["材料名称", "含量"])
+            styled_df = df.style.format({"含量": "{:.2f}"})\
                                   .hide(axis="index")\
                                   .set_properties(**{'text-align': 'left'})
-                
-                # 双列布局展示
-                col1, col2 = st.columns([1, 2])
-                with col1:
-                    # ============== 修改开始 ==============
-                    st.success(f"**推荐添加剂类型**  \n{additive_name}")
-                    st.metric("建议添加量", 
-                             f"{additive_amount:.2f}%",
-                             delta="无添加" if prediction == 1 else None)
-                    # ============== 修改结束 ==============
-                    
-                with col2:
-                    st.markdown("**完整配方表（基于PVC 100份）**")
-                    st.dataframe(styled_df,
-                                use_container_width=True,
-                                height=280,
-                                column_config={
-                                    "材料名称": "材料名称",
-                                    "含量": st.column_config.NumberColumn(
-                                        "含量",
-                                        format="%.2f"
-                                    )
-                                })
-                
-    
-                
-            except Exception as e:
-                st.error(f"预测过程中发生错误：{str(e)}")
-                st.stop()
+        
+            # 展示推荐结果
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.success(f"**推荐添加剂类型**  \n{additive_name}")
+                st.metric("建议添加量", 
+                         f"{additive_amount:.2f}%",
+                         delta="无添加" if prediction == 1 else None)
+            with col2:
+                st.markdown("**完整配方表（基于PVC 100份）**")
+                st.dataframe(styled_df,
+                             use_container_width=True,
+                             height=280,
+                             column_config={
+                                 "材料名称": "材料名称",
+                                 "含量": st.column_config.NumberColumn(
+                                     "含量",
+                                     format="%.2f"
+                                 )
+                             })
+
 # 添加页脚
 def add_footer():
     st.markdown("""
