@@ -114,7 +114,7 @@ st.set_page_config(
 )
 
 # 页面标题样式
-width = 200
+width = 1000
 height = int(158 * (width / 507))
 st.markdown(
     f"""
