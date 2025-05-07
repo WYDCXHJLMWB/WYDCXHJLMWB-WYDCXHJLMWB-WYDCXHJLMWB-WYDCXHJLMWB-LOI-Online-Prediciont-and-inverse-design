@@ -116,6 +116,11 @@ def optimize_image_resolution(image_path, max_width=1000):
         optimized_height = original_height
     
     return optimized_width, optimized_height
+# 辅助函数：图片转base64
+def image_to_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()
+
 
 # 应用优化
 image_path = "图片1.png"
