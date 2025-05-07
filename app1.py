@@ -535,7 +535,7 @@ elif page == "性能预测":
     
                 # LOI预测
                 try:
-                    loi_input = np.array([[input_vector[f] for f in all_loi_features]])
+                    loi_input = np.array([[input_vector[f] for f in loi_features]])
                     loi_scaled = models["loi_scaler"].transform(loi_input)
                     loi_pred = models["loi_model"].predict(loi_scaled)[0]
                 except KeyError as e:
@@ -547,7 +547,7 @@ elif page == "性能预测":
     
                 # TS预测
                 try:
-                    ts_input = np.array([[input_vector[f] for f in all_ts_features]])
+                    ts_input = np.array([[input_vector[f] for f in ts_features]])
                     ts_scaled = models["ts_scaler"].transform(ts_input)
                     ts_pred = models["ts_model"].predict(ts_scaled)[0]
                 except KeyError as e:
