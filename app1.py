@@ -176,103 +176,109 @@ if page == "首页":
     st.markdown("""
     <link href="https://fonts.googleapis.com/css2?family=Merriweather&family=Roboto+Slab:wght@500&display=swap" rel="stylesheet">
     <style>
+        :root {
+            /* 字号系统 */
+            --text-base: 1.15rem;   /* 基准字号 */
+            --text-lg: 1.3rem;      /* 大正文 */
+            --text-xl: 1.5rem;      /* 强调文本 */
+            --title-sm: 1.75rem;     /* 小标题 */
+            --title-md: 2rem;        /* 中标题 */
+            --title-lg: 2.25rem;     /* 大标题 */
+            
+            /* 颜色系统 */
+            --primary: #1e3d59;
+            --secondary: #3f87a6;
+            --accent: #2c2c2c;
+        }
+
         body {
             font-family: 'Merriweather', serif;
-            font-size: 1.15rem;  /* 调整基础字号 */
+            font-size: var(--text-base);
+            line-height: 1.7;
+            color: var(--accent);
         }
-        .header-container {
-            display: flex;
-            align-items: center;
-            margin-bottom: 2rem;
-            padding: 1.5rem;
-            background: linear-gradient(135deg, #f0f2f5 0%, #dee2e6 100%);
-            border-radius: 15px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
-        }
+
+        /* 标题系统 */
         .platform-title {
             font-family: 'Roboto Slab', serif;
-            color: #1e3d59;
-            font-size: 3rem;  /* 修正单位 */
-            margin-left: 1.5rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            font-size: var(--title-lg);
+            color: var(--primary);
+            margin: 0 0 1.2rem 1.5rem;
+            line-height: 1.3;
         }
-        .feature-section {
-            background: white;
-            border-radius: 14px;
-            padding: 2rem;
-            margin: 1.5rem 0;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-            transition: transform 0.3s ease;
-        }
-        .feature-section:hover {
-            transform: scale(1.01);
-        }
-        .feature-list li {
-            margin: 1.2rem 0;
-            padding-left: 2rem;
-            position: relative;
-            font-size: 1.3rem;  /* 增大列表字号 */
-            line-height: 1.8;
-        }
-        .feature-list li:before {
-            content: "📌";
-            position: absolute;
-            left: 0;
-            font-size: 1.1em;
-        }
-        .quote-section {
-            background: #f5f7fa;
-            border-left: 4px solid #1e3d59;
-            padding: 1.5rem;
-            margin: 2rem 0;
-            border-radius: 0 8px 8px 0;
-            font-style: italic;
-            font-size: 1.2rem;  /* 增大引用字号 */
-        }
-        .acknowledgment-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-top: 1.5rem;
-        }
-        .ack-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-            transition: transform 0.3s ease;
-        }
-        .ack-card:hover {
-            transform: scale(1.02);
-        }
-        .funding-badge {
-            background: #e3f2fd;
-            color: #1a73e8;
-            padding: 12px 20px;
-            border-radius: 20px;
-            display: inline-block;
-            margin: 8px;
-            font-size: 1.1rem;  /* 调整徽章字号 */
-        }
+
         .section-title {
             font-family: 'Roboto Slab', serif;
-            color: #1e3d59;
-            font-size: 2.5rem;  /* 增大章节标题 */
-            margin: 2.5rem 0 2rem;
-            border-bottom: 3px solid #3f87a6;
-            padding-bottom: 0.8rem;
+            font-size: var(--title-md);
+            color: var(--primary);
+            margin: 2rem 0 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--secondary);
         }
-        body::after {
-            content: "";
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 280px;
-            height: 280px;
-            background: url('data:image/png;base64,...') no-repeat;
-            background-size: contain;
-            opacity: 0.05;
-            z-index: -1;
+
+        /* 内容区块 */
+        .feature-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .feature-section p {
+            font-size: var(--text-lg);
+            line-height: 1.8;
+            margin: 0.8rem 0;
+        }
+
+        /* 功能列表 */
+        .feature-list li {
+            font-size: var(--text-lg);
+            padding-left: 2rem;
+            margin: 1rem 0;
+            position: relative;
+        }
+
+        .feature-list li:before {
+            content: "•";
+            color: var(--secondary);
+            font-size: 1.5em;
+            position: absolute;
+            left: 0;
+            top: -0.1em;
+        }
+
+        /* 引用区块 */
+        .quote-section {
+            font-size: var(--text-lg);
+            background: #f8f9fa;
+            border-left: 3px solid var(--secondary);
+            padding: 1.2rem;
+            margin: 1.5rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        /* 响应式调整 */
+        @media (min-width: 768px) {
+            :root {
+                --text-base: 1.2rem;
+                --text-lg: 1.35rem;
+                --text-xl: 1.6rem;
+                --title-sm: 1.9rem;
+                --title-md: 2.2rem;
+                --title-lg: 2.5rem;
+            }
+            
+            .section-title {
+                margin: 2.5rem 0 2rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            :root {
+                --text-base: 1.1rem;
+                --title-lg: 2rem;
+            }
         }
     </style>
     """, unsafe_allow_html=True)
@@ -280,51 +286,53 @@ if page == "首页":
     # 平台简介
     st.markdown("""
     <div class="feature-section">
-        <p style="font-size: 1.5rem; line-height: 1.9; color: #2c2c2c;">
+        <p>
             本平台融合AI与材料科学技术，用于可持续高分子复合材料智能设计，重点关注材料阻燃、力学和耐热等性能的优化与调控。
         </p>
     </div>
     """, unsafe_allow_html=True)
 
-    # 核心功能（修复换行问题）
+    # 核心功能
     st.markdown('<div class="section-title">核心功能</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="feature-section">
         <ul class="feature-list">
-            <li><strong>性能预测</strong></li>
-            <li><strong>配方建议</strong></li>
-            <li><strong>添加剂推荐</strong></li>
+            <li><strong>性能预测</strong> - 基于机器学习的多维度性能分析</li>
+            <li><strong>配方建议</strong> - 智能生成优化配方方案</li>
+            <li><strong>添加剂推荐</strong> - 可持续材料的多目标优化</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
 
-    # 文献引用
+    # 研究成果
     st.markdown('<div class="section-title">研究成果</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="quote-section">
         Ma Weibin, Li Ling, Zhang Yu, Li Minjie, Song Na, Ding Peng. <br>
         <em>Active learning-based generative design of halogen-free flame-retardant polymeric composites.</em> <br>
-        <strong>J Mater Inf</strong> 2025;5:9. DOI: <a href="http://dx.doi.org/10.20517/jmi.2025.09" target="_blank">10.20517/jmi.2025.09</a>
+        <strong>J Mater Inf</strong> 2025;5:09. DOI: <a href="http://dx.doi.org/10.20517/jmi.2025.09" target="_blank">10.20517/jmi.2025.09</a>
     </div>
     """, unsafe_allow_html=True)
 
     # 致谢部分
     st.markdown('<div class="section-title">致谢</div>', unsafe_allow_html=True)
     st.markdown("""
-        <p style="font-size: 1.3rem; line-height: 1.9; color: #2c2c2c;">
-        本研究获得云南省科技重点计划项目(202302AB080022)支持:
+    <div class="feature-section">
+        <p style="font-size: var(--text-lg);">
+            本研究获得云南省科技重点计划项目(202302AB080022)支持
+        </p>
+    </div>
     """, unsafe_allow_html=True)
 
     # 开发者信息
     st.markdown('<div class="section-title">开发者</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="feature-section">
-        <p style="font-size: 1.3rem; line-height: 1.9; color: #2c2c2c;">
+        <p style="font-size: var(--text-lg);">
             上海大学功能高分子团队-PolyDesign：马维宾，李凌，张瑜，宋娜，丁鹏
         </p>
     </div>
     """, unsafe_allow_html=True)
-
 # 性能预测页面
 elif page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
