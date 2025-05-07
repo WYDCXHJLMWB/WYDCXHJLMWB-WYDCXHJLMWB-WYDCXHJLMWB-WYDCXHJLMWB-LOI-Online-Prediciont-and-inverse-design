@@ -488,7 +488,7 @@ elif page == "性能预测":
             if is_only_pp:
                 st.info("检测到纯PP配方")
 
-    # 模型验证样本
+        # 模型验证样本
     with st.expander("📊 模型精度验证样本（预测误差<15%）"):
         samples = [
             {
@@ -510,10 +510,10 @@ elif page == "性能预测":
                 "TS_真实值": 15.303
             }
         ]
-    
+        
         # 设置列布局
         col1, col2, col3 = st.columns(3)
-        all_features = set(models["loi_features"]) | set(models["ts_features"])
+        
         # 循环显示每个配方的内容
         for i, sample in enumerate(samples):
             with [col1, col2, col3][i]:  # 根据配方编号选择列
@@ -524,66 +524,57 @@ elif page == "性能预测":
                 for ingredient, value in sample["配方"].items():
                     st.write(f"  - {ingredient}: {value} %")
     
-                # 初始化输入向量（显式包含所有模型特征）
-                input_vector = {feature: 0.0 for feature in all_features}
-                
-                # 填充样本数据
-                for k, v in sample["配方"].items():
-                    if k not in input_vector:
-                        st.warning(f"检测到样本中存在模型未定义的特征: {k}")
-                    input_vector[k] = v  # 存在的特征会被覆盖，不存在的特征会显示警告
+        all_features = set(models["loi_features"]) | set(models["ts_features"])
     
-                # LOI预测
-                try:
-                    loi_input = np.array([[input_vector[f] for f in loi_features]])
-                    loi_scaled = models["loi_scaler"].transform(loi_input)
-                    loi_pred = models["loi_model"].predict(loi_scaled)[0]
-                except KeyError as e:
-                    st.error(f"LOI模型特征缺失: {e}，请检查模型配置")
-                    loi_pred = None  # 失败时将loi_pred设置为None
-                except Exception as e:
-                    st.error(f"LOI预测失败: {e}")
-                    loi_pred = None  # 其他异常时设置loi_pred为None
+        for sample in samples:
+            # 初始化输入向量（显式包含所有模型特征）
+            input_vector = {feature: 0.0 for feature in all_features}
+            
+            # 填充样本数据
+            for k, v in sample["配方"].items():
+                if k not in input_vector:
+                    st.warning(f"检测到样本中存在模型未定义的特征: {k}")
+                input_vector[k] = v  # 存在的特征会被覆盖，不存在的特征会显示警告
     
-                # TS预测
-                try:
-                    ts_input = np.array([[input_vector[f] for f in ts_features]])
-                    ts_scaled = models["ts_scaler"].transform(ts_input)
-                    ts_pred = models["ts_model"].predict(ts_scaled)[0]
-                except KeyError as e:
-                    st.error(f"TS模型特征缺失: {e}，请检查模型配置")
-                    ts_pred = None  # 失败时将ts_pred设置为None
-                except Exception as e:
-                    st.error(f"TS预测失败: {e}")
-                    ts_pred = None  # 其他异常时设置ts_pred为None
+            # LOI预测
+            try:
+                loi_input = np.array([[input_vector[f] for f in models["loi_features"]]])
+                loi_scaled = models["loi_scaler"].transform(loi_input)
+                loi_pred = models["loi_model"].predict(loi_scaled)[0]
+            except KeyError as e:
+                st.error(f"LOI模型特征缺失: {e}，请检查模型配置")
+                st.stop()
     
-                # 如果预测值有效，计算误差
-                if loi_pred is not None and ts_pred is not None:
-                    loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
-                    ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
+            # TS预测
+            try:
+                ts_input = np.array([[input_vector[f] for f in models["ts_features"]]])
+                ts_scaled = models["ts_scaler"].transform(ts_input)
+                ts_pred = models["ts_model"].predict(ts_scaled)[0]
+            except KeyError as e:
+                st.error(f"TS模型特征缺失: {e}，请检查模型配置")
+                st.stop()
     
-                    loi_color = "#2ecc71" if loi_error < 15 else "#e74c3c"
-                    ts_color = "#2ecc71" if ts_error < 15 else "#e74c3c"
+            loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
+            ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
+            
+            # 显示结果
+            st.markdown(f"""
+            <div class="sample-box">
+                <div class="sample-title">📌 {sample["name"]}</div>
+                <div class="metric-badge" style="color: {loi_color}">LOI误差: {loi_error:.1f}%</div>
+                <div class="metric-badge" style="color: {ts_color}">TS误差: {ts_error:.1f}%</div>
+                <div style="margin-top: 0.8rem;">
+                    🔥 真实LOI: {sample["LOI_真实值"]}% → 预测LOI: {loi_pred:.2f}%
+                </div>
+                <div>💪 真实TS: {sample["TS_真实值"]} MPa → 预测TS: {ts_pred:.2f} MPa</div>
+            </div>
+            """, unsafe_allow_html=True)
     
-                    # 显示结果
-                    st.markdown(f"""
-                    <div class="sample-box">
-                        <div class="sample-title">📌 {sample["name"]}</div>
-                        <div class="metric-badge" style="color: {loi_color}">LOI误差: {loi_error:.1f}%</div>
-                        <div class="metric-badge" style="color: {ts_color}">TS误差: {ts_error:.1f}%</div>
-                        <div style="margin-top: 0.8rem;">
-                            🔥 真实LOI: {sample["LOI_真实值"]}% → 预测LOI: {loi_pred:.2f}%
-                        </div>
-                        <div>💪 真实TS: {sample["TS_真实值"]} MPa → 预测TS: {ts_pred:.2f} MPa</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-    
-                    if loi_error < 15 and ts_error < 15:
-                        st.success(f"✅ {sample['name']}：模型精度超过85%")
-                    else:
-                        st.warning(f"⚠️ {sample['name']}：模型预测误差较大")
-                else:
-                    st.warning(f"⚠️ {sample['name']}：预测失败，无法计算误差")
+            if loi_error < 15 and ts_error < 15:
+                st.success(f"✅ {sample['name']}：模型精度超过85%")
+            else:
+                st.warning(f"⚠️ {sample['name']}：模型预测误差较大")
+
 
 
 
