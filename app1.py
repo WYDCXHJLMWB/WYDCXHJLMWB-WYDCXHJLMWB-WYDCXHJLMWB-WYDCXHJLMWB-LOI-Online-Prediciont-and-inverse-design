@@ -180,6 +180,7 @@ if page == "首页":
     <style>
         body {
             font-family: 'Merriweather', serif;
+            font-size: 1.1rem;  /* 新增基础字号 */
         }
         .header-container {
             display: flex;
@@ -212,7 +213,7 @@ if page == "首页":
             margin: 1.2rem 0;
             padding-left: 2rem;
             position: relative;
-            font-size: 1.1rem;
+            font-size: 1.15rem;  /* 增大列表项字号 */
         }
         .feature-list li:before {
             content: "📌";
@@ -226,6 +227,7 @@ if page == "首页":
             margin: 2rem 0;
             border-radius: 0 8px 8px 0;
             font-style: italic;
+            font-size: 1.1rem;  /* 新增引用字号 */
         }
         .acknowledgment-grid {
             display: grid;
@@ -250,12 +252,12 @@ if page == "首页":
             border-radius: 20px;
             display: inline-block;
             margin: 5px;
-            font-size: 0.9em;
+            font-size: 1em;  /* 增大基金徽章字号 */
         }
         .section-title {
             font-family: 'Roboto Slab', serif;
             color: #1e3d59;
-            font-size: 1.8rem;
+            font-size: 2rem;  /* 增大章节标题字号 */
             margin: 2rem 0 1.5rem;
             border-bottom: 2px solid #3f87a6;
             padding-bottom: 0.5rem;
@@ -279,7 +281,7 @@ if page == "首页":
     # 平台简介
     st.markdown("""
     <div class="feature-section">
-        <p style="font-size: 1.1rem; line-height: 1.8; color: #2c2c2c;">
+        <p style="font-size: 1.2rem; line-height: 1.8; color: #2c2c2c;">  <!-- 增大简介字号 -->
             本平台基于先进的人工智能与材料科学技术，致力于提供聚丙烯（PP）等聚合物复合材料的性能预测与配方优化建议。
             用户可使用本平台进行材料性能预测（如LOI和TS预测），并根据性能目标优化配方，推荐适合的助剂组合。
         </p>
@@ -313,10 +315,10 @@ if page == "首页":
     st.markdown("""
     <div class="acknowledgment-grid">
         <div class="ack-card">
-            <h4 style="color: #1e3d59; margin-bottom: 1rem; font-family: 'Roboto Slab', serif;">
+            <h4 style="color: #1e3d59; margin-bottom: 1rem; font-family: 'Roboto Slab', serif; font-size: 1.3rem;">  <!-- 增大标题字号 -->
                 基金支持
             </h4>
-            <div style="line-height: 1.6; font-size: 1rem; color: #333;">
+            <div style="line-height: 1.6; font-size: 1.05rem; color: #333;">  <!-- 增大内容字号 -->
                 <div class="funding-badge" style="display: block; margin-bottom: 0.5rem;">
                     项目名称：云南省科技重点计划项目
                 </div>
@@ -332,11 +334,10 @@ if page == "首页":
     st.markdown('<div class="section-title">开发者</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="feature-section">
-        <p style="font-size: 1.1rem; line-height: 1.8; color: #2c2c2c;">
+        <p style="font-size: 1.15rem; line-height: 1.8; color: #2c2c2c;">  <!-- 增大开发者字号 -->
             上海大学功能高分子团队：马维宾，李凌，张瑜，宋娜，丁鹏<br>
     </div>
     """, unsafe_allow_html=True)
-
 
 # 性能预测页面
 elif page == "性能预测":
