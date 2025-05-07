@@ -663,69 +663,53 @@ elif page == "配方建议":
             toolbox.register("individual", tools.initIterate, creator.Individual, generate_individual)
             toolbox.register("population", tools.initRepeat, list, toolbox.individual)
             
-        def evaluate(individual):
-            # 选择质量分数或体积分数时的处理
-            if fraction_type == "体积分数" or fraction_type == "质量分数":
-                vol_values = np.array(individual)
-                mass_values = vol_values
-                total_mass = mass_values.sum()
-                if total_mass == 0:
-                    return (1e6,)
-                # 归一化，使其总和为100
-                mass_percent = (mass_values / total_mass) * 100
+            def evaluate(individual):
+                if fraction_type == "体积分数" or fraction_type == "质量分数" :
+                    vol_values = np.array(individual)
+                    mass_values = vol_values
+                    total_mass = mass_values.sum()
+                    if total_mass == 0:
+                        return (1e6,)
+                    mass_percent = (mass_values / total_mass) * 100
+                else:
+                    total = sum(individual)
+                    if total == 0:
+                        return (1e6,)
+                    mass_percent = np.array(individual) / total * 100
                 
-                # 确保配方总和为100
-                if abs(sum(mass_percent) - 100) > 1e-6:
-                    return (1e6,)  # 如果配方总和不为100，返回一个较大的惩罚值
-            else:
-                total = sum(individual)
-                if total == 0:
+                pp_index = all_features.index("PP")
+                pp_content = mass_percent[pp_index]
+                if pp_content < 50:
                     return (1e6,)
-                mass_percent = np.array(individual) / total * 100
-        
-            # 判断PP含量是否满足要求
-            pp_index = all_features.index("PP")
-            pp_content = mass_percent[pp_index]
-            if pp_content < 50:
-                return (1e6,)
-        
-            # 计算LOI误差
-            loi_input = mass_percent[:len(models["loi_features"])]
-            loi_scaled = models["loi_scaler"].transform([loi_input])
-            loi_pred = models["loi_model"].predict(loi_scaled)[0]
-            loi_error = abs(target_loi - loi_pred)
-        
-            # 计算TS误差
-            ts_input = mass_percent[:len(models["ts_features"])]
-            ts_scaled = models["ts_scaler"].transform([ts_input])
-            ts_pred = models["ts_model"].predict(ts_scaled)[0]
-            ts_error = abs(target_ts - ts_pred)
-        
-            # 确保配方总和为100
-            total = sum(mass_percent)
-            if abs(total - 100) > 1e-6:
-                return (1e6,)
-        
-            return (loi_error + ts_error,)
-        
-            # 注册其他操作
+                
+                loi_input = mass_percent[:len(models["loi_features"])]
+                loi_scaled = models["loi_scaler"].transform([loi_input])
+                loi_pred = models["loi_model"].predict(loi_scaled)[0]
+                loi_error = abs(target_loi - loi_pred)
+                
+                ts_input = mass_percent[:len(models["ts_features"])]
+                ts_scaled = models["ts_scaler"].transform([ts_input])
+                ts_pred = models["ts_model"].predict(ts_scaled)[0]
+                ts_error = abs(target_ts - ts_pred)
+                total = sum(mass_percent)
+                if abs(total - 100) > 1e-6:
+                    return (1e6,)
+                return (loi_error + ts_error,)
+            
             toolbox.register("mate", tools.cxBlend, alpha=0.5)
             toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
             toolbox.register("select", tools.selTournament, tournsize=3)
             toolbox.register("evaluate", evaluate)
             
-            # 执行遗传算法
             population = toolbox.population(n=pop_size)
             algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
             
-            # 获取最优解
             best_individuals = tools.selBest(population, 10)
             best_values = []
             for individual in best_individuals:
                 total = sum(individual)
                 best_values.append([round(max(0, i / total * 100), 2) for i in individual])  # 修正括号闭合
             
-            # 展示结果
             result_df = pd.DataFrame(best_values, columns=all_features)
             units = [get_unit(fraction_type) for _ in all_features]
             result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
