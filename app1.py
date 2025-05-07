@@ -156,46 +156,77 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# 显示图片
-st.markdown(
-    f"""
-    <div style="display: flex; justify-content: left;">
-        <img src="data:image/png;base64,{icon_base64}" 
-             class="fixed-width-img"
-             alt="Header Image">
-    </div>
-    """, 
-    unsafe_allow_html=True
-)
-# 在显示图片的代码之后添加以下内容：
-
-# 自定义标题样式
+# 全局页眉样式
 st.markdown("""
 <style>
-    .platform-title {
-        font-size: 36px !important;
-        font-weight: 700 !important;
-        color: #2A4C7D;
-        margin: 20px 0 30px 0;
-        padding-bottom: 10px;
-        border-bottom: 3px solid #2A4C7D;
-        line-height: 1.2;
+    .global-header {
+        display: flex;
+        align-items: center;
+        gap: 25px;
+        margin: 0 0 2rem 0;
+        padding: 1rem 0;
+        border-bottom: 3px solid #1e3d59;
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 1000;
     }
     
+    .header-logo {
+        width: 80px;
+        height: auto;
+        flex-shrink: 0;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    
+    .header-title {
+        font-size: 2.2rem !important;
+        color: #1e3d59;
+        margin: 0;
+        line-height: 1.2;
+        font-family: 'Microsoft YaHei', sans-serif;
+    }
+    
+    .header-subtitle {
+        font-size: 1.1rem;
+        color: #3f87a6;
+        margin: 0.3rem 0 0 0;
+    }
+
     @media (max-width: 768px) {
-        .platform-title {
-            font-size: 28px !important;
-            margin: 15px 0 20px 0;
+        .global-header {
+            gap: 15px;
+            padding: 0.5rem 0;
+        }
+        
+        .header-logo {
+            width: 60px;
+        }
+        
+        .header-title {
+            font-size: 1.8rem !important;
+        }
+        
+        .header-subtitle {
+            font-size: 0.9rem;
         }
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 显示标题
-st.markdown(
-    '<div class="platform-title">阻燃聚合物复合材料智能设计平台</div>', 
-    unsafe_allow_html=True
-)
+# 全局页眉HTML
+st.markdown(f"""
+<div class="global-header">
+    <img src="data:image/png;base64,{icon_base64}" 
+         class="header-logo"
+         alt="Platform Logo">
+    <div>
+        <h1 class="header-title">阻燃聚合物复合材料智能设计平台</h1>
+        <p class="header-subtitle">Flame Retardant Polymer Composite Intelligent Platform</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 # 侧边栏主导航
 page = st.sidebar.selectbox(
     "🔧 主功能选择",
