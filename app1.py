@@ -489,7 +489,6 @@ elif page == "性能预测":
                 st.info("检测到纯PP配方")
 
     # 模型验证样本
-    # 模型验证样本
     with st.expander("📊 模型精度验证样本（预测误差<15%）"):
         samples = [
             {
@@ -541,7 +540,10 @@ elif page == "性能预测":
                     loi_pred = models["loi_model"].predict(loi_scaled)[0]
                 except KeyError as e:
                     st.error(f"LOI模型特征缺失: {e}，请检查模型配置")
-                    st.stop()
+                    loi_pred = None  # 失败时将loi_pred设置为None
+                except Exception as e:
+                    st.error(f"LOI预测失败: {e}")
+                    loi_pred = None  # 其他异常时设置loi_pred为None
     
                 # TS预测
                 try:
@@ -550,32 +552,39 @@ elif page == "性能预测":
                     ts_pred = models["ts_model"].predict(ts_scaled)[0]
                 except KeyError as e:
                     st.error(f"TS模型特征缺失: {e}，请检查模型配置")
-                    st.stop()
+                    ts_pred = None  # 失败时将ts_pred设置为None
+                except Exception as e:
+                    st.error(f"TS预测失败: {e}")
+                    ts_pred = None  # 其他异常时设置ts_pred为None
     
-                # 计算误差
-                loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
-                ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
+                # 如果预测值有效，计算误差
+                if loi_pred is not None and ts_pred is not None:
+                    loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
+                    ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
     
-                loi_color = "#2ecc71" if loi_error < 15 else "#e74c3c"
-                ts_color = "#2ecc71" if ts_error < 15 else "#e74c3c"
+                    loi_color = "#2ecc71" if loi_error < 15 else "#e74c3c"
+                    ts_color = "#2ecc71" if ts_error < 15 else "#e74c3c"
     
-                # 显示结果
-                st.markdown(f"""
-                <div class="sample-box">
-                    <div class="sample-title">📌 {sample["name"]}</div>
-                    <div class="metric-badge" style="color: {loi_color}">LOI误差: {loi_error:.1f}%</div>
-                    <div class="metric-badge" style="color: {ts_color}">TS误差: {ts_error:.1f}%</div>
-                    <div style="margin-top: 0.8rem;">
-                        🔥 真实LOI: {sample["LOI_真实值"]}% → 预测LOI: {loi_pred:.2f}%
+                    # 显示结果
+                    st.markdown(f"""
+                    <div class="sample-box">
+                        <div class="sample-title">📌 {sample["name"]}</div>
+                        <div class="metric-badge" style="color: {loi_color}">LOI误差: {loi_error:.1f}%</div>
+                        <div class="metric-badge" style="color: {ts_color}">TS误差: {ts_error:.1f}%</div>
+                        <div style="margin-top: 0.8rem;">
+                            🔥 真实LOI: {sample["LOI_真实值"]}% → 预测LOI: {loi_pred:.2f}%
+                        </div>
+                        <div>💪 真实TS: {sample["TS_真实值"]} MPa → 预测TS: {ts_pred:.2f} MPa</div>
                     </div>
-                    <div>💪 真实TS: {sample["TS_真实值"]} MPa → 预测TS: {ts_pred:.2f} MPa</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
     
-                if loi_error < 15 and ts_error < 15:
-                    st.success(f"✅ {sample['name']}：模型精度超过85%")
+                    if loi_error < 15 and ts_error < 15:
+                        st.success(f"✅ {sample['name']}：模型精度超过85%")
+                    else:
+                        st.warning(f"⚠️ {sample['name']}：模型预测误差较大")
                 else:
-                    st.warning(f"⚠️ {sample['name']}：模型预测误差较大")
+                    st.warning(f"⚠️ {sample['name']}：预测失败，无法计算误差")
+
 
 
 
