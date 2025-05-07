@@ -172,15 +172,16 @@ def ensure_pp_first(features):
         features.remove("PP")
     return ["PP"] + sorted(features)
 
-
-# 首页
+#首页
 if page == "首页":
     st.markdown("""
     <link href="https://fonts.googleapis.com/css2?family=Merriweather&family=Roboto+Slab:wght@500&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Merriweather', serif;
-            font-size: 1.15rem;  /* 调整基础字号 */
+            font-size: 1.15rem;
+            background: linear-gradient(180deg, #f0f2f5, #e3f2fd);
+            transition: background 0.5s ease;
         }
         .header-container {
             display: flex;
@@ -190,11 +191,12 @@ if page == "首页":
             background: linear-gradient(135deg, #f0f2f5 0%, #dee2e6 100%);
             border-radius: 15px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+            animation: fadeIn 1s ease;
         }
         .platform-title {
             font-family: 'Roboto Slab', serif;
             color: #1e3d59;
-            font-size: 3rem;  /* 修正单位 */
+            font-size: 3rem;
             margin-left: 1.5rem;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
         }
@@ -205,6 +207,7 @@ if page == "首页":
             margin: 1.5rem 0;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
             transition: transform 0.3s ease;
+            animation: slideIn 1s ease;
         }
         .feature-section:hover {
             transform: scale(1.01);
@@ -213,7 +216,7 @@ if page == "首页":
             margin: 1.2rem 0;
             padding-left: 2rem;
             position: relative;
-            font-size: 1.3rem;  /* 增大列表字号 */
+            font-size: 1.3rem;
             line-height: 1.8;
         }
         .feature-list li:before {
@@ -229,7 +232,8 @@ if page == "首页":
             margin: 2rem 0;
             border-radius: 0 8px 8px 0;
             font-style: italic;
-            font-size: 1.2rem;  /* 增大引用字号 */
+            font-size: 1.2rem;
+            animation: fadeIn 1s ease;
         }
         .acknowledgment-grid {
             display: grid;
@@ -243,6 +247,7 @@ if page == "首页":
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
             transition: transform 0.3s ease;
+            animation: bounceIn 1s ease;
         }
         .ack-card:hover {
             transform: scale(1.02);
@@ -254,27 +259,27 @@ if page == "首页":
             border-radius: 20px;
             display: inline-block;
             margin: 8px;
-            font-size: 1.1rem;  /* 调整徽章字号 */
+            font-size: 1.1rem;
         }
         .section-title {
             font-family: 'Roboto Slab', serif;
             color: #1e3d59;
-            font-size: 2.5rem;  /* 增大章节标题 */
+            font-size: 2.5rem;
             margin: 2.5rem 0 2rem;
             border-bottom: 3px solid #3f87a6;
             padding-bottom: 0.8rem;
         }
-        body::after {
-            content: "";
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 280px;
-            height: 280px;
-            background: url('data:image/png;base64,...') no-repeat;
-            background-size: contain;
-            opacity: 0.05;
-            z-index: -1;
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes bounceIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
     </style>
     """, unsafe_allow_html=True)
@@ -288,7 +293,7 @@ if page == "首页":
     </div>
     """, unsafe_allow_html=True)
 
-    # 核心功能（修复换行问题）
+    # 核心功能
     st.markdown('<div class="section-title">核心功能</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="feature-section">
