@@ -488,65 +488,65 @@ elif page == "性能预测":
             if is_only_pp:
                 st.info("检测到纯PP配方")
 
-# 模型验证样本
-with st.expander("📊 模型精度验证样本（预测误差<15%）"):
-    samples = [
-        {
-            "name": "配方1",
-            "配方": {"PP": 63.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 9.0, "wollastonite": 3.0},
-            "LOI_真实值": 43.5,
-            "TS_真实值": 15.845
-        },
-        {
-            "name": "配方2",
-            "配方": {"PP": 65.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 7.0, "wollastonite": 3.0},
-            "LOI_真实值": 43.0,
-            "TS_真实值": 16.94
-        },
-        {
-            "name": "配方3",
-            "配方": {"PP": 58.2, "PAPP": 23.0, "ZS": 0.5, "Anti-drip-agent": 0.3, "MPP": 13.0, "wollastonite": 5.0},
-            "LOI_真实值": 43.5,
-            "TS_真实值": 15.303
-        }
-    ]
-
-    # 设置列布局
-    col1, col2, col3 = st.columns(3)
-
-    # 循环显示每个配方的内容
-    for i, sample in enumerate(samples):
-        with [col1, col2, col3][i]:  # 根据配方编号选择列
-            st.markdown(f"### {sample['name']}")
-            
-            # 显示配方具体内容
-            st.write("配方：")
-            for ingredient, value in sample["配方"].items():
-                st.write(f"  - {ingredient}: {value} %")
-
-            # 显示LOI和TS预测误差
-            loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
-            ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
-
-            loi_color = "#2ecc71" if loi_error < 15 else "#e74c3c"
-            ts_color = "#2ecc71" if ts_error < 15 else "#e74c3c"
-
-            st.markdown(f"""
-            <div class="sample-box">
-                <div class="sample-title">📌 {sample["name"]}</div>
-                <div class="metric-badge" style="color: {loi_color}">LOI误差: {loi_error:.1f}%</div>
-                <div class="metric-badge" style="color: {ts_color}">TS误差: {ts_error:.1f}%</div>
-                <div style="margin-top: 0.8rem;">
-                    🔥 真实LOI: {sample["LOI_真实值"]}% → 预测LOI: {loi_pred:.2f}%
+    # 模型验证样本
+    with st.expander("📊 模型精度验证样本（预测误差<15%）"):
+        samples = [
+            {
+                "name": "配方1",
+                "配方": {"PP": 63.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 9.0, "wollastonite": 3.0},
+                "LOI_真实值": 43.5,
+                "TS_真实值": 15.845
+            },
+            {
+                "name": "配方2",
+                "配方": {"PP": 65.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 7.0, "wollastonite": 3.0},
+                "LOI_真实值": 43.0,
+                "TS_真实值": 16.94
+            },
+            {
+                "name": "配方3",
+                "配方": {"PP": 58.2, "PAPP": 23.0, "ZS": 0.5, "Anti-drip-agent": 0.3, "MPP": 13.0, "wollastonite": 5.0},
+                "LOI_真实值": 43.5,
+                "TS_真实值": 15.303
+            }
+        ]
+    
+        # 设置列布局
+        col1, col2, col3 = st.columns(3)
+    
+        # 循环显示每个配方的内容
+        for i, sample in enumerate(samples):
+            with [col1, col2, col3][i]:  # 根据配方编号选择列
+                st.markdown(f"### {sample['name']}")
+                
+                # 显示配方具体内容
+                st.write("配方：")
+                for ingredient, value in sample["配方"].items():
+                    st.write(f"  - {ingredient}: {value} %")
+    
+                # 显示LOI和TS预测误差
+                loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
+                ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
+    
+                loi_color = "#2ecc71" if loi_error < 15 else "#e74c3c"
+                ts_color = "#2ecc71" if ts_error < 15 else "#e74c3c"
+    
+                st.markdown(f"""
+                <div class="sample-box">
+                    <div class="sample-title">📌 {sample["name"]}</div>
+                    <div class="metric-badge" style="color: {loi_color}">LOI误差: {loi_error:.1f}%</div>
+                    <div class="metric-badge" style="color: {ts_color}">TS误差: {ts_error:.1f}%</div>
+                    <div style="margin-top: 0.8rem;">
+                        🔥 真实LOI: {sample["LOI_真实值"]}% → 预测LOI: {loi_pred:.2f}%
+                    </div>
+                    <div>💪 真实TS: {sample["TS_真实值"]} MPa → 预测TS: {ts_pred:.2f} MPa</div>
                 </div>
-                <div>💪 真实TS: {sample["TS_真实值"]} MPa → 预测TS: {ts_pred:.2f} MPa</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            if loi_error < 15 and ts_error < 15:
-                st.success(f"✅ {sample['name']}：模型精度超过85%")
-            else:
-                st.warning(f"⚠️ {sample['name']}：模型预测误差较大")
+                """, unsafe_allow_html=True)
+    
+                if loi_error < 15 and ts_error < 15:
+                    st.success(f"✅ {sample['name']}：模型精度超过85%")
+                else:
+                    st.warning(f"⚠️ {sample['name']}：模型预测误差较大")
 
 
     if st.button("🚀 开始预测", type="primary"):
