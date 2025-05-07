@@ -299,9 +299,9 @@ if page == "首页":
     st.markdown("""
     <div class="feature-section">
         <ul class="feature-list">
-            <strong>性能预测</strong> </li>
-            <strong>配方建议</strong> </li>
-            <strong>添加剂推荐</strong> </li>
+            <li><strong>性能预测</strong></li>
+            <li><strong>配方建议</strong></li>
+            <li><strong>添加剂推荐</strong></li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
