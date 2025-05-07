@@ -439,6 +439,10 @@ if page == "首页":
     </div>
     """, unsafe_allow_html=True)
 # 性能预测页面
+import streamlit as st
+import numpy as np
+
+# 性能预测页面
 elif page == "性能预测":
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
 
@@ -534,6 +538,8 @@ elif page == "性能预测":
         </style>
         """, unsafe_allow_html=True)
 
+        all_features = set(models["loi_features"]) | set(models["ts_features"])
+
         for sample in samples:
             # 初始化输入向量（显式包含所有模型特征）
             input_vector = {feature: 0.0 for feature in all_features}
@@ -546,7 +552,7 @@ elif page == "性能预测":
 
             # LOI预测
             try:
-                loi_input = np.array([[input_vector[f] for f in all_loi_features]])
+                loi_input = np.array([[input_vector[f] for f in models["loi_features"]]])
                 loi_scaled = models["loi_scaler"].transform(loi_input)
                 loi_pred = models["loi_model"].predict(loi_scaled)[0]
             except KeyError as e:
@@ -555,13 +561,12 @@ elif page == "性能预测":
 
             # TS预测
             try:
-                ts_input = np.array([[input_vector[f] for f in all_ts_features]])
+                ts_input = np.array([[input_vector[f] for f in models["ts_features"]]])
                 ts_scaled = models["ts_scaler"].transform(ts_input)
                 ts_pred = models["ts_model"].predict(ts_scaled)[0]
             except KeyError as e:
                 st.error(f"TS模型特征缺失: {e}，请检查模型配置")
                 st.stop()
-
 
             loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
             ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
@@ -622,6 +627,7 @@ elif page == "性能预测":
             st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
         with col2:
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
+
 
 
 # 配方建议页面
