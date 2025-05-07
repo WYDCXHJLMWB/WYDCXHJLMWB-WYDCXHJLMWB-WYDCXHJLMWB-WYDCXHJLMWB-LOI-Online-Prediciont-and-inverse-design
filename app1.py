@@ -281,9 +281,8 @@ if page == "首页":
     # 平台简介
     st.markdown("""
     <div class="feature-section">
-        <p style="font-size: 1.2rem; line-height: 1.8; color: #2c2c2c;">  <!-- 增大简介字号 -->
-            本平台基于先进的人工智能与材料科学技术，致力于提供聚丙烯（PP）等聚合物复合材料的性能预测与配方优化建议。
-            用户可使用本平台进行材料性能预测（如LOI和TS预测），并根据性能目标优化配方，推荐适合的助剂组合。
+        <p style="font-size: 3 rem; line-height: 1.8; color: #2c2c2c;">  <!-- 增大简介字号 -->
+            本平台基于人工智能与材料科学技术，致力于阻燃聚合物复合材料的智能设计。
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -293,9 +292,9 @@ if page == "首页":
     st.markdown("""
     <div class="feature-section">
         <ul class="feature-list">
-             <strong>性能预测</strong>：通过输入材料配方，预测聚合物复合材料的LOI和TS性能</li>
-             <strong>配方建议</strong>：根据目标性能，优化材料配方组合</li>
-             <strong>添加剂推荐</strong>：根据黄度值等时序数据，智能推荐最佳添加剂</li>
+             <strong>性能预测</strong>
+             <strong>配方建议</strong>
+             <strong>添加剂推荐</strong>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -315,10 +314,8 @@ if page == "首页":
     st.markdown("""
     <div class="acknowledgment-grid">
         <div class="ack-card">
-            <h4 style="color: #1e3d59; margin-bottom: 1rem; font-family: 'Roboto Slab', serif; font-size: 1.3rem;">  <!-- 增大标题字号 -->
-                基金支持
             </h4>
-            <div style="line-height: 1.6; font-size: 1.05rem; color: #333;">  <!-- 增大内容字号 -->
+            <div style="line-height: 1.6; font-size: 2 rem; color: #333;">  <!-- 增大内容字号 -->
                 <div class="funding-badge" style="display: block; margin-bottom: 0.5rem;">
                     项目名称：云南省科技重点计划项目
                 </div>
@@ -334,7 +331,7 @@ if page == "首页":
     st.markdown('<div class="section-title">开发者</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="feature-section">
-        <p style="font-size: 1.15rem; line-height: 1.8; color: #2c2c2c;">  <!-- 增大开发者字号 -->
+        <p style="font-size: 2 rem; line-height: 1.8; color: #2c2c2c;">  <!-- 增大开发者字号 -->
             上海大学功能高分子团队：马维宾，李凌，张瑜，宋娜，丁鹏<br>
     </div>
     """, unsafe_allow_html=True)
