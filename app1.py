@@ -676,13 +676,11 @@ elif page == "配方建议":
             
             def evaluate(individual):
                 # 根据单位类型选择体积分数/质量分数/质量
-                if fraction_type == "体积分数" or fraction_type == "质量分数":
-                    vol_values = np.array(individual)
-                    mass_values = vol_values
-                    total_mass = mass_values.sum()
-                    if total_mass == 0:
+                if fraction_type in ["质量分数", "体积分数"]:
+                    total = sum(individual)
+                    if total == 0:
                         return (1e6,)
-                    mass_percent = (mass_values / total_mass) * 100
+                    mass_percent = np.array(individual) / total * 100
                 else:
                     total = sum(individual)
                     if total == 0:
@@ -704,14 +702,6 @@ elif page == "配方建议":
                 ts_pred = models["ts_model"].predict(ts_scaled)[0]
                 ts_error = abs(target_ts - ts_pred)
                 
-                # 确保 mass_percent 的总和为 100
-                total = sum(mass_percent)
-                if abs(total - 100) > 1e-6:
-                    mass_percent = (mass_percent / total) * 100  # 强制标准化总和为100
-                
-                if abs(sum(mass_percent) - 100) > 1e-6:
-                    return (1e6,)
-                
                 return (loi_error + ts_error,)
             
             toolbox.register("mate", tools.cxBlend, alpha=0.5)
@@ -723,20 +713,37 @@ elif page == "配方建议":
             algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
             
             # 选择最好的个体，保证生成5到10个
-            best_individuals = tools.selBest(population, 10)  # 最好选择10个个体
+            best_individuals = tools.selBest(population, 10)
             best_values = []
             for individual in best_individuals:
-                total = sum(individual)
-                # 强制保证配方总和为100
-                if total != 0:
-                    best_values.append([round(max(0, i / total * 100), 2) for i in individual])
+                # 根据单位类型进行标准化
+                if fraction_type in ["质量分数", "体积分数"]:
+                    total = sum(individual)
+                    if total != 0:
+                        normalized = [max(0, (x / total) * 100) for x in individual]
+                    else:
+                        normalized = [0.0] * len(individual)
                 else:
-                    best_values.append([0] * len(individual))  # 如果总和为0，返回0的配方
-                
+                    total = sum(individual)
+                    if total != 0:
+                        normalized = [max(0, (x / total) * 100) for x in individual]
+                    else:
+                        normalized = [0.0] * len(individual)
+                # 二次标准化确保严格总和为100
+                normalized = np.array(normalized)
+                normalized = normalized / normalized.sum() * 100 if normalized.sum() != 0 else normalized
+                best_values.append([round(val, 2) for val in normalized])
+            
             # 将所有个体的配方转化为DataFrame
             result_df = pd.DataFrame(best_values, columns=all_features)
             units = [get_unit(fraction_type) for _ in all_features]
             result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
+            
+            # 添加总和行
+            sum_row = result_df.sum(axis=0).round(2)
+            sum_row.name = '总和'
+            result_df = pd.concat([result_df, pd.DataFrame([sum_row])])
+            
             st.write(result_df)
 
 
