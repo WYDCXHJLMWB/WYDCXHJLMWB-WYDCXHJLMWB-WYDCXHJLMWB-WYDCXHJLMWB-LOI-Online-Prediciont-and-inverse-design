@@ -180,7 +180,7 @@ if page == "首页":
     <style>
         body {
             font-family: 'Merriweather', serif;
-            font-size: 3 rem;  /* 新增基础字号 */
+            font-size: 1.15rem;  /* 调整基础字号 */
         }
         .header-container {
             display: flex;
@@ -194,7 +194,7 @@ if page == "首页":
         .platform-title {
             font-family: 'Roboto Slab', serif;
             color: #1e3d59;
-            font-size: 3 rem;
+            font-size: 3rem;  /* 修正单位 */
             margin-left: 1.5rem;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
         }
@@ -213,12 +213,14 @@ if page == "首页":
             margin: 1.2rem 0;
             padding-left: 2rem;
             position: relative;
-            font-size: 1.15rem;  /* 增大列表项字号 */
+            font-size: 1.3rem;  /* 增大列表字号 */
+            line-height: 1.8;
         }
         .feature-list li:before {
             content: "📌";
             position: absolute;
             left: 0;
+            font-size: 1.1em;
         }
         .quote-section {
             background: #f5f7fa;
@@ -227,7 +229,7 @@ if page == "首页":
             margin: 2rem 0;
             border-radius: 0 8px 8px 0;
             font-style: italic;
-            font-size: 1.1rem;  /* 新增引用字号 */
+            font-size: 1.2rem;  /* 增大引用字号 */
         }
         .acknowledgment-grid {
             display: grid;
@@ -248,21 +250,20 @@ if page == "首页":
         .funding-badge {
             background: #e3f2fd;
             color: #1a73e8;
-            padding: 8px 15px;
+            padding: 12px 20px;
             border-radius: 20px;
             display: inline-block;
-            margin: 5px;
-            font-size: 1em;  /* 增大基金徽章字号 */
+            margin: 8px;
+            font-size: 1.1rem;  /* 调整徽章字号 */
         }
         .section-title {
             font-family: 'Roboto Slab', serif;
             color: #1e3d59;
-            font-size: 2rem;  /* 增大章节标题字号 */
-            margin: 2rem 0 1.5rem;
-            border-bottom: 2px solid #3f87a6;
-            padding-bottom: 0.5rem;
+            font-size: 2.5rem;  /* 增大章节标题 */
+            margin: 2.5rem 0 2rem;
+            border-bottom: 3px solid #3f87a6;
+            padding-bottom: 0.8rem;
         }
-
         body::after {
             content: "";
             position: fixed;
@@ -281,20 +282,20 @@ if page == "首页":
     # 平台简介
     st.markdown("""
     <div class="feature-section">
-        <p style="font-size: 3 rem; line-height: 1.8; color: #2c2c2c;">  <!-- 增大简介字号 -->
+        <p style="font-size: 1.5rem; line-height: 1.9; color: #2c2c2c;">
             本平台基于人工智能与材料科学技术，致力于阻燃聚合物复合材料的智能设计。
         </p>
     </div>
     """, unsafe_allow_html=True)
 
-    # 核心功能
+    # 核心功能（修复换行问题）
     st.markdown('<div class="section-title">核心功能</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="feature-section">
         <ul class="feature-list">
-             <strong>性能预测</strong>
-             <strong>配方建议</strong>
-             <strong>添加剂推荐</strong>
+            <li><strong>性能预测</strong>：通过输入材料配方，预测聚合物复合材料的LOI和TS性能</li>
+            <li><strong>配方建议</strong>：根据目标性能，优化材料配方组合</li>
+            <li><strong>添加剂推荐</strong>：根据黄度值等时序数据，智能推荐最佳添加剂</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -314,12 +315,11 @@ if page == "首页":
     st.markdown("""
     <div class="acknowledgment-grid">
         <div class="ack-card">
-            </h4>
-            <div style="line-height: 1.6; font-size: 2 rem; color: #333;">  <!-- 增大内容字号 -->
-                <div class="funding-badge" style="display: block; margin-bottom: 0.5rem;">
+            <div style="line-height: 1.7; font-size: 1.2rem; color: #333;">
+                <div class="funding-badge" style="display: block; margin-bottom: 1rem;">
                     项目名称：云南省科技重点计划项目
                 </div>
-                <div class="funding-badge" style="display: block; margin-bottom: 0.5rem;">
+                <div class="funding-badge" style="display: block; margin-bottom: 1rem;">
                     项目编号：202302AB080022
                 </div>
             </div>
@@ -331,8 +331,9 @@ if page == "首页":
     st.markdown('<div class="section-title">开发者</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="feature-section">
-        <p style="font-size: 2 rem; line-height: 1.8; color: #2c2c2c;">  <!-- 增大开发者字号 -->
-            上海大学功能高分子团队：马维宾，李凌，张瑜，宋娜，丁鹏<br>
+        <p style="font-size: 1.3rem; line-height: 1.9; color: #2c2c2c;">
+            上海大学功能高分子团队：马维宾，李凌，张瑜，宋娜，丁鹏
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
