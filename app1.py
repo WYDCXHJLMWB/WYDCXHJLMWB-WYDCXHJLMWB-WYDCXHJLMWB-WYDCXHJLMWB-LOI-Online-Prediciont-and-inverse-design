@@ -673,7 +673,12 @@ elif page == "配方建议":
                 # 设置PP的值不小于50
                 pp_index = all_features.index("PP")
                 individual[pp_index] = max(individual[pp_index], 50)
-                # 调整其他部分使得总和为100
+                # 调整其他部分，使得总和为100
+                remaining_sum = 100 - individual[pp_index]
+                # 随机分配剩余部分给其它成分
+                for i in range(n_features):
+                    if i != pp_index:
+                        individual[i] = random.uniform(0, remaining_sum)
                 total = sum(individual)
                 return [max(0, x / total * 100) for x in individual]  # 强制每个个体的和为100
             
@@ -747,6 +752,7 @@ elif page == "配方建议":
             result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
             
             st.write(result_df)
+
 
 
 
