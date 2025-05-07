@@ -130,7 +130,7 @@ st.set_page_config(
 
 # 获取精确尺寸
 img = Image.open(image_path)
-target_width = 1000
+target_width = 200
 target_height = int(img.height * (target_width / img.width))
 
 # 图片显示样式
@@ -165,6 +165,35 @@ st.markdown(
              alt="Header Image">
     </div>
     """, 
+    unsafe_allow_html=True
+)
+# 在显示图片的代码之后添加以下内容：
+
+# 自定义标题样式
+st.markdown("""
+<style>
+    .platform-title {
+        font-size: 36px !important;
+        font-weight: 700 !important;
+        color: #2A4C7D;
+        margin: 20px 0 30px 0;
+        padding-bottom: 10px;
+        border-bottom: 3px solid #2A4C7D;
+        line-height: 1.2;
+    }
+    
+    @media (max-width: 768px) {
+        .platform-title {
+            font-size: 28px !important;
+            margin: 15px 0 20px 0;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# 显示标题
+st.markdown(
+    '<div class="platform-title">阻燃聚合物复合材料智能设计平台</div>', 
     unsafe_allow_html=True
 )
 # 侧边栏主导航
