@@ -664,7 +664,7 @@ elif page == "配方建议":
             toolbox.register("population", tools.initRepeat, list, toolbox.individual)
             
             def evaluate(individual):
-                if fraction_type == "体积分数" or fraction_type == "质量分数" :
+                if fraction_type == "体积分数" or fraction_type == "质量分数":
                     vol_values = np.array(individual)
                     mass_values = vol_values
                     total_mass = mass_values.sum()
@@ -691,9 +691,16 @@ elif page == "配方建议":
                 ts_scaled = models["ts_scaler"].transform([ts_input])
                 ts_pred = models["ts_model"].predict(ts_scaled)[0]
                 ts_error = abs(target_ts - ts_pred)
+                
+                # 确保mass_percent的总和为100
                 total = sum(mass_percent)
                 if abs(total - 100) > 1e-6:
+                    mass_percent = (mass_percent / total) * 100  # 规范化处理，使其总和为100
+                
+                # 校验mass_percent总和为100
+                if abs(sum(mass_percent) - 100) > 1e-6:
                     return (1e6,)
+
                 return (loi_error + ts_error,)
             
             toolbox.register("mate", tools.cxBlend, alpha=0.5)
@@ -714,6 +721,7 @@ elif page == "配方建议":
             units = [get_unit(fraction_type) for _ in all_features]
             result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
             st.write(result_df)
+
 
     
     elif sub_page == "添加剂推荐":
