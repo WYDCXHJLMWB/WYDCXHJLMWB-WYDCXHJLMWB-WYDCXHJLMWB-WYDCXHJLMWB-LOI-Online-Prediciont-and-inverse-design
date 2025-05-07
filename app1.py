@@ -489,6 +489,7 @@ elif page == "性能预测":
                 st.info("检测到纯PP配方")
 
     # 模型验证样本
+    # 模型验证样本
     with st.expander("📊 模型精度验证样本（预测误差<15%）"):
         samples = [
             {
@@ -524,13 +525,41 @@ elif page == "性能预测":
                 for ingredient, value in sample["配方"].items():
                     st.write(f"  - {ingredient}: {value} %")
     
-                # 显示LOI和TS预测误差
+                # 初始化输入向量（显式包含所有模型特征）
+                input_vector = {feature: 0.0 for feature in all_features}
+                
+                # 填充样本数据
+                for k, v in sample["配方"].items():
+                    if k not in input_vector:
+                        st.warning(f"检测到样本中存在模型未定义的特征: {k}")
+                    input_vector[k] = v  # 存在的特征会被覆盖，不存在的特征会显示警告
+    
+                # LOI预测
+                try:
+                    loi_input = np.array([[input_vector[f] for f in all_loi_features]])
+                    loi_scaled = models["loi_scaler"].transform(loi_input)
+                    loi_pred = models["loi_model"].predict(loi_scaled)[0]
+                except KeyError as e:
+                    st.error(f"LOI模型特征缺失: {e}，请检查模型配置")
+                    st.stop()
+    
+                # TS预测
+                try:
+                    ts_input = np.array([[input_vector[f] for f in all_ts_features]])
+                    ts_scaled = models["ts_scaler"].transform(ts_input)
+                    ts_pred = models["ts_model"].predict(ts_scaled)[0]
+                except KeyError as e:
+                    st.error(f"TS模型特征缺失: {e}，请检查模型配置")
+                    st.stop()
+    
+                # 计算误差
                 loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
                 ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
     
                 loi_color = "#2ecc71" if loi_error < 15 else "#e74c3c"
                 ts_color = "#2ecc71" if ts_error < 15 else "#e74c3c"
     
+                # 显示结果
                 st.markdown(f"""
                 <div class="sample-box">
                     <div class="sample-title">📌 {sample["name"]}</div>
@@ -547,6 +576,7 @@ elif page == "性能预测":
                     st.success(f"✅ {sample['name']}：模型精度超过85%")
                 else:
                     st.warning(f"⚠️ {sample['name']}：模型预测误差较大")
+
 
 
     if st.button("🚀 开始预测", type="primary"):
