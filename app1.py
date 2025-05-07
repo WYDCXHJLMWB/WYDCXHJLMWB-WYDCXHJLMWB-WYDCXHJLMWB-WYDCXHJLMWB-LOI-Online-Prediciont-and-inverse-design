@@ -5,7 +5,7 @@ from scipy import stats
 from scipy.stats import kurtosis, skew
 from sklearn.impute import SimpleImputer
 import joblib
-
+from deap import base, creator, tools, algorithms
 
 class Predictor:
     def __init__(self, scaler_path, svc_path):
@@ -624,7 +624,7 @@ elif page == "性能预测":
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
 
 
-from deap import base, creator, tools, algorithms
+
 # 配方建议页面
 elif page == "配方建议":
     if sub_page == "配方优化":
@@ -708,28 +708,28 @@ elif page == "配方建议":
         
             return (loi_error + ts_error,)
         
-        # 注册其他操作
-        toolbox.register("mate", tools.cxBlend, alpha=0.5)
-        toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
-        toolbox.register("select", tools.selTournament, tournsize=3)
-        toolbox.register("evaluate", evaluate)
-        
-        # 执行遗传算法
-        population = toolbox.population(n=pop_size)
-        algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
-        
-        # 获取最优解
-        best_individuals = tools.selBest(population, 10)
-        best_values = []
-        for individual in best_individuals:
-            total = sum(individual)
-            best_values.append([round(max(0, i / total * 100), 2) for i in individual])  # 修正括号闭合
-        
-        # 展示结果
-        result_df = pd.DataFrame(best_values, columns=all_features)
-        units = [get_unit(fraction_type) for _ in all_features]
-        result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
-        st.write(result_df)
+            # 注册其他操作
+            toolbox.register("mate", tools.cxBlend, alpha=0.5)
+            toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
+            toolbox.register("select", tools.selTournament, tournsize=3)
+            toolbox.register("evaluate", evaluate)
+            
+            # 执行遗传算法
+            population = toolbox.population(n=pop_size)
+            algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
+            
+            # 获取最优解
+            best_individuals = tools.selBest(population, 10)
+            best_values = []
+            for individual in best_individuals:
+                total = sum(individual)
+                best_values.append([round(max(0, i / total * 100), 2) for i in individual])  # 修正括号闭合
+            
+            # 展示结果
+            result_df = pd.DataFrame(best_values, columns=all_features)
+            units = [get_unit(fraction_type) for _ in all_features]
+            result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
+            st.write(result_df)
 
     
     elif sub_page == "添加剂推荐":
