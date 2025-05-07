@@ -598,12 +598,6 @@ elif page == "性能预测":
                 else:
                     st.warning(f"⚠️ {sample['name']}：模型预测误差较大")
 
-
-
-
-
-
-
     if st.button("🚀 开始预测", type="primary"):
         if fraction_type in ["体积分数", "质量分数"] and abs(total - 100.0) > 1e-6:
             st.error(f"预测中止：{fraction_type}的总和必须为100%")
@@ -675,7 +669,7 @@ elif page == "配方建议":
             def generate_individual():
                 individual = [random.uniform(0, 100) for _ in range(n_features)]
                 total = sum(individual)
-                return [max(0, x / total * 100) for x in individual]
+                return [max(0, x / total * 100) for x in individual]  # 强制每个个体的和为100
             
             toolbox.register("individual", tools.initIterate, creator.Individual, generate_individual)
             toolbox.register("population", tools.initRepeat, list, toolbox.individual)
@@ -710,12 +704,11 @@ elif page == "配方建议":
                 ts_pred = models["ts_model"].predict(ts_scaled)[0]
                 ts_error = abs(target_ts - ts_pred)
                 
-                # 强制确保 mass_percent 的总和为 100
+                # 确保 mass_percent 的总和为 100
                 total = sum(mass_percent)
                 if abs(total - 100) > 1e-6:
-                    mass_percent = (mass_percent / total) * 100  # 重新标准化
+                    mass_percent = (mass_percent / total) * 100  # 强制标准化总和为100
                 
-                # 追加总和为 100 的检查
                 if abs(sum(mass_percent) - 100) > 1e-6:
                     return (1e6,)
                 
@@ -745,7 +738,6 @@ elif page == "配方建议":
             units = [get_unit(fraction_type) for _ in all_features]
             result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
             st.write(result_df)
-
 
 
     
