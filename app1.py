@@ -97,7 +97,7 @@ import numpy as np
 import joblib
 import base64
 import random
-from deap import base, creator, tools, algorithms
+
 
 # 页面配置
 # 页面配置
@@ -624,7 +624,7 @@ elif page == "性能预测":
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
 
 
-
+from deap import base, creator, tools, algorithms
 # 配方建议页面
 elif page == "配方建议":
     if sub_page == "配方优化":
