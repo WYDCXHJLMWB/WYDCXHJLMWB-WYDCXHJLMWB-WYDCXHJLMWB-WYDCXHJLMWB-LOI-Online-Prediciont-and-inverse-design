@@ -667,7 +667,13 @@ elif page == "配方建议":
             n_features = len(all_features)
             
             def generate_individual():
+                # 生成个体时，强制PP的数值大于等于50
                 individual = [random.uniform(0, 100) for _ in range(n_features)]
+                total = sum(individual)
+                # 设置PP的值不小于50
+                pp_index = all_features.index("PP")
+                individual[pp_index] = max(individual[pp_index], 50)
+                # 调整其他部分使得总和为100
                 total = sum(individual)
                 return [max(0, x / total * 100) for x in individual]  # 强制每个个体的和为100
             
@@ -687,6 +693,7 @@ elif page == "配方建议":
                         return (1e6,)
                     mass_percent = np.array(individual) / total * 100
                 
+                # 确保PP的数值大于等于50
                 pp_index = all_features.index("PP")
                 pp_content = mass_percent[pp_index]
                 if pp_content < 50:
@@ -739,12 +746,8 @@ elif page == "配方建议":
             units = [get_unit(fraction_type) for _ in all_features]
             result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
             
-            # 添加总和行
-            sum_row = result_df.sum(axis=0).round(2)
-            sum_row.name = '总和'
-            result_df = pd.concat([result_df, pd.DataFrame([sum_row])])
-            
             st.write(result_df)
+
 
 
     
