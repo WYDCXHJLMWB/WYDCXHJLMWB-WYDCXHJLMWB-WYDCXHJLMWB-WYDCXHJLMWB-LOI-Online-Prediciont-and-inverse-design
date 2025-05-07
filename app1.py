@@ -116,7 +116,7 @@ st.set_page_config(
 # 页面标题样式
 width = 200
 height = int(158 * (width / 507))
-st.markdown(
+'''st.markdown(
     f"""
     <h1 style="display: flex; align-items: center;">
         <img src="data:image/png;base64,{icon_base64}" style="width: {width}px; height: {height}px; margin-right: 15px;" />
@@ -124,7 +124,7 @@ st.markdown(
     </h1>
     """, 
     unsafe_allow_html=True
-)
+)'''
 
 # 侧边栏主导航
 page = st.sidebar.selectbox(
@@ -283,7 +283,7 @@ if page == "首页":
     st.markdown("""
     <div class="feature-section">
         <p style="font-size: 1.5rem; line-height: 1.9; color: #2c2c2c;">
-            本平台基于人工智能与材料科学技术，致力于阻燃聚合物复合材料的智能设计。
+            本平台融合AI与材料科学技术，用于可持续高分子复合材料智能设计，重点关注材料阻燃、力学和耐热等性能的优化与调控。
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -301,12 +301,12 @@ if page == "首页":
     """, unsafe_allow_html=True)
 
     # 文献引用
-    st.markdown('<div class="section-title">引用</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">研究成果</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="quote-section">
-        Ma W, Li L, Zhang Y, Li M, Song N, Ding P. <br>
+        Ma Weibin, Li Ling, Zhang Yu, Li Minjie, Song Na, Ding Peng. <br>
         <em>Active learning-based generative design of halogen-free flame-retardant polymeric composites.</em> <br>
-        <strong>J Mater Inf</strong> 2025;5:[Accept]. DOI: <a href="http://dx.doi.org/10.20517/jmi.2025.09" target="_blank">10.20517/jmi.2025.09</a>
+        <strong>J Mater Inf</strong> 2025;5:9. DOI: <a href="http://dx.doi.org/10.20517/jmi.2025.09" target="_blank">10.20517/jmi.2025.09</a>
     </div>
     """, unsafe_allow_html=True)
 
@@ -332,7 +332,7 @@ if page == "首页":
     st.markdown("""
     <div class="feature-section">
         <p style="font-size: 1.3rem; line-height: 1.9; color: #2c2c2c;">
-            上海大学功能高分子团队：马维宾，李凌，张瑜，宋娜，丁鹏
+            上海大学功能高分子团队-PolyDesign：马维宾，李凌，张瑜，宋娜，丁鹏
         </p>
     </div>
     """, unsafe_allow_html=True)
