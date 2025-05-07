@@ -397,9 +397,27 @@ if page == "首页":
     </div>
     """, unsafe_allow_html=True)
 
-    # 核心功能
-    st.markdown('<div class="section-title">核心功能</div>', unsafe_allow_html=True)
     st.markdown("""
+    <style>
+        .feature-list {
+            list-style: none; /* 移除默认列表符号 */
+            padding-left: 0;  /* 移除默认左内边距 */
+        }
+        .feature-list li:before {
+            content: "•";
+            color: var(--secondary);
+            font-size: 1.5em;
+            position: relative;
+            left: -0.8em;    /* 微调定位 */
+            vertical-align: middle;
+        }
+        .feature-list li {
+            margin-left: 1.2em;  /* 给符号留出空间 */
+            text-indent: -1em;   /* 文本缩进对齐 */
+        }
+    </style>
+    
+    <div class="section-title">核心功能</div>
     <div class="feature-section">
         <ul class="feature-list">
             <li><strong>性能预测</strong></li>
@@ -692,11 +710,12 @@ elif page == "配方建议":
                 ts_pred = models["ts_model"].predict(ts_scaled)[0]
                 ts_error = abs(target_ts - ts_pred)
                 
-                # 确保mass_percent的总和为100
+                # 强制确保 mass_percent 的总和为 100
                 total = sum(mass_percent)
                 if abs(total - 100) > 1e-6:
-                    mass_percent = (mass_percent / total) * 100
+                    mass_percent = (mass_percent / total) * 100  # 重新标准化
                 
+                # 追加总和为 100 的检查
                 if abs(sum(mass_percent) - 100) > 1e-6:
                     return (1e6,)
                 
