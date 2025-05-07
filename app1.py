@@ -180,7 +180,7 @@ if page == "首页":
     <style>
         body {
             font-family: 'Merriweather', serif;
-            font-size: 1.1rem;  /* 新增基础字号 */
+            font-size: 3 rem;  /* 新增基础字号 */
         }
         .header-container {
             display: flex;
@@ -194,7 +194,7 @@ if page == "首页":
         .platform-title {
             font-family: 'Roboto Slab', serif;
             color: #1e3d59;
-            font-size: 2.4rem;
+            font-size: 3 rem;
             margin-left: 1.5rem;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
         }
