@@ -111,7 +111,9 @@ def optimize_image_resolution(image_path, max_width=1200):  # 增大默认最大
     optimized_height = int(original_height * (optimized_width / original_width))
     
     return optimized_width, optimized_height
-
+def image_to_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()
 image_path = "图片1.png"
 icon_base64 = image_to_base64(image_path)
 optimized_width, optimized_height = optimize_image_resolution(image_path, max_width=1600)  # 提升最大宽度限制
