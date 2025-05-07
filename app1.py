@@ -449,7 +449,7 @@ elif page == "性能预测":
         "Mg(OH)2", "TCA", "MPP", "PAPP", "其他"
     ]
     additives = [
-        "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S", "silane coupling agent", "antioxidant", 
+        "Anti-drip-agent","wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S", "silane coupling agent", "antioxidant", 
         "SiO2", "其他"
     ]
     
@@ -528,7 +528,79 @@ elif page == "性能预测":
             st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
         with col2:
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
+        # 在预测结果下方添加验证样本
+        with st.expander("📊 模型精度验证样本（预测误差<15%）"):
+            st.markdown("""
+            <style>
+                .sample-box {
+                    border: 1px solid #e6e6e6;
+                    border-radius: 8px;
+                    padding: 1.2rem;
+                    margin: 1rem 0;
+                    background: #f9fafb;
+                }
+                .sample-title {
+                    color: #2c3e50;
+                    font-weight: 600;
+                    margin-bottom: 0.8rem;
+                }
+                .metric-badge {
+                    background: #f0f2f6;
+                    padding: 0.3rem 0.8rem;
+                    border-radius: 20px;
+                    display: inline-block;
+                    margin: 0.2rem;
+                }
+            </style>
+            """, unsafe_allow_html=True)
 
+            samples = [
+                {
+                    "配方1": "PP(63.2%) + PAPP(23%)+ZS(1.5%) + Anti-drip-agent(0.3%)+MPP(9%)+wollastonite(3%)",
+                    "LOI_真实值": 43.5,
+                    "LOI_预测值": 40.4959,
+                    "TS_真实值": 15.845,
+                    "TS_预测值": 15.5527
+                },
+                {
+                    "配方2": "PP(65.2%) + PAPP(23%)+ZS(1.5%) + Anti-drip-agent(0.3%)+MPP(7%)+wollastonite(3%)",
+                    "LOI_真实值": 43,
+                    "LOI_预测值": 40.4987,
+                    "TS_真实值": 16.94,
+                    "TS_预测值": 15.7157
+                },
+                {
+                    "配方3":"PP(58.2%) + PAPP(23%)+ZS(0.5%) + Anti-drip-agent(0.3%)+MPP(13%)+wollastonite(5%)",
+                    "LOI_真实值": 43.5,
+                    "LOI_预测值": 41.7956,
+                    "TS_真实值": 15.303,
+                    "TS_预测值": 14.8199
+                }
+            ]
+
+            for sample in samples:
+                loi_error = abs(sample["LOI_真实值"] - sample["LOI_预测值"])/sample["LOI_真实值"]*100
+                ts_error = abs(sample["TS_真实值"] - sample["TS_预测值"])/sample["TS_真实值"]*100
+                
+                st.markdown(f"""
+                <div class="sample-box">
+                    <div class="sample-title">📌 {sample["配方"]}</div>
+                    <div class="metric-badge" style="color: {"#2ecc71" if loi_error<15 else "#e74c3c"}">
+                        LOI误差: {loi_error:.1f}%
+                    </div>
+                    <div class="metric-badge" style="color: {"#2ecc71" if ts_error<15 else "#e74c3c"}">
+                        TS误差: {ts_error:.1f}%
+                    </div>
+                    <div style="margin-top: 0.8rem;">
+                        <span>🔥 真实LOI: {sample["LOI_真实值"]}%</span> → 
+                        <span>预测LOI: {sample["LOI_预测值"]}%</span>
+                    </div>
+                    <div>
+                        <span>💪 真实TS: {sample["TS_真实值"]}MPa</span> → 
+                        <span>预测TS: {sample["TS_预测值"]}MPa</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 # 配方建议页面
 elif page == "配方建议":
     if sub_page == "配方优化":
