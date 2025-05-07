@@ -313,18 +313,8 @@ if page == "首页":
     # 致谢部分
     st.markdown('<div class="section-title">致谢</div>', unsafe_allow_html=True)
     st.markdown("""
-    <div class="acknowledgment-grid">
-        <div class="ack-card">
-            <div style="line-height: 1.7; font-size: 1.2rem; color: #333;">
-                <div class="funding-badge" style="display: block; margin-bottom: 1rem;">
-                    项目名称：云南省科技重点计划项目
-                </div>
-                <div class="funding-badge" style="display: block; margin-bottom: 1rem;">
-                    项目编号：202302AB080022
-                </div>
-            </div>
-        </div>
-    </div>
+        <p style="font-size: 1.3rem; line-height: 1.9; color: #2c2c2c;">
+        本研究获得云南省科技重点计划项目(202302AB080022)支持:
     """, unsafe_allow_html=True)
 
     # 开发者信息
@@ -668,8 +658,7 @@ def add_footer():
     <hr>
     <footer style="text-align: center;">
         <p>© 2025 阻燃聚合物复合材料智能设计平台</p>
-        <p>开发者: 马维宾</p>
-        <p>平台性质声明：本平台为科研协作网络服务平台，所有内容仅供学术研究、技术验证等非营利性科研活动使用，严禁用于任何商业用途。</p>
+        <p>声明：本平台仅供学术研究、技术验证等非营利性科研活动使用，严禁用于任何商业用途。</p>
     </footer>
     """, unsafe_allow_html=True)
 
