@@ -100,32 +100,21 @@ import random
 from deap import base, creator, tools, algorithms
 
 # 页面配置
-def optimize_image_resolution(image_path, max_width=1000):
-    # 获取原始图片尺寸
+# 页面配置
+def optimize_image_resolution(image_path, max_width=1200):  # 增大默认最大宽度
     from PIL import Image
     img = Image.open(image_path)
     original_width, original_height = img.size
     
-    # 计算等比例缩放尺寸
-    if original_width > max_width:
-        ratio = max_width / original_width
-        optimized_width = max_width
-        optimized_height = int(original_height * ratio)
-    else:
-        optimized_width = original_width
-        optimized_height = original_height
+    # 保持宽高比，允许更灵活的缩放
+    optimized_width = min(original_width, max_width)
+    optimized_height = int(original_height * (optimized_width / original_width))
     
     return optimized_width, optimized_height
-# 辅助函数：图片转base64
-def image_to_base64(image_path):
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode()
 
-
-# 应用优化
 image_path = "图片1.png"
 icon_base64 = image_to_base64(image_path)
-optimized_width, optimized_height = optimize_image_resolution(image_path)
+optimized_width, optimized_height = optimize_image_resolution(image_path, max_width=1600)  # 提升最大宽度限制
 
 st.set_page_config(
     page_title="聚丙烯LOI和TS模型",
@@ -133,17 +122,58 @@ st.set_page_config(
     page_icon=f"data:image/png;base64,{icon_base64}"
 )
 
-# 响应式图片显示
+# 响应式左对齐布局
+st.markdown(f"""
+<style>
+    .header-container {{
+        width: 100%;
+        margin: 0;
+        padding: 0 0 0 1rem !important;  /* 强制左侧留白 */
+        text-align: left !important;
+        position: relative;
+    }}
+    
+    .maximized-image {{
+        width: auto !important;
+        height: {optimized_height}px !important;
+        max-width: 90vw !important;      /* 视口宽度90% */
+        max-height: 400px !important;    /* 最大高度限制 */
+        object-fit: contain;
+        margin-left: 0 !important;
+        padding: 0.5rem 0;
+        float: left !important;          /* 强制左浮动 */
+    }}
+    
+    /* 超大屏幕优化 */
+    @media (min-width: 2000px) {{
+        .maximized-image {{
+            max-width: 1600px !important;
+        }}
+    }}
+    
+    /* 移动端优化 */
+    @media (max-width: 768px) {{
+        .header-container {{
+            padding-left: 0.5rem !important;
+        }}
+        .maximized-image {{
+            max-width: 95vw !important;
+            height: auto !important;
+            max-height: 200px !important;
+        }}
+    }}
+</style>
+""", unsafe_allow_html=True)
+
+# 标题显示
 st.markdown(
     f"""
-    <div style="display: flex; justify-content: center;">
+    <div class="header-container">
         <img src="data:image/png;base64,{icon_base64}" 
-             style="max-width: {optimized_width}px; 
-                    width: 100%; 
-                    height: auto;
-                    object-fit: contain;
-                    margin: 1rem 0;" 
-             alt="Header Image">
+             class="maximized-image"
+             alt="Header Logo"
+             width="{optimized_width}"
+             height="{optimized_height}">
     </div>
     """, 
     unsafe_allow_html=True
