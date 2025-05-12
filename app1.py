@@ -634,15 +634,7 @@ elif page == "性能预测":
             st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
         with col2:
             st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
-
-
-
-import random
-import numpy as np
-import pandas as pd
-import streamlit as st
-from deap import base, creator, tools, algorithms
-
+            
 elif page == "配方建议":
     if sub_page == "配方优化":
         fraction_type = st.sidebar.radio(
