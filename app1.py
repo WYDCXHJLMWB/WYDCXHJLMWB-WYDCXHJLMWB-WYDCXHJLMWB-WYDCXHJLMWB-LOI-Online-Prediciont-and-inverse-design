@@ -637,6 +637,12 @@ elif page == "性能预测":
 
 
 
+import random
+import numpy as np
+import pandas as pd
+import streamlit as st
+from deap import base, creator, tools, algorithms
+
 elif page == "配方建议":
     if sub_page == "配方优化":
         fraction_type = st.sidebar.radio(
@@ -644,114 +650,125 @@ elif page == "配方建议":
             ["质量", "质量分数", "体积分数"],
             key="unit_type"
         )
-        st.subheader("🧪 配方建议：根据性能反推配方")
-    
-        col1, col2 = st.columns(2)
-        with col1:
-            target_loi = st.number_input("目标LOI值（%）", min_value=10.0, max_value=50.0, value=25.0, step=0.1)
-        with col2:
-            target_ts = st.number_input("目标TS值（MPa）", min_value=10.0, max_value=100.0, value=50.0, step=0.1)
-        
-        with st.expander("⚙️ 算法参数设置"):
-            pop_size = st.number_input("种群数量", 50, 500, 200)
-            n_gen = st.number_input("迭代代数", 10, 100, 50)
-            cx_prob = st.slider("交叉概率", 0.1, 1.0, 0.7)
-            mut_prob = st.slider("变异概率", 0.1, 1.0, 0.2)
-    
-        if st.button("🔍 开始优化", type="primary"):
-            creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+        st.subheader("🧪 配方建议：根据目标LOI和TS优化配方")
+
+        # 基体材料、阻燃剂和助剂的选项
+        matrix_materials = ["PP", "PA", "PC/ABS", "POM", "PBT", "PVC", "其他"]
+        flame_retardants = [
+            "AHP", "ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol", "DOPO",
+            "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides",
+            "Mg(OH)2", "TCA", "MPP", "PAPP", "其他"
+        ]
+        additives = [
+            "Anti-drip-agent", "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S", "silane coupling agent", "antioxidant",
+            "SiO2", "其他"
+        ]
+
+        # 配方选择框
+        st.subheader("请选择基体和阻燃剂")
+        selected_matrix = st.selectbox("选择基体", matrix_materials, index=0)
+        selected_flame_retardants = st.multiselect("选择阻燃剂", flame_retardants, default=["ZS"])
+
+        target_loi = st.number_input("请输入目标LOI值（%）", min_value=0.0, max_value=100.0, value=30.0, step=0.1)
+        target_ts = st.number_input("请输入目标TS值（MPa）", min_value=0.0, value=40.0, step=0.1)
+
+        if selected_matrix and selected_flame_retardants and target_loi and target_ts:
+            st.subheader("🎯 优化结果：根据目标LOI和TS生成的配方")
+
+            # 初始化配方生成的参数
+            all_features = ["PP", "PA", "PC/ABS", "POM", "PBT", "PVC", "ZS", "XiuCheng", "Al(OH)3", "MPP"]  # 示例特征列表，实际可以根据需要调整
+            num_individuals = 10  # 生成10个配方
+            min_value, max_value = 0.0, 100.0
+
+            # 1. 定义遗传算法个体和适应度
+            creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))  # 适应度包含两个目标：LOI误差和TS误差
             creator.create("Individual", list, fitness=creator.FitnessMin)
-            
+
             toolbox = base.Toolbox()
-            all_features = ensure_pp_first(list(set(models["loi_features"] + models["ts_features"])))
-            n_features = len(all_features)
-            
+
             def generate_individual():
-                # 生成个体时，强制PP的数值大于等于50
-                individual = [random.uniform(0, 100) for _ in range(n_features)]
+                individual = [random.uniform(min_value, max_value) for _ in range(len(all_features))]
                 total = sum(individual)
-                # 设置PP的值不小于50
-                pp_index = all_features.index("PP")
-                individual[pp_index] = max(individual[pp_index], 50)
-                # 调整其他部分，使得总和为100
-                remaining_sum = 100 - individual[pp_index]
-                # 随机分配剩余部分给其它成分
-                for i in range(n_features):
-                    if i != pp_index:
-                        individual[i] = random.uniform(0, remaining_sum)
-                total = sum(individual)
-                return [max(0, x / total * 100) for x in individual]  # 强制每个个体的和为100
-            
+                # 强制总和为100
+                return [x / total * 100 for x in individual]  # 标准化总和为100
+
             toolbox.register("individual", tools.initIterate, creator.Individual, generate_individual)
             toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-            
+
             def evaluate(individual):
-                # 根据单位类型选择体积分数/质量分数/质量
-                if fraction_type in ["质量分数", "体积分数"]:
-                    total = sum(individual)
-                    if total == 0:
-                        return (1e6,)
-                    mass_percent = np.array(individual) / total * 100
-                else:
-                    total = sum(individual)
-                    if total == 0:
-                        return (1e6,)
-                    mass_percent = np.array(individual) / total * 100
-                
-                # 确保PP的数值大于等于50
-                pp_index = all_features.index("PP")
-                pp_content = mass_percent[pp_index]
-                if pp_content < 50:
-                    return (1e6,)
-                
-                loi_input = mass_percent[:len(models["loi_features"])]
-                loi_scaled = models["loi_scaler"].transform([loi_input])
+                # 计算LOI和TS的预测值
+                input_values = dict(zip(all_features, individual))
+
+                # LOI预测
+                loi_input = np.array([[input_values.get(f, 0.0) for f in models["loi_features"]]])
+                loi_scaled = models["loi_scaler"].transform(loi_input)
                 loi_pred = models["loi_model"].predict(loi_scaled)[0]
-                loi_error = abs(target_loi - loi_pred)
-                
-                ts_input = mass_percent[:len(models["ts_features"])]
-                ts_scaled = models["ts_scaler"].transform([ts_input])
+
+                # TS预测
+                ts_input = np.array([[input_values.get(f, 0.0) for f in models["ts_features"]]])
+                ts_scaled = models["ts_scaler"].transform(ts_input)
                 ts_pred = models["ts_model"].predict(ts_scaled)[0]
+
+                # 计算LOI和TS的误差
+                loi_error = abs(target_loi - loi_pred)
                 ts_error = abs(target_ts - ts_pred)
-                
-                return (loi_error + ts_error,)
-            
+
+                return loi_error, ts_error
+
             toolbox.register("mate", tools.cxBlend, alpha=0.5)
             toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.2)
             toolbox.register("select", tools.selTournament, tournsize=3)
             toolbox.register("evaluate", evaluate)
-            
-            population = toolbox.population(n=pop_size)
-            algorithms.eaSimple(population, toolbox, cxpb=cx_prob, mutpb=mut_prob, ngen=n_gen, verbose=False)
-            
-            # 选择最好的个体，保证生成5到10个
-            best_individuals = tools.selBest(population, 10)
+
+            # 2. 运行遗传算法
+            population = toolbox.population(n=num_individuals)
+            algorithms.eaSimple(population, toolbox, cxpb=0.7, mutpb=0.2, ngen=50, verbose=False)
+
+            # 3. 选择最优的个体，生成配方
+            best_individuals = tools.selBest(population, num_individuals)
+
+            # 4. 转换为DataFrame格式
             best_values = []
             for individual in best_individuals:
-                # 根据单位类型进行标准化
-                if fraction_type in ["质量分数", "体积分数"]:
-                    total = sum(individual)
-                    if total != 0:
-                        normalized = [max(0, (x / total) * 100) for x in individual]
-                    else:
-                        normalized = [0.0] * len(individual)
-                else:
-                    total = sum(individual)
-                    if total != 0:
-                        normalized = [max(0, (x / total) * 100) for x in individual]
-                    else:
-                        normalized = [0.0] * len(individual)
-                # 二次标准化确保严格总和为100
-                normalized = np.array(normalized)
-                normalized = normalized / normalized.sum() * 100 if normalized.sum() != 0 else normalized
-                best_values.append([round(val, 2) for val in normalized])
-            
-            # 将所有个体的配方转化为DataFrame
+                best_values.append([round(val, 2) for val in individual])
+
             result_df = pd.DataFrame(best_values, columns=all_features)
+
+            # 设置单位为质量分数或体积分数
             units = [get_unit(fraction_type) for _ in all_features]
             result_df.columns = [f"{col} ({unit})" for col, unit in zip(result_df.columns, units)]
-            
+
             st.write(result_df)
+
+            st.subheader("📊 性能预测")
+            # 性能预测部分：基于生成的配方，进行LOI和TS预测
+            try:
+                for individual in best_individuals:
+                    input_values = dict(zip(all_features, individual))
+
+                    # LOI预测
+                    loi_input = np.array([[input_values.get(f, 0.0) for f in models["loi_features"]]])
+                    loi_scaled = models["loi_scaler"].transform(loi_input)
+                    loi_pred = models["loi_model"].predict(loi_scaled)[0]
+
+                    # TS预测
+                    ts_input = np.array([[input_values.get(f, 0.0) for f in models["ts_features"]]])
+                    ts_scaled = models["ts_scaler"].transform(ts_input)
+                    ts_pred = models["ts_model"].predict(ts_scaled)[0]
+
+                    # 显示LOI和TS预测结果
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
+                    with col2:
+                        st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
+
+            except KeyError as e:
+                st.error(f"模型特征缺失: {e}，请检查模型配置")
+                st.stop()
+
+        else:
+            st.warning("请选择基体、阻燃剂，并输入目标LOI和目标TS值以生成配方")
 
 
 
