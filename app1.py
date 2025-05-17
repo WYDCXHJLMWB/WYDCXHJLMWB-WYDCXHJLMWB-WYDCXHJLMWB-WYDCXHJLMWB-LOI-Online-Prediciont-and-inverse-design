@@ -209,13 +209,13 @@ def navigation():
     if selection == "退出登录":
         st.session_state.logged_in = False
         st.session_state.current_page = "首页"
-        st.experimental_rerun()
+        st.rerun()
         return  # 避免继续执行后续逻辑
 
     # 切换页面，更新当前页并刷新
     if selection != st.session_state.current_page:
         st.session_state.current_page = selection
-        st.experimental_rerun()
+        st.rerun()
 
 
 # ========================== 页面内容 ==========================
@@ -424,7 +424,7 @@ def login_page():
                         if username in users and users[username] == pw_hash:
                             st.session_state.logged_in = True
                             st.session_state.current_page = "首页"
-                            st.experimental_rerun()
+                            st.rerun()
                         else:
                             st.error("用户名或密码错误")
 
