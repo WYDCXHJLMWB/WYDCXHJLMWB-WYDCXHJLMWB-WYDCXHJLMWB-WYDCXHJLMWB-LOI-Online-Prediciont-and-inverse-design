@@ -237,39 +237,71 @@ def home_page():
     """, unsafe_allow_html=True)
 
 def login_page():
-    with st.container():
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            with st.form("login_form"):
+    mode = st.radio("选择操作", ["登录", "注册", "忘记密码"])
+
+    if mode == "登录":
+        with st.container():
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                with st.form("login_form"):
+                    st.markdown("""
+                    <div class="login-container">
+                        <h2 class="login-title">🔐 用户登录</h2>
+                    """, unsafe_allow_html=True)
+
+                    username = st.text_input("用户名")
+                    password = st.text_input("密码", type="password")
+                    login_button = st.form_submit_button("登录")
+
+                    if login_button:
+                        if username == "admin" and password == "123":
+                            st.session_state.logged_in = True
+                            st.session_state.current_page = "首页"
+                            st.experimental_rerun()
+                        else:
+                            st.error("用户名或密码错误")
+
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+            with col2:
                 st.markdown("""
-                <div class="login-container">
-                    <h2 class="login-title">🔐 用户登录</h2>
+                <div style="padding: 2rem; background: #f8f9fa; border-radius: 10px;">
+                    <h3>📢 使用说明</h3>
+                    <p>1. 登录后可访问完整功能</p>
+                </div>
                 """, unsafe_allow_html=True)
-                
-                username = st.text_input("用户名")
-                password = st.text_input("密码", type="password")
-                login_button = st.form_submit_button("登录")
-                
-                if login_button:
-                    if username == "admin" and password == "123":
-                        st.session_state.logged_in = True
-                        st.session_state.current_page = "首页"
-                        st.experimental_rerun()
-                    else:
-                        st.error("用户名或密码错误")
-                
-                st.markdown("</div>", unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown("""
-            <div style="padding: 2rem; background: #f8f9fa; border-radius: 10px;">
-                <h3>📢 使用说明</h3>
-                <p>1. 使用预设账号登录：admin/123</p>
-                <p>2. 登录后可访问完整功能</p>
-                <p>3. 数据输入需符合规范要求</p>
-                <p>4. 预测结果仅供参考验证</p>
-            </div>
-            """, unsafe_allow_html=True)
+
+    elif mode == "注册":
+        st.subheader("📝 用户注册")
+        with st.form("register_form"):
+            new_username = st.text_input("新用户名")
+            new_password = st.text_input("新密码", type="password")
+            confirm_password = st.text_input("确认密码", type="password")
+            register_button = st.form_submit_button("注册")
+
+            if register_button:
+                if not new_username or not new_password:
+                    st.error("用户名和密码不能为空")
+                elif new_password != confirm_password:
+                    st.error("两次密码输入不一致")
+                else:
+                    # 这里可以加注册逻辑，比如保存到数据库或文件
+                    st.success(f"用户 {new_username} 注册成功！请返回登录。")
+
+    else:  # 忘记密码
+        st.subheader("🔑 忘记密码")
+        with st.form("forgot_form"):
+            forget_username = st.text_input("请输入用户名")
+            reset_button = st.form_submit_button("重置密码")
+
+            if reset_button:
+                if not forget_username:
+                    st.error("请输入用户名")
+                else:
+                    # 这里可以实现发送邮件或者显示提示等逻辑
+                    st.info(f"密码重置链接已发送至用户 {forget_username} 绑定的邮箱（示例）")
+
+
 
 def prediction_page():
     st.subheader("🔮 性能预测：基于配方预测LOI和TS")
