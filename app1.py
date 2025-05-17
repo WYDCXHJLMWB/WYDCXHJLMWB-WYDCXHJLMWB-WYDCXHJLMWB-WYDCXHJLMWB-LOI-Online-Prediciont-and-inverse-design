@@ -459,9 +459,8 @@ def formula_page():
     )
 
     if sub_page == "配方优化":
-        # 配方优化功能
         st.subheader("🧪 配方优化建议")
-        
+
         # 加载模型
         models = {
             "loi_model": joblib.load("loi_model.pkl"),
@@ -487,199 +486,167 @@ def formula_page():
             "Mg(OH)2", "TCA", "MPP", "PAPP", "其他"
         ]
         additives = [
-            "Anti-drip-agent", "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S", 
+            "Anti-drip-agent", "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S",
             "silane coupling agent", "antioxidant", "SiO2", "其他"
         ]
 
-        # 输入参数
         col1, col2 = st.columns(2)
         with col1:
             selected_matrix = st.selectbox("选择基体材料", matrix_materials, index=0)
         with col2:
             selected_flame_retardants = st.multiselect("选择阻燃剂", flame_retardants, default=["ZS"])
-        
+
         selected_additives = st.multiselect("选择助剂", additives, default=["wollastonite"])
-        
+
         # 目标值输入
         target_loi = st.number_input("目标LOI值（%）", min_value=0.0, max_value=100.0, value=30.0)
         target_ts = st.number_input("目标TS值（MPa）", min_value=0.0, value=40.0)
 
         if st.button("🚀 开始优化"):
-                all_features = [selected_matrix] + selected_flame_retardants + selected_additives
-        
-                creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))
-                creator.create("Individual", list, fitness=creator.FitnessMin)
-        
-                toolbox = base.Toolbox()
-        
-                def repair_individual(individual):
-                    """确保基体含量最大且总和为100%"""
-                    individual = [max(0.0, x) for x in individual]
-                    total = sum(individual)
-                    
-                    if total <= 1e-6:
-                        return [100.0/len(individual)]*len(individual)
-                    
-                    scale = 100.0 / total
-                    individual = [x*scale for x in individual]
-                    
-                    try:
-                        matrix_idx = all_features.index(selected_matrix)
-                        matrix_value = individual[matrix_idx]
-                        other_max = max([v for i,v in enumerate(individual) if i != matrix_idx], default=0)
-                        
-                        if matrix_value <= other_max:
-                            delta = other_max - matrix_value + 0.01
-                            others_total = sum(v for i,v in enumerate(individual) if i != matrix_idx)
-                            
-                            if others_total > 0:
-                                deduction_ratio = delta / others_total
-                                for i in range(len(individual)):
-                                    if i != matrix_idx:
-                                        individual[i] *= (1 - deduction_ratio)
-                                individual[matrix_idx] += delta*others_total/others_total
-                            
-                            total = sum(individual)
-                            scale = 100.0 / total
-                            individual = [x*scale for x in individual]
-                            
-                    except ValueError:
-                        pass
-                    
-                    return individual
-        
-                def generate_individual():
-                    """生成初始个体，确保基体含量占优"""
-                    try:
-                        matrix_idx = all_features.index(selected_matrix)
-                    except ValueError:
-                        matrix_idx = 0
-        
-                    matrix_range = (60, 100) if selected_matrix == "PP" else (30, 50)
-                    matrix_percent = random.uniform(*matrix_range)
-                    
-                    remaining = 100 - matrix_percent
-                    n_others = len(all_features) - 1
-                    
-                    if n_others == 0:
-                        return [matrix_percent]
-                    
-                    others = np.random.dirichlet(np.ones(n_others)*0.5) * remaining
-                    others = others.tolist()
-                    
-                    individual = [0.0]*len(all_features)
-                    individual[matrix_idx] = matrix_percent
-                    
-                    other_idx = 0
-                    for i in range(len(all_features)):
-                        if i != matrix_idx:
-                            individual[i] = others[other_idx]
-                            other_idx += 1
-                            
-                    return repair_individual(individual)
-        
-                toolbox.register("individual", tools.initIterate, creator.Individual, generate_individual)
-                toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-        
-                def evaluate(individual):
-                    try:
-                        input_values = dict(zip(all_features, individual))
-                        
-                        # LOI预测部分
-                        loi_input = np.array([[input_values.get(f, 0.0) for f in models["loi_features"]]])
-                        loi_scaled = models["loi_scaler"].transform(loi_input)
-                        loi_pred = models["loi_model"].predict(loi_scaled)[0]
-        
-                        # TS预测部分
-                        ts_input = np.array([[input_values.get(f, 0.0) for f in models["ts_features"]]])
-                        ts_scaled = models["ts_scaler"].transform(ts_input)
-                        ts_pred = models["ts_model"].predict(ts_scaled)[0]
-        
-                        return (abs(target_loi - loi_pred), abs(target_ts - ts_pred))
-                    except Exception as e:
-                        print(f"Error in evaluate: {e}")
-                        return (float('inf'), float('inf'))
-        
-                def cxBlendWithConstraint(ind1, ind2, alpha):
-                    tools.cxBlend(ind1, ind2, alpha)
-                    ind1[:] = repair_individual(ind1)
-                    ind2[:] = repair_individual(ind2)
-                    return ind1, ind2
-        
-                def mutGaussianWithConstraint(individual, mu, sigma, indpb):
-                    tools.mutGaussian(individual, mu, sigma, indpb)
-                    individual[:] = repair_individual(individual)
-                    return individual,
-        
-                toolbox.register("evaluate", evaluate)
-                toolbox.register("mate", cxBlendWithConstraint, alpha=0.5)
-                toolbox.register("mutate", mutGaussianWithConstraint, mu=0, sigma=3, indpb=0.2)
-                toolbox.register("select", tools.selNSGA2)
-        
-                population = toolbox.population(n=150)
-                algorithms.eaMuPlusLambda(
-                    population, toolbox,
-                    mu=150, lambda_=300,
-                    cxpb=0.7, mutpb=0.3,
-                    ngen=250, verbose=False
-                )
-        
-                # 获取符合条件的个体并计算最终结果
-                valid_individuals = [ind for ind in population if not np.isinf(ind.fitness.values[0])]
-                best_individuals = tools.selBest(valid_individuals, k=5)
-        
-                results = []
-                for ind in best_individuals:
-                    normalized = [round(x, 2) for x in repair_individual(ind)]
-                    matrix_value = normalized[all_features.index(selected_matrix)]
-                    
-                    if not all(v <= matrix_value for i,v in enumerate(normalized) if i != all_features.index(selected_matrix)):
-                        continue
-                        
-                    input_dict = dict(zip(all_features, normalized))
-                    
-                    # LOI预测部分
-                    loi_input = [[input_dict.get(f, 0) for f in models["loi_features"]]]
+            all_features = [selected_matrix] + selected_flame_retardants + selected_additives
+
+            creator.create("FitnessMin", base.Fitness, weights=(-1.0, -1.0))
+            creator.create("Individual", list, fitness=creator.FitnessMin)
+            toolbox = base.Toolbox()
+
+            def repair_individual(individual):
+                individual = [max(0.0, x) for x in individual]
+                total = sum(individual)
+                if total <= 1e-6:
+                    return [100.0 / len(individual)] * len(individual)
+
+                scale = 100.0 / total
+                individual = [x * scale for x in individual]
+
+                try:
+                    matrix_idx = all_features.index(selected_matrix)
+                    matrix_value = individual[matrix_idx]
+                    other_max = max([v for i, v in enumerate(individual) if i != matrix_idx], default=0)
+
+                    if matrix_value <= other_max:
+                        delta = other_max - matrix_value + 0.01
+                        others_total = sum(v for i, v in enumerate(individual) if i != matrix_idx)
+                        if others_total > 0:
+                            deduction_ratio = delta / others_total
+                            for i in range(len(individual)):
+                                if i != matrix_idx:
+                                    individual[i] *= (1 - deduction_ratio)
+                            individual[matrix_idx] += delta * others_total / others_total
+
+                        total = sum(individual)
+                        scale = 100.0 / total
+                        individual = [x * scale for x in individual]
+                except ValueError:
+                    pass
+
+                return individual
+
+            def generate_individual():
+                try:
+                    matrix_idx = all_features.index(selected_matrix)
+                except ValueError:
+                    matrix_idx = 0
+
+                matrix_range = (60, 100) if selected_matrix == "PP" else (30, 50)
+                matrix_percent = random.uniform(*matrix_range)
+
+                remaining = 100 - matrix_percent
+                n_others = len(all_features) - 1
+                if n_others == 0:
+                    return [matrix_percent]
+
+                others = np.random.dirichlet(np.ones(n_others) * 0.5) * remaining
+                individual = [0.0] * len(all_features)
+                individual[matrix_idx] = matrix_percent
+
+                other_idx = 0
+                for i in range(len(all_features)):
+                    if i != matrix_idx:
+                        individual[i] = others[other_idx]
+                        other_idx += 1
+
+                return repair_individual(individual)
+
+            toolbox.register("individual", tools.initIterate, creator.Individual, generate_individual)
+            toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+
+            def evaluate(individual):
+                try:
+                    input_values = dict(zip(all_features, individual))
+                    loi_input = np.array([[input_values.get(f, 0.0) for f in models["loi_features"]]])
                     loi_scaled = models["loi_scaler"].transform(loi_input)
                     loi_pred = models["loi_model"].predict(loi_scaled)[0]
-                    
-                    # TS预测部分
-                    ts_input = [[input_dict.get(f, 0) for f in models["ts_features"]]]
+
+                    ts_input = np.array([[input_values.get(f, 0.0) for f in models["ts_features"]]])
                     ts_scaled = models["ts_scaler"].transform(ts_input)
                     ts_pred = models["ts_model"].predict(ts_scaled)[0]
-        
-                    if abs(target_loi - loi_pred) > 10 or abs(target_ts - ts_pred) > 10:
-                        continue
-                    
-                    results.append({
-                        **{f: normalized[i] for i,f in enumerate(all_features)},
-                        "LOI预测值 (%)": round(loi_pred, 2),
-                        "TS预测值 (MPa)": round(ts_pred, 2),
-                    })
-        
-                if results:
-                    df = pd.DataFrame(results)
-                    unit = "wt%" if "质量分数" in fraction_type else "vol%" if "体积分数" in fraction_type else "g"
-                    df.columns = [f"{col} ({unit})" if col in all_features else col for col in df.columns]
-                    
-                    st.dataframe(
-                        df.style.apply(lambda x: ["background: #e6ffe6" if x["LOI预测值 (%)"] >= target_loi and 
-                                                x["TS预测值 (MPa)"] >= target_ts else "" for _ in x], axis=1),
-                        height=400
-                    )
-                else:
-                    st.warning("未找到符合要求的配方，请尝试调整目标值")
 
-            
-            # 结果显示
+                    return (abs(target_loi - loi_pred), abs(target_ts - ts_pred))
+                except Exception as e:
+                    print(f"Error in evaluate: {e}")
+                    return (float('inf'), float('inf'))
+
+            def cxBlendWithConstraint(ind1, ind2, alpha):
+                tools.cxBlend(ind1, ind2, alpha)
+                ind1[:] = repair_individual(ind1)
+                ind2[:] = repair_individual(ind2)
+                return ind1, ind2
+
+            def mutGaussianWithConstraint(individual, mu, sigma, indpb):
+                tools.mutGaussian(individual, mu, sigma, indpb)
+                individual[:] = repair_individual(individual)
+                return individual,
+
+            toolbox.register("evaluate", evaluate)
+            toolbox.register("mate", cxBlendWithConstraint, alpha=0.5)
+            toolbox.register("mutate", mutGaussianWithConstraint, mu=0, sigma=3, indpb=0.2)
+            toolbox.register("select", tools.selNSGA2)
+
+            population = toolbox.population(n=150)
+            algorithms.eaMuPlusLambda(
+                population, toolbox,
+                mu=150, lambda_=300,
+                cxpb=0.7, mutpb=0.3,
+                ngen=250, verbose=False
+            )
+
+            valid_individuals = [ind for ind in population if not np.isinf(ind.fitness.values[0])]
+            best_individuals = tools.selBest(valid_individuals, k=5)
+
+            results = []
+            for ind in best_individuals:
+                normalized = [round(x, 2) for x in repair_individual(ind)]
+                matrix_value = normalized[all_features.index(selected_matrix)]
+
+                if not all(v <= matrix_value for i, v in enumerate(normalized) if i != all_features.index(selected_matrix)):
+                    continue
+
+                input_dict = dict(zip(all_features, normalized))
+                loi_input = [[input_dict.get(f, 0) for f in models["loi_features"]]]
+                loi_scaled = models["loi_scaler"].transform(loi_input)
+                loi_pred = models["loi_model"].predict(loi_scaled)[0]
+
+                ts_input = [[input_dict.get(f, 0) for f in models["ts_features"]]]
+                ts_scaled = models["ts_scaler"].transform(ts_input)
+                ts_pred = models["ts_model"].predict(ts_scaled)[0]
+
+                if abs(target_loi - loi_pred) > 10 or abs(target_ts - ts_pred) > 10:
+                    continue
+
+                results.append({
+                    **{f: normalized[i] for i, f in enumerate(all_features)},
+                    "LOI预测值 (%)": round(loi_pred, 2),
+                    "TS预测值 (MPa)": round(ts_pred, 2),
+                })
+
             if results:
                 df = pd.DataFrame(results)
                 unit = "wt%" if "质量分数" in fraction_type else "vol%" if "体积分数" in fraction_type else "g"
                 df.columns = [f"{col} ({unit})" if col in all_features else col for col in df.columns]
-                
+
                 st.dataframe(
-                    df.style.apply(lambda x: ["background: #e6ffe6" if x["LOI预测值 (%)"] >= target_loi and 
-                                            x["TS预测值 (MPa)"] >= target_ts else "" for _ in x], axis=1),
+                    df.style.apply(lambda x: ["background: #e6ffe6" if x["LOI预测值 (%)"] >= target_loi and
+                                              x["TS预测值 (MPa)"] >= target_ts else "" for _ in x], axis=1),
                     height=400
                 )
             else:
