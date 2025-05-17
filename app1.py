@@ -224,7 +224,7 @@ def navigation():
     # 切换页面，更新当前页并刷新
     if selection != st.session_state.current_page:
         st.session_state.current_page = selection
-        st.experimental_rerun()
+        st.rerun()
 
 
 # ========================== 页面内容 ==========================
