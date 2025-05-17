@@ -172,23 +172,32 @@ def show_header():
 
 def navigation():
     st.sidebar.title("🔧 导航菜单")
-    pages = []
-    
-    if st.session_state.logged_in:
+
+    # 决定显示哪些页面
+    if st.session_state.get("logged_in", False):
         pages = ["首页", "性能预测", "配方建议", "退出登录"]
     else:
         pages = ["首页", "用户登录"]
-    
+
+    # 当前页面初始设置（第一次运行）
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = "首页"
+
+    # 用户点击的页面
     selection = st.sidebar.radio("选择页面", pages, index=pages.index(st.session_state.current_page))
-    
-    if selection != st.session_state.current_page:
-        st.session_state.current_page = selection
-        st.experimental_rerun()
-    
+
+    # 如果用户选择的是退出登录，先设置状态，再重新加载
     if selection == "退出登录":
         st.session_state.logged_in = False
         st.session_state.current_page = "首页"
         st.experimental_rerun()
+        return  # 避免继续执行后续逻辑
+
+    # 切换页面，更新当前页并刷新
+    if selection != st.session_state.current_page:
+        st.session_state.current_page = selection
+        st.experimental_rerun()
+
 
 # ========================== 页面内容 ==========================
 def home_page():
