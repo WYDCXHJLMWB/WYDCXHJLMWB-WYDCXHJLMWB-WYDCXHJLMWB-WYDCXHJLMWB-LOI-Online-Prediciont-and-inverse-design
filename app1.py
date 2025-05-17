@@ -14,9 +14,11 @@ import io
 
 warnings.filterwarnings("ignore")
 
-# ========================== 登录状态管理 ==========================
+# ========================== 初始化状态 ==========================
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = "首页"
 
 # ========================== Predictor类定义 ==========================
 class Predictor:
@@ -35,7 +37,40 @@ class Predictor:
         ]
         self.imputer = SimpleImputer(strategy="mean")
 
-    # ...（保留原有方法实现）
+    def create_features(self, data):
+        # 静态特征处理
+        static_features = data[self.static_cols]
+        static_features = self.imputer.fit_transform(static_features)
+        
+        # 时间序列特征工程
+        time_series = data[self.time_series_cols]
+        features = []
+        for idx, row in time_series.iterrows():
+            seq = row.values
+            seq = seq[~np.isnan(seq)]
+            
+            # 统计特征
+            max_val = np.max(seq)
+            min_val = np.min(seq)
+            mean_val = np.mean(seq)
+            std_val = np.std(seq)
+            trend_val = (seq[-1] - seq[0]) / len(seq)
+            range_val = max_val - min_val
+            autocorr_val = np.correlate(seq - mean_val, seq - mean_val, mode='full')[len(seq)-1] / (std_val**2 * len(seq))
+            
+            # 组合特征
+            features.append([
+                len(seq), max_val, mean_val, min_val,
+                std_val, trend_val, range_val, autocorr_val
+            ])
+        
+        return np.hstack([static_features, np.array(features)])
+
+    def predict_one(self, sample):
+        sample_df = pd.DataFrame([sample], columns=self.static_cols + self.time_series_cols)
+        features = self.create_features(sample_df)
+        scaled_features = self.scaler.transform(features)
+        return self.model.predict(scaled_features)[0]
 
 # ========================== 全局配置和样式 ==========================
 def image_to_base64(image_path, quality=95):
@@ -87,34 +122,76 @@ st.markdown(f"""
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }}
     
-    /* 其他样式保留... */
+    .feature-card {{
+        padding: 1.5rem;
+        background: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }}
+    
+    .feature-card:hover {{
+        transform: translateY(-5px);
+    }}
+    
+    .card-title {{
+        color: #1e3d59;
+        margin-bottom: 0.8rem;
+    }}
+    
+    .section-title {{
+        color: #1e3d59;
+        font-size: 1.5rem;
+        margin: 2rem 0 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #1e3d59;
+    }}
+    
+    .quote-section {{
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-left: 4px solid #1e3d59;
+        margin: 1.5rem 0;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
-# ========================== 页面逻辑 ==========================
-# 动态生成侧边栏选项
-if st.session_state.logged_in:
-    page_options = ["首页", "性能预测", "配方建议"]
-else:
-    page_options = ["首页", "用户登录"]
-
-page = st.sidebar.selectbox("🔧 主功能选择", page_options, key="main_nav")
-
-# 全局页眉（始终显示）
-st.markdown(f"""
-<div class="global-header">
-    <img src="data:image/png;base64,{icon_base64}" 
-        class="header-logo"
-        alt="Platform Logo">
-    <div>
-        <h1 class="header-title">阻燃聚合物复合材料智能设计平台</h1>
-        <p class="header-subtitle">Flame Retardant Polymer Composite Intelligent Platform</p>
+# ========================== 页面组件 ==========================
+def show_header():
+    st.markdown(f"""
+    <div class="global-header">
+        <img src="data:image/png;base64,{icon_base64}" 
+            class="header-logo"
+            alt="Platform Logo">
+        <div>
+            <h1 class="header-title">阻燃聚合物复合材料智能设计平台</h1>
+            <p class="header-subtitle">Flame Retardant Polymer Composite Intelligent Platform</p>
+        </div>
     </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# 首页内容（始终显示）
-if page == "首页":
+def navigation():
+    st.sidebar.title("🔧 导航菜单")
+    pages = []
+    
+    if st.session_state.logged_in:
+        pages = ["首页", "性能预测", "配方建议", "退出登录"]
+    else:
+        pages = ["首页", "用户登录"]
+    
+    selection = st.sidebar.radio("选择页面", pages, index=pages.index(st.session_state.current_page))
+    
+    if selection != st.session_state.current_page:
+        st.session_state.current_page = selection
+        st.experimental_rerun()
+    
+    if selection == "退出登录":
+        st.session_state.logged_in = False
+        st.session_state.current_page = "首页"
+        st.experimental_rerun()
+
+# ========================== 页面内容 ==========================
+def home_page():
     st.markdown("""
     <div class="feature-section">
         <p>
@@ -123,7 +200,6 @@ if page == "首页":
     </div>
     """, unsafe_allow_html=True)
 
-    # 核心功能卡片布局
     st.markdown("""
     <div class="section-title">核心功能</div>
     <div class="feature-grid">
@@ -142,7 +218,6 @@ if page == "首页":
     </div>
     """, unsafe_allow_html=True)
 
-    # 研究成果展示
     st.markdown('<div class="section-title">研究成果</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="quote-section">
@@ -152,8 +227,7 @@ if page == "首页":
     </div>
     """, unsafe_allow_html=True)
 
-# 登录页面
-elif page == "用户登录" and not st.session_state.logged_in:
+def login_page():
     with st.container():
         col1, col2 = st.columns([1, 1])
         with col1:
@@ -170,6 +244,7 @@ elif page == "用户登录" and not st.session_state.logged_in:
                 if login_button:
                     if username == "admin" and password == "123":
                         st.session_state.logged_in = True
+                        st.session_state.current_page = "首页"
                         st.experimental_rerun()
                     else:
                         st.error("用户名或密码错误")
@@ -187,228 +262,248 @@ elif page == "用户登录" and not st.session_state.logged_in:
             </div>
             """, unsafe_allow_html=True)
 
-elif page == "性能预测":
-if not st.session_state.logged_in:
-    st.error("请先登录以访问此功能")
-    st.stop()
+def prediction_page():
+    st.subheader("🔮 性能预测：基于配方预测LOI和TS")
+    
+    # 加载模型
+    models = {
+        "loi_model": joblib.load("loi_model.pkl"),
+        "ts_model": joblib.load("ts_model.pkl"),
+        "loi_scaler": joblib.load("loi_scaler.pkl"),
+        "ts_scaler": joblib.load("ts_scaler.pkl"),
+        "loi_features": ["PP", "PAPP", "ZS", "Anti-drip-agent", "MPP", "wollastonite"],
+        "ts_features": ["PP", "PAPP", "ZS", "Anti-drip-agent", "MPP", "wollastonite"]
+    }
 
-# 原有性能预测代码
-st.subheader("🔮 性能预测：基于配方预测LOI和TS")
-
-matrix_materials = ["PP", "PA", "PC/ABS", "POM", "PBT", "PVC", "其他"]
-flame_retardants = [
-    "AHP", "ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol", "DOPO",
-    "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides",
-    "Mg(OH)2", "TCA", "MPP", "PAPP", "其他"
-]
-additives = [
-    "Anti-drip-agent", "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S", "silane coupling agent", "antioxidant",
-    "SiO2", "其他"
-]
-
-fraction_type = st.sidebar.selectbox("选择输入的单位", ["质量", "质量分数", "体积分数"])
-
-st.subheader("请选择配方中的基体、阻燃剂和助剂")
-selected_matrix = st.selectbox("选择基体", matrix_materials, index=0)
-selected_flame_retardants = st.multiselect("选择阻燃剂", flame_retardants, default=["ZS"])
-selected_additives = st.multiselect("选择助剂", additives, default=["wollastonite"])
-
-input_values = {}
-unit_matrix = get_unit(fraction_type)
-unit_flame_retardant = get_unit(fraction_type)
-unit_additive = get_unit(fraction_type)
-
-input_values[selected_matrix] = st.number_input(
-    f"选择 {selected_matrix} ({unit_matrix})", min_value=0.0, max_value=100.0, value=50.0, step=0.1
-)
-
-for fr in selected_flame_retardants:
-    input_values[fr] = st.number_input(
-        f"选择 {fr}({unit_flame_retardant})", min_value=0.0, max_value=100.0, value=10.0, step=0.1
-    )
-
-for ad in selected_additives:
-    input_values[ad] = st.number_input(
-        f"选择 {ad} ({unit_additive})", min_value=0.0, max_value=100.0, value=10.0, step=0.1
-    )
-
-total = sum(input_values.values())
-is_only_pp = all(v == 0 for k, v in input_values.items() if k != "PP")
-
-with st.expander("✅ 输入验证"):
-    if fraction_type in ["体积分数", "质量分数"]:
-        if abs(total - 100.0) > 1e-6:
-            st.error(f"❗ {fraction_type}的总和必须为100%（当前：{total:.2f}%）")
-        else:
-            st.success(f"{fraction_type}总和验证通过")
-    else:
-        st.success("成分总和验证通过")
-        if is_only_pp:
-            st.info("检测到纯PP配方")
-# 🧪 模型精度验证（添加在开始预测按钮之前）
-with st.expander("📊 模型精度验证"):
-    samples = [
-        {
-            "name": "配方1",
-            "配方": {"PP": 63.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 9.0, "wollastonite": 3.0},
-            "LOI_真实值": 43.5,
-            "TS_真实值": 15.845
-        },
-        {
-            "name": "配方2",
-            "配方": {"PP": 65.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 7.0, "wollastonite": 3.0},
-            "LOI_真实值": 43.0,
-            "TS_真实值": 16.94
-        },
-        {
-            "name": "配方3",
-            "配方": {"PP": 58.2, "PAPP": 23.0, "ZS": 0.5, "Anti-drip-agent": 0.3, "MPP": 13.0, "wollastonite": 5.0},
-            "LOI_真实值": 43.5,
-            "TS_真实值": 15.303
-        }
+    matrix_materials = ["PP", "PA", "PC/ABS", "POM", "PBT", "PVC", "其他"]
+    flame_retardants = [
+        "AHP", "ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol", "DOPO",
+        "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides",
+        "Mg(OH)2", "TCA", "MPP", "PAPP", "其他"
     ]
-
-    col1, col2, col3 = st.columns(3)
-    all_features = set(models["loi_features"]) | set(models["ts_features"])
-
-    for i, sample in enumerate(samples):
-        with [col1, col2, col3][i]:
-            st.markdown(f"### {sample['name']}")
-            st.write("配方：")
-            for ingredient, value in sample["配方"].items():
-                st.write(f"  - {ingredient}: {value} wt %")
-
-    for sample in samples:
-        input_vector = {feature: 0.0 for feature in all_features}
-        for k, v in sample["配方"].items():
-            if k not in input_vector:
-                st.warning(f"检测到样本中存在模型未定义的特征: {k}")
-            input_vector[k] = v
-
-        try:
-            loi_input = np.array([[input_vector[f] for f in models["loi_features"]]])
+    additives = [
+        "Anti-drip-agent", "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S", "silane coupling agent", "antioxidant",
+        "SiO2", "其他"
+    ]
+    fraction_type = st.sidebar.selectbox("选择输入的单位", ["质量", "质量分数", "体积分数"])
+    
+    st.subheader("请选择配方中的基体、阻燃剂和助剂")
+    selected_matrix = st.selectbox("选择基体", matrix_materials, index=0)
+    selected_flame_retardants = st.multiselect("选择阻燃剂", flame_retardants, default=["ZS"])
+    selected_additives = st.multiselect("选择助剂", additives, default=["wollastonite"])
+    
+    input_values = {}
+    unit_matrix = get_unit(fraction_type)
+    unit_flame_retardant = get_unit(fraction_type)
+    unit_additive = get_unit(fraction_type)
+    
+    input_values[selected_matrix] = st.number_input(
+        f"选择 {selected_matrix} ({unit_matrix})", min_value=0.0, max_value=100.0, value=50.0, step=0.1
+    )
+    
+    for fr in selected_flame_retardants:
+        input_values[fr] = st.number_input(
+            f"选择 {fr}({unit_flame_retardant})", min_value=0.0, max_value=100.0, value=10.0, step=0.1
+        )
+    
+    for ad in selected_additives:
+        input_values[ad] = st.number_input(
+            f"选择 {ad} ({unit_additive})", min_value=0.0, max_value=100.0, value=10.0, step=0.1
+        )
+    
+    total = sum(input_values.values())
+    is_only_pp = all(v == 0 for k, v in input_values.items() if k != "PP")
+    
+    with st.expander("✅ 输入验证"):
+        if fraction_type in ["体积分数", "质量分数"]:
+            if abs(total - 100.0) > 1e-6:
+                st.error(f"❗ {fraction_type}的总和必须为100%（当前：{total:.2f}%）")
+            else:
+                st.success(f"{fraction_type}总和验证通过")
+        else:
+            st.success("成分总和验证通过")
+            if is_only_pp:
+                st.info("检测到纯PP配方")
+    # 🧪 模型精度验证（添加在开始预测按钮之前）
+    with st.expander("📊 模型精度验证"):
+        samples = [
+            {
+                "name": "配方1",
+                "配方": {"PP": 63.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 9.0, "wollastonite": 3.0},
+                "LOI_真实值": 43.5,
+                "TS_真实值": 15.845
+            },
+            {
+                "name": "配方2",
+                "配方": {"PP": 65.2, "PAPP": 23.0, "ZS": 1.5, "Anti-drip-agent": 0.3, "MPP": 7.0, "wollastonite": 3.0},
+                "LOI_真实值": 43.0,
+                "TS_真实值": 16.94
+            },
+            {
+                "name": "配方3",
+                "配方": {"PP": 58.2, "PAPP": 23.0, "ZS": 0.5, "Anti-drip-agent": 0.3, "MPP": 13.0, "wollastonite": 5.0},
+                "LOI_真实值": 43.5,
+                "TS_真实值": 15.303
+            }
+        ]
+    
+        col1, col2, col3 = st.columns(3)
+        all_features = set(models["loi_features"]) | set(models["ts_features"])
+    
+        for i, sample in enumerate(samples):
+            with [col1, col2, col3][i]:
+                st.markdown(f"### {sample['name']}")
+                st.write("配方：")
+                for ingredient, value in sample["配方"].items():
+                    st.write(f"  - {ingredient}: {value} wt %")
+    
+        for sample in samples:
+            input_vector = {feature: 0.0 for feature in all_features}
+            for k, v in sample["配方"].items():
+                if k not in input_vector:
+                    st.warning(f"检测到样本中存在模型未定义的特征: {k}")
+                input_vector[k] = v
+    
+            try:
+                loi_input = np.array([[input_vector[f] for f in models["loi_features"]]])
+                loi_scaled = models["loi_scaler"].transform(loi_input)
+                loi_pred = models["loi_model"].predict(loi_scaled)[0]
+            except KeyError as e:
+                st.error(f"LOI模型特征缺失: {e}，请检查模型配置")
+                st.stop()
+    
+            try:
+                ts_input = np.array([[input_vector[f] for f in models["ts_features"]]])
+                ts_scaled = models["ts_scaler"].transform(ts_input)
+                ts_pred = models["ts_model"].predict(ts_scaled)[0]
+            except KeyError as e:
+                st.error(f"TS模型特征缺失: {e}，请检查模型配置")
+                st.stop()
+    
+            loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
+            ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
+            loi_color = "green" if loi_error < 15 else "red"
+            ts_color = "green" if ts_error < 15 else "red"
+    
+            with [col1, col2, col3][samples.index(sample)]:
+                st.markdown(f"""
+                <div class="sample-box">
+                    <div class="sample-title">📌 {sample["name"]}</div>
+                    <div class="metric-badge" style="color: {loi_color}">LOI误差: {loi_error:.1f}%</div>
+                    <div class="metric-badge" style="color: {ts_color}">TS误差: {ts_error:.1f}%</div>
+                    <div style="margin-top: 0.8rem;">
+                        🔥 真实LOI: {sample["LOI_真实值"]}% → 预测LOI: {loi_pred:.2f}%
+                    </div>
+                    <div>💪 真实TS: {sample["TS_真实值"]} MPa → 预测TS: {ts_pred:.2f} MPa</div>
+                </div>
+                """, unsafe_allow_html=True)
+    
+                if loi_error < 15 and ts_error < 15:
+                    st.success(f"✅ {sample['name']}：模型精度超过85%")
+                else:
+                    st.warning(f"⚠️ {sample['name']}：模型预测误差较大")
+    if st.button("🚀 开始预测", type="primary"):
+        if fraction_type in ["体积分数", "质量分数"] and abs(total - 100.0) > 1e-6:
+            st.error(f"预测中止：{fraction_type}的总和必须为100%")
+            st.stop()
+    
+        if is_only_pp:
+            loi_pred = 17.5
+            ts_pred = 35.0
+        else:
+            # 👉 如果是体积分数，转质量分数（默认处理）
+            if fraction_type == "体积分数":
+                vol_values = np.array(list(input_values.values()))
+                mass_values = vol_values
+                total_mass = mass_values.sum()
+                input_values = {
+                    k: (v / total_mass * 100) for k, v in zip(input_values.keys(), mass_values)
+                }
+    
+            # ✅ 如果是质量分数，自动换算成质量（默认总质量为100g）
+            if fraction_type == "质量分数":
+                total_mass = 100.0  # 默认总质量
+                input_values = {
+                    k: v / 100.0 * total_mass for k, v in input_values.items()
+                }
+    
+            # 🧠 填充模型所需的缺失特征
+            for feature in models["loi_features"]:
+                if feature not in input_values:
+                    input_values[feature] = 0.0
+    
+            loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
             loi_scaled = models["loi_scaler"].transform(loi_input)
             loi_pred = models["loi_model"].predict(loi_scaled)[0]
-        except KeyError as e:
-            st.error(f"LOI模型特征缺失: {e}，请检查模型配置")
-            st.stop()
-
-        try:
-            ts_input = np.array([[input_vector[f] for f in models["ts_features"]]])
+    
+            for feature in models["ts_features"]:
+                if feature not in input_values:
+                    input_values[feature] = 0.0
+    
+            ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
             ts_scaled = models["ts_scaler"].transform(ts_input)
             ts_pred = models["ts_model"].predict(ts_scaled)[0]
-        except KeyError as e:
-            st.error(f"TS模型特征缺失: {e}，请检查模型配置")
-            st.stop()
-
-        loi_error = abs(sample["LOI_真实值"] - loi_pred) / sample["LOI_真实值"] * 100
-        ts_error = abs(sample["TS_真实值"] - ts_pred) / sample["TS_真实值"] * 100
-        loi_color = "green" if loi_error < 15 else "red"
-        ts_color = "green" if ts_error < 15 else "red"
-
-        with [col1, col2, col3][samples.index(sample)]:
-            st.markdown(f"""
-            <div class="sample-box">
-                <div class="sample-title">📌 {sample["name"]}</div>
-                <div class="metric-badge" style="color: {loi_color}">LOI误差: {loi_error:.1f}%</div>
-                <div class="metric-badge" style="color: {ts_color}">TS误差: {ts_error:.1f}%</div>
-                <div style="margin-top: 0.8rem;">
-                    🔥 真实LOI: {sample["LOI_真实值"]}% → 预测LOI: {loi_pred:.2f}%
-                </div>
-                <div>💪 真实TS: {sample["TS_真实值"]} MPa → 预测TS: {ts_pred:.2f} MPa</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            if loi_error < 15 and ts_error < 15:
-                st.success(f"✅ {sample['name']}：模型精度超过85%")
-            else:
-                st.warning(f"⚠️ {sample['name']}：模型预测误差较大")
-if st.button("🚀 开始预测", type="primary"):
-    if fraction_type in ["体积分数", "质量分数"] and abs(total - 100.0) > 1e-6:
-        st.error(f"预测中止：{fraction_type}的总和必须为100%")
-        st.stop()
-
-    if is_only_pp:
-        loi_pred = 17.5
-        ts_pred = 35.0
-    else:
-        # 👉 如果是体积分数，转质量分数（默认处理）
-        if fraction_type == "体积分数":
-            vol_values = np.array(list(input_values.values()))
-            mass_values = vol_values
-            total_mass = mass_values.sum()
-            input_values = {
-                k: (v / total_mass * 100) for k, v in zip(input_values.keys(), mass_values)
-            }
-
-        # ✅ 如果是质量分数，自动换算成质量（默认总质量为100g）
-        if fraction_type == "质量分数":
-            total_mass = 100.0  # 默认总质量
-            input_values = {
-                k: v / 100.0 * total_mass for k, v in input_values.items()
-            }
-
-        # 🧠 填充模型所需的缺失特征
-        for feature in models["loi_features"]:
-            if feature not in input_values:
-                input_values[feature] = 0.0
-
-        loi_input = np.array([[input_values[f] for f in models["loi_features"]]])
-        loi_scaled = models["loi_scaler"].transform(loi_input)
-        loi_pred = models["loi_model"].predict(loi_scaled)[0]
-
-        for feature in models["ts_features"]:
-            if feature not in input_values:
-                input_values[feature] = 0.0
-
-        ts_input = np.array([[input_values[f] for f in models["ts_features"]]])
-        ts_scaled = models["ts_scaler"].transform(ts_input)
-        ts_pred = models["ts_model"].predict(ts_scaled)[0]
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
-    with col2:
-        st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
-
-elif page == "配方建议":
-    if not st.session_state.logged_in:
-        st.error("请先登录以访问此功能")
-        st.stop()
     
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric(label="LOI预测值", value=f"{loi_pred:.2f}%")
+        with col2:
+            st.metric(label="TS预测值", value=f"{ts_pred:.2f} MPa")
+
+def formula_page():
+    # 子页面选择
     sub_page = st.sidebar.selectbox(
         "🔧 子功能选择",
         ["配方优化", "添加剂推荐"],
         key="sub_nav"
     )
-    
+
     if sub_page == "配方优化":
-        # 原有配方优化代码
+        # 配方优化功能
+        st.subheader("🧪 配方优化建议")
+        
+        # 加载模型
+        models = {
+            "loi_model": joblib.load("loi_model.pkl"),
+            "ts_model": joblib.load("ts_model.pkl"),
+            "loi_scaler": joblib.load("loi_scaler.pkl"),
+            "ts_scaler": joblib.load("ts_scaler.pkl"),
+            "loi_features": ["PP", "PAPP", "ZS", "Anti-drip-agent", "MPP", "wollastonite"],
+            "ts_features": ["PP", "PAPP", "ZS", "Anti-drip-agent", "MPP", "wollastonite"]
+        }
+
+        # 单位类型选择
         fraction_type = st.sidebar.radio(
             "📐 单位类型",
             ["质量", "质量分数", "体积分数"],
             key="unit_type"
         )
-                    st.subheader("🧪 配方建议：根据目标LOI和TS优化配方")
-        
+
+        # 材料选择
         matrix_materials = ["PP", "PA", "PC/ABS", "POM", "PBT", "PVC", "其他"]
-            flame_retardants = [
-                    "AHP", "ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol", "DOPO",
-                    "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides",
-                    "Mg(OH)2", "TCA", "MPP", "PAPP", "其他"
-                ]
-            additives = [
-                    "Anti-drip-agent", "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S", "silane coupling agent", "antioxidant",
-                    "SiO2", "其他"
-                ]
-        
-            selected_matrix = st.selectbox("选择基体", matrix_materials, index=0)
+        flame_retardants = [
+            "AHP", "ammonium octamolybdate", "Al(OH)3", "CFA", "APP", "Pentaerythritol", "DOPO",
+            "EPFR-1100NT", "XS-FR-8310", "ZS", "XiuCheng", "ZHS", "ZnB", "antimony oxides",
+            "Mg(OH)2", "TCA", "MPP", "PAPP", "其他"
+        ]
+        additives = [
+            "Anti-drip-agent", "wollastonite", "M-2200B", "ZBS-PV-OA", "FP-250S", 
+            "silane coupling agent", "antioxidant", "SiO2", "其他"
+        ]
+
+        # 输入参数
+        col1, col2 = st.columns(2)
+        with col1:
+            selected_matrix = st.selectbox("选择基体材料", matrix_materials, index=0)
+        with col2:
             selected_flame_retardants = st.multiselect("选择阻燃剂", flame_retardants, default=["ZS"])
-            selected_additives = st.multiselect("选择助剂", additives, default=["wollastonite"])
         
-            target_loi = st.number_input("目标LOI值（%）", min_value=0.0, max_value=100.0, value=30.0)
-            target_ts = st.number_input("目标TS值（MPa）", min_value=0.0, value=40.0)
+        selected_additives = st.multiselect("选择助剂", additives, default=["wollastonite"])
         
+        # 目标值输入
+        target_loi = st.number_input("目标LOI值（%）", min_value=0.0, max_value=100.0, value=30.0)
+        target_ts = st.number_input("目标TS值（MPa）", min_value=0.0, value=40.0)
+
             if st.button("🚀 开始优化"):
                 all_features = [selected_matrix] + selected_flame_retardants + selected_additives
         
@@ -574,8 +669,22 @@ elif page == "配方建议":
                     )
                 else:
                     st.warning("未找到符合要求的配方，请尝试调整目标值")
-        
-    
+
+            
+            # 结果显示
+            if results:
+                df = pd.DataFrame(results)
+                unit = "wt%" if "质量分数" in fraction_type else "vol%" if "体积分数" in fraction_type else "g"
+                df.columns = [f"{col} ({unit})" if col in all_features else col for col in df.columns]
+                
+                st.dataframe(
+                    df.style.apply(lambda x: ["background: #e6ffe6" if x["LOI预测值 (%)"] >= target_loi and 
+                                            x["TS预测值 (MPa)"] >= target_ts else "" for _ in x], axis=1),
+                    height=400
+                )
+            else:
+                st.warning("未找到符合要求的配方，请尝试调整目标值")
+
         elif sub_page == "添加剂推荐":
             st.subheader("🧪 PVC添加剂智能推荐")
             predictor = Predictor("scaler_fold_1.pkl", "svc_fold_1.pkl")
@@ -718,18 +827,33 @@ elif page == "配方建议":
                                          format="%.2f"
                                      )
                                  })
+
+                except Exception as e:
+                    st.error(f"预测过程中发生错误：{str(e)}")
+                    st.stop()
+
+# ========================== 主程序 ==========================
+def main():
+    show_header()
+    navigation()
     
+    if st.session_state.current_page == "首页":
+        home_page()
+    elif st.session_state.current_page == "用户登录":
+        login_page()
+    elif st.session_state.current_page == "性能预测":
+        prediction_page()
+    elif st.session_state.current_page == "配方建议":
+        formula_page()
     
-    
-    
-    # 添加页脚
-    def add_footer():
-        st.markdown("""
-        <hr>
-        <footer style="text-align: center;">
-            <p>© 2025 阻燃聚合物复合材料智能设计平台</p>
-            <p>声明：本平台仅供学术研究、技术验证等非营利性科研活动使用，严禁用于任何商业用途。</p>
-        </footer>
-        """, unsafe_allow_html=True)
-    
-    add_footer()
+    # 页脚
+    st.markdown("""
+    <hr>
+    <footer style="text-align: center;">
+        <p>© 2025 阻燃聚合物复合材料智能设计平台</p>
+        <p>声明：本平台仅供学术研究、技术验证等非营利性科研活动使用，严禁用于任何商业用途。</p>
+    </footer>
+    """, unsafe_allow_html=True)
+
+if __name__ == "__main__":
+    main()
