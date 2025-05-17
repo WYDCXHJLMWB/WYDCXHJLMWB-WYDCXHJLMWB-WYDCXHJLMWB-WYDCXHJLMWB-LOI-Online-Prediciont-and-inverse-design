@@ -14,6 +14,15 @@ import io
 import json
 import hashlib
 import os
+# 在文件顶部添加版本兼容性处理
+def st_rerun():
+    """兼容所有 Streamlit 版本的刷新函数"""
+    if hasattr(st, "rerun"):
+        st.rerun()
+    elif hasattr(st, "experimental_rerun"):
+        st.rerun()
+    else:
+        raise st.stop()  #
 USER_DATA_FILE = "users.json"
 
 # 读取用户数据（用户名: 密码哈希）
@@ -209,7 +218,7 @@ def navigation():
     if selection == "退出登录":
         st.session_state.logged_in = False
         st.session_state.current_page = "首页"
-        st.experimental_rerun()
+        st.rerun()
         return  # 避免继续执行后续逻辑
 
     # 切换页面，更新当前页并刷新
@@ -424,7 +433,7 @@ def login_page():
                         if username in users and users[username] == pw_hash:
                             st.session_state.logged_in = True
                             st.session_state.current_page = "首页"
-                            st.experimental_rerun()
+                            st.rerun()
                         else:
                             st.error("用户名或密码错误")
 
